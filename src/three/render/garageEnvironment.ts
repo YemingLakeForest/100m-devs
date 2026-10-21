@@ -16,6 +16,7 @@ import { FRONT_FRAME, entrance, frontGlazing, gableSign, garageDeskStory, garage
 import { sconce, standingLamp } from './glowArt.ts'
 import { hqInterior } from './hqInterior.ts'
 import { buildHqSets } from './hqSets.ts'
+import { duckOffice } from './duckOffice.ts'
 import { OPS_STEP, heroRiser, opsPlinth, opsStep, ziggurat } from './hqShell.ts'
 import { craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
@@ -578,6 +579,8 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * new position, so the graph and the picture agree about where it is.
    */
   for (const f of GARAGE_FURNITURE) if (f.kind === 'planter') leafyPlanter(g, f.x, f.z, f.w)
+  // §11.7 [2026-10-21] — the CTO's corner bath. Built before the batch so the bath joins it; the duck is `dynamic`.
+  env.duck = duckOffice(g)
   if (scenery === 'on') {
     if (!cityGrid) garageNeighborhood(g)
     garageForecourt(g)

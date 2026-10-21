@@ -633,17 +633,8 @@ export function garageDeskStory(g: T.Group, id: string): void {
     for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) box(g, -1.2 + c * .28, 1.2 + r * .27, -.69, .2, .2, .01, ['#f2d95c', '#f2b05c', '#f08f7a'][(r + c) % 3])
     nameSign(g, '400 × THE BLUE BUTTON', -.5, 2.05, -.69, 1.2, 0, '#4e7d56')
   } else if (id === 'founder') {
-    // The rubber-duck debugger has been promoted to CTO: chunky, crowned, visible.
-    box(g, -.67, .92, 1.00, .47, .26, .35, '#edbe47')
-    box(g, -.67, 1.12, 1.03, .30, .28, .29, '#f4cf58')
-    box(g, -.67, 1.14, 1.22, .25, .085, .18, '#d77b36')
-    for (const x of [-.765, -.575]) {
-      box(g, x, 1.25, 1.184, .072, .09, .035, '#fff6dc')
-      box(g, x, 1.27, 1.207, .034, .045, .02, '#263c3c')
-    }
-    box(g, -.67, 1.4, 1.03, .3, .045, .26, '#d49a33')
-    for (const x of [-.78, -.67, -.56]) box(g, x, 1.445, 1.12, .045, .10, .045, '#e8b541')
-    nameSign(g, 'CTO', -.67, 1.01, 1.185, .32, 0, '#5f4c2c')
+    // [2026-10-21] The rubber duck that sat here, crowned and labelled CTO, has an office of his own: a bath in the
+    // north-east corner (`duckOffice.ts`, GDD §11.7) — *"put him somewhere in our office, instead of on our desk"*.
     // Pizza boxes are the founder's extremely informal filing system. [2026-10-05] They were a floor stack
     // under the desk's open front; the boss's desk has a front panel and a stack inside it is a stack nobody
     // sees, so they are on the desk, at the left hand, where the papers were.

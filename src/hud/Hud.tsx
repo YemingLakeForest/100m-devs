@@ -20,6 +20,7 @@ import {
   hireDeveloper,
   hireGrowthNow,
   hireQuote,
+  isDuckPromoted,
   layOff,
   layoffQuoteNow,
   massHire,
@@ -51,6 +52,7 @@ import { PipelineStrip } from './PipelineStrip.tsx'
 import { TREES, TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { pipelineAdvice } from './pipelineModel.ts'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
+import { DuckPanel } from './DuckPanel.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
 import type { HeroId } from '../sim/storyHeroes.ts'
@@ -70,6 +72,7 @@ import '../styles/legibility.css'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import {
   SCENES,
+  SCENE_DUCK_PROMOTED,
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
@@ -195,6 +198,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
   const [founderOpen, setFounderOpen] = useState(PREVIEW_TREES === 'you')
+  // §11.7 [2026-10-21] — the CTO's window: his own door, not a card on the roster.
+  const [duckOpen, setDuckOpen] = useState(PREVIEW_TREES === 'duck')
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
   // The keys the current scene line is pointing at (`DialogueLine.light`). Only
   // read while a scene is up, so a scene that ends cannot leave one glowing.
@@ -242,6 +247,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     if (talking) {
       setTreeOpen(false)
       setFounderOpen(false)
+      setDuckOpen(false)
       setGameMenuOpen(false)
       setGalleryOpen(false)
       setQueueOpen(false)
@@ -292,8 +298,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setTreesIntro(intro)
+    setDuckOpen(false)
     if (hero === 'you') {
       setFounderOpen(true)
+    } else if (hero === 'duck') {
+      // §11.7 — the CTO is not a person on the roster: his window is his own door.
+      setFounderOpen(false)
+      selectHero(null)
+      setDuckOpen(true)
     } else {
       setFounderOpen(false)
       selectHero(hero)
@@ -301,7 +313,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   }
 
   // One window at a time: the queue stands down when anything else is raised.
-  if (queueOpen && (galleryOpen || treeOpen || founderOpen || gameMenuOpen)) setQueueOpen(false)
+  if (queueOpen && (galleryOpen || treeOpen || founderOpen || duckOpen || gameMenuOpen)) setQueueOpen(false)
 
   /**
    * §21.7.7e — finish the character beat by putting the instrument they just
@@ -335,6 +347,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     // retired with the studio board.
     if (finished === SCENE_FOUNDER_BOARD.id) {
       openTree('you')
+      return
+    }
+
+    // §21.7.9 — the org change ends on the CTO's window, open on his bath: the
+    // instrument the scene named, in the player's hand (§21.7.7e).
+    if (finished === SCENE_DUCK_PROMOTED.id) {
+      openTree('duck', 'R')
     }
   }
 
@@ -346,6 +365,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const openCard = (id: HeroId) => {
     setTreeOpen(false)
     setFounderOpen(false)
+    setDuckOpen(false)
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setQueueOpen(false)
@@ -387,9 +407,16 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     }
   }
 
+  // §11.7 — the CTO's tree, counted the same way, for his own door's badge.
+  let duckBuyable = 0
+  if (unlocks.trees && isDuckPromoted()) {
+    for (const node of TREES.duck) if (treeRefusalOf('duck', node.id, state) === null) duckBuyable++
+  }
+
   const closeAll = () => {
     setTreeOpen(false)
     setFounderOpen(false)
+    setDuckOpen(false)
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setQueueOpen(false)
@@ -467,6 +494,30 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           tip: (): TipSpec => ({ title: 'YOU', tag: 'WINDOW', body: 'Your own pass and your own tree. You are the fifth tree, and worse at everything.' }),
         }]
       : []),
+    // §11.7 [2026-10-21] — the CTO, from the day the org change commits. His own
+    // door (§11's note: never a sixth tab on somebody's card), badged like
+    // PERSONNEL with what his tree has on sale.
+    ...(unlocks.trees && isDuckPromoted()
+      ? [{
+          id: 'cto',
+          label: 'CTO',
+          open: duckOpen,
+          badge: duckBuyable > 0 ? String(duckBuyable) : null,
+          onToggle: () => {
+            const was = duckOpen
+            closeAll()
+            selectHero(null)
+            setTreesIntro(null)
+            setDuckOpen(!was)
+          },
+          tip: (): TipSpec => ({
+            title: 'CTO',
+            tag: 'WINDOW',
+            rows: [['NODES YOU CAN BUY', String(duckBuyable)]],
+            body: 'B. Quackington III: his tree, and his wardrobe. Everything you buy him, he wears.',
+          }),
+        }]
+      : []),
     {
       id: 'menu',
       label: 'MENU',
@@ -479,6 +530,20 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       tip: (): TipSpec => ({ title: 'GAME MENU', tag: 'WINDOW', body: 'Sound, motion and your save. The studio keeps working while it is open.' }),
     },
   ]
+
+  // §11.7 — tapping the duck in his bath opens his window, once he is CTO.
+  const openDuckRef = useRef(() => openTree('duck'))
+  useEffect(() => {
+    openDuckRef.current = () => openTree('duck')
+  })
+
+  useEffect(() => {
+    if (!stage) return
+    stage.setDuckInspect?.(() => {
+      if (currentUnlocks().trees && isDuckPromoted()) openDuckRef.current()
+    })
+    return () => stage.setDuckInspect?.(null)
+  }, [stage])
 
   useEffect(() => {
     if (!stage) return
@@ -561,6 +626,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               onOpen={() => {
                 setTreeOpen(false)
                 setFounderOpen(false)
+                setDuckOpen(false)
                 setGameMenuOpen(false)
                 setGalleryOpen(false)
                 setQueueOpen(true)
@@ -720,6 +786,15 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         onClose={() => setFounderOpen(false)}
         state={state}
         treesOpen={unlocks.trees || PREVIEW_TREES !== null}
+        intro={treesIntro}
+      />
+      <DuckPanel
+        open={duckOpen && !talking}
+        onClose={() => {
+          setTreesIntro(null)
+          setDuckOpen(false)
+        }}
+        state={state}
         intro={treesIntro}
       />
       {/*

@@ -28,6 +28,7 @@ import {
 import { getPermanent, setPermanent } from './game/save.ts'
 import {
   SCENE_BILLY_ARRIVES,
+  SCENE_DUCK_PROMOTED,
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
@@ -194,6 +195,11 @@ export default function App() {
             // §21.7.4 — James's first colleague is his promotion now, so a
             // career with the whole cast has had it.
             SCENE_JAMES_PROMOTED.id,
+            // §21.7.9 [2026-10-21] — the duck's org change: the fixture's first
+            // buggy release would otherwise raise it and end on his window, over
+            // the HUD the gate is measuring. Recorded, so the CTO app is on the
+            // taskbar and the gate measures the bar with it.
+            SCENE_DUCK_PROMOTED.id,
           ],
         },
       })
@@ -237,6 +243,7 @@ export default function App() {
             SCENE_JAMES_ARRIVES.id,
             SCENE_JAMES_INSTANT_MESSENGER.id,
             SCENE_FOUNDER_BOARD.id,
+            SCENE_DUCK_PROMOTED.id,
             ...BEFORE[arrive],
           ],
         },

@@ -110,6 +110,23 @@ import {
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, itWasDegraded, withMattTree, withSerenaTree } from '../sim/treeLevers.ts'
 import { founderCapFromTree, jamesFromTree, withBillyTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
+import {
+  NO_DUCK,
+  PARTY_HAT_SHIPS,
+  combinedCatch,
+  duckFromTree,
+  duckLook,
+  itemForMoment,
+  itemForNode,
+  ownedItems,
+  toggleItem,
+  wardrobeKey,
+  wornOutfit,
+  type DuckEffects,
+  type DuckItem,
+  type DuckLook,
+  type DuckOutfit,
+} from '../sim/duck.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
 import {
@@ -185,6 +202,7 @@ import {
 } from './scenes.ts'
 import {
   SCENE_BILLY_ARRIVES,
+  SCENE_DUCK_PROMOTED,
   SCENE_FIRST_HIRE,
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_PROMOTED,
@@ -197,6 +215,7 @@ import {
   SYNC_FELT,
   arrivalGapPassed,
   arrivalPredicate,
+  duckPromoted,
   founderBoardArrives,
   firstHireArrives,
   jamesPromoted,
@@ -1277,7 +1296,8 @@ function techCached(s: GameState): NonNullable<typeof techCache> {
   if (currentUnlocks().trees) {
     const arrived = arrivedHeroes()
     for (const { hero, node } of TECH_CARRIERS) {
-      if (hero !== 'you' && !arrived.has(hero)) continue
+      // The CTO's nodes carry no old-board effect (`duckOf` is his), so only people are asked.
+      if (hero === 'duck' || (hero !== 'you' && !arrived.has(hero))) continue
       const level = node.kind === 'root' ? 1 : treeLevelOf(hero, node.id, s)
       if (level > 0) levels[node.tech!] = level
     }
@@ -2300,7 +2320,8 @@ function finishBuild(s: GameState): Partial<GameState> {
    * §4.14 — reception, from the ordinal, so a reload cannot reroll it. §13.7.1's
    * Friends At The Press lifts the floor of the roll and never its ceiling.
    */
-  const floor = founderOf().luckFloor
+  // §11.7 — the CTO's Press Junket is a second floor under the same roll.
+  const floor = combinedCatch(founderOf().luckFloor, duckOf(s).luckFloor)
   const luck = graded ? floor + (1 - floor) * luckRoll(s.runSeed, ordinal) : LUCK_NEUTRAL
 
   /** §4.14 — how in sync the team was, over the whole build (`teamSync.ts`). */
@@ -2345,7 +2366,8 @@ function finishBuild(s: GameState): Partial<GameState> {
   }
   // Serena's quality nodes: the queue checks what joins it, and takes a share of
   // the defects off as it does. (This was Test's catch, when there was a Test.)
-  const catches = pipelineOf(s).catches
+  // §11.7 — and the CTO reads it too: two independent reads, so what gets past both.
+  const catches = combinedCatch(pipelineOf(s).catches, duckOf(s).catches)
   build.defects *= 1 - catches
   build.density *= 1 - catches
 
@@ -2437,7 +2459,8 @@ let resolvingOffline = false
  */
 function reviewed(release: Release): Release {
   if (resolvingOffline || !currentUnlocks().simulated) return release
-  return refund(release, refundShare(release.rating)).release
+  // §11.7 — the CTO's Satisfaction Quackarantee halves what a bad review gives back.
+  return refund(release, refundShare(release.rating) * duckOf().refundScale).release
 }
 
 function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial<GameState> {
@@ -2888,6 +2911,9 @@ export function treeRefusalOf(hero: TreeHero, id: string, s: GameState = state):
   // [2026-10-16] Knows a Chap is an introduction, and once Billy is in the
   // building there is nobody left to introduce: it is not for sale.
   if (hero === 'james' && id === 'j3' && arrivedHeroes().has('billy')) return 'maxed'
+  // §11.7 [2026-10-21] — the CTO's tree is his from the org change, and not before:
+  // until then he is a duck in a bath.
+  if (hero === 'duck' && node.kind !== 'root' && !isDuckPromoted()) return 'absent'
   return treeRefusal(treeView(s), hero, node)
 }
 
@@ -2914,8 +2940,87 @@ export function buyTreeNode(hero: TreeHero, id: string): boolean {
       treeLevels: { ...state.treeLevels, [key]: (state.treeLevels[key] ?? 0) + 1 },
     })
   }
+  // §11.7 — every node of the CTO's tree hands him something to wear, the first time.
+  const item = hero === 'duck' ? itemForNode(id) : undefined
+  if (item) grantDuckItem(item)
   saveGame()
   return true
+}
+
+// --- §11.7, the CTO -------------------------------------------------------------
+//
+// [2026-10-21] B. Quackington III (`sim/duck.ts` has the argument). His tree is a
+// sixth tree in the one catalogue, so price, refusal, purchase and board are the
+// functions above; what is his alone is the promotion, the levers and the wardrobe.
+
+/** Has the org change committed? The scene's milestone is the whole of the state. */
+export function isDuckPromoted(): boolean {
+  return hasSeenScene(SCENE_DUCK_PROMOTED.id)
+}
+
+/** What the CTO does for the studio this frame: nothing until he is promoted, and nothing in Run 1. */
+export function duckOf(s: GameState = state): DuckEffects {
+  if (!currentUnlocks().trees) return NO_DUCK
+  return duckFromTree(s.treeLevels, isDuckPromoted())
+}
+
+/** The items in his wardrobe: every run's, because what he has worn is permanent. */
+export function duckWardrobe(): Set<string> {
+  return ownedItems(getPermanent().meta.milestones)
+}
+
+/** What he is wearing, filtered to what the career owns. */
+export function duckOutfit(): DuckOutfit {
+  return wornOutfit(getPermanent().meta.duckOutfit, duckWardrobe())
+}
+
+/** What the room draws for him — `three/render/duckOffice.ts` reads it each frame. */
+export function currentDuckLook(s: GameState = state): DuckLook {
+  return duckLook(s.treeLevels, isDuckPromoted(), duckOutfit())
+}
+
+/**
+ * Put an item into his wardrobe, and on him. A new item goes straight on — the
+ * room is the receipt for the purchase, and a receipt in a drawer is not one —
+ * and the player can take it off again from his window.
+ */
+function grantDuckItem(item: DuckItem): void {
+  const p = getPermanent()
+  const key = wardrobeKey(item.id)
+  if (p.meta.milestones.includes(key)) return
+  setPermanent({
+    ...p,
+    meta: {
+      ...p.meta,
+      milestones: [...p.meta.milestones, key],
+      duckOutfit: { ...p.meta.duckOutfit, [item.slot]: item.id },
+    },
+  })
+  // The run did not change, but the room and his window read the permanent block.
+  set({})
+}
+
+/** Wear an item he owns, or take it off if he is wearing it. False for an item not in the wardrobe. */
+export function wearDuckItem(id: string): boolean {
+  if (!duckWardrobe().has(id)) return false
+  const p = getPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, duckOutfit: toggleItem(p.meta.duckOutfit, id) } })
+  set({})
+  saveGame()
+  return true
+}
+
+/**
+ * The two items that are not from his tree: the party hat when the career has
+ * shipped {@link PARTY_HAT_SHIPS} games, the space helmet when James has gone to
+ * Proxima. Asked with the story triggers, so once a frame at most, and only
+ * once he is CTO (a hat for a duck nobody has noticed is a hat nobody sees).
+ */
+function checkDuckWardrobe(s: GameState): void {
+  if (!isDuckPromoted()) return
+  const have = duckWardrobe()
+  if (!have.has('partyhat') && nextOrdinal(s.history) - 1 >= PARTY_HAT_SHIPS) grantDuckItem(itemForMoment('shipped'))
+  if (!have.has('helmet') && hasSeenScene(SCENE_JAMES_PROXIMA.id)) grantDuckItem(itemForMoment('proxima'))
 }
 
 /**
@@ -3061,11 +3166,12 @@ export function tick(dtSeconds: number): void {
   // the rate is charged against rather than to the backlog: quality work means
   // fewer defects *written*, not defects deleted after the fact, and charging
   // it here keeps `defectsFromPoke` and this on one curve. (Mo's Quality branch
-  // used to sit beside it and went on 2026-10-04.)
+  // used to sit beside it and went on 2026-10-04.) §11.7 [2026-10-21]: the CTO
+  // sits there now — explaining a bug to the duck is the same kind of thing.
   const defects = open
     ? advanceDefects(
         state.defects,
-        (gained / dtSeconds) * founderOf().defectScale,
+        (gained / dtSeconds) * founderOf().defectScale * duckOf(state).defectScale,
         dtSeconds,
       )
     : 0
@@ -3083,7 +3189,8 @@ export function tick(dtSeconds: number): void {
         state.incidentPending,
         nextIncidentId,
         tail.releases,
-        heroes.incidentStartWork,
+        // §11.7 — the CTO's Bubble Bath: he has seen this one before.
+        heroes.incidentStartWork * duckOf(state).incidentStartWork,
       )
     : { incidents: [] as Incident[], pending: 0, cleared: 0, restored: [] }
   // Ids only ever increase, so the high-water mark is the whole bookkeeping.
@@ -3502,6 +3609,7 @@ function checkStoryTriggers(s: GameState): void {
  */
 function checkBoardTriggers(s: GameState): void {
   if (s.scene !== null) return
+  checkDuckWardrobe(s)
   // The promotion goes through the cooldown too, so it never lands on the frame
   // Serena's scene closes (§21.7.3 [2026-10-16]).
   if (!sceneCooledDown(s.runSeconds, s.lastSceneEndedAt)) return
@@ -3531,6 +3639,21 @@ function checkBoardTriggers(s: GameState): void {
 
   if (!hasSeenScene(SCENE_FOUNDER_BOARD.id) && founderBoardArrives(snapshot)) {
     showScene(SCENE_FOUNDER_BOARD.id)
+    return
+  }
+
+  // §21.7.9 [2026-10-21] — the duck's promotion: a game went out with known bugs
+  // on it. After the founder's board and before James's title, because it is a
+  // board too (his tree) and it answers something the player just did.
+  if (
+    !hasSeenScene(SCENE_DUCK_PROMOTED.id) &&
+    duckPromoted({
+      paradigmShifts: getPermanent().meta.paradigmShifts,
+      shipped: s.projectsShipped,
+      buggyReleases: s.releases.filter((r) => r.defectDensity > 0).length,
+    })
+  ) {
+    showScene(SCENE_DUCK_PROMOTED.id)
     return
   }
 
@@ -3803,8 +3926,10 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     //
     // §21.0c — and not at all during Run 1, where the counter would be the
     // first system on screen and there is nobody to hire against it.
+    // §11.7 — the CTO's Deal With It halves it, and so does his root's tenth:
+    // a poke is code written, and code written is what he scales.
     defects: currentUnlocks().simulated
-      ? state.defects + defectsFromPoke(paidNow)
+      ? state.defects + defectsFromPoke(paidNow) * duckOf(state).defectScale * duckOf(state).pokeDefectScale
       : 0,
     // The 10x Engineer quits permanently on the poke that cashes them out.
     devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
@@ -4720,6 +4845,9 @@ export function dismissScene(): void {
       ...permanent,
       meta: { ...permanent.meta, milestones: [...permanent.meta.milestones, id] },
     })
+    // §11.7 — the org change comes with a lanyard. Granted before the save below
+    // so the two land in one write.
+    if (id === SCENE_DUCK_PROMOTED.id) grantDuckItem(itemForMoment('promoted'))
     // A scene is cheap to re-show and expensive to lose. Write now rather than
     // waiting for a backgrounding that may never come (§24.9).
     saveGame()

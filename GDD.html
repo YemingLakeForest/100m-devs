@@ -9722,7 +9722,7 @@ trend in §10.11.2 rule 3 means nothing if the column is curated.</li>
 <h2 id="in-run-tech-tree-purchased-with-cash">11. In-Run Tech Tree (Purchased with Cash <code>$</code>)</h2>
 <blockquote>
 <p><strong>[amended 2026-09-26] Retired: the trees are the upgrades.</strong> <em>"I thought upgrades are trees, did we just mixed the 2 upgrade trees of old game and new games together?"</em>, then <em>"retire the old tree, but the story of james introducing us instant messenger should be how upgrade trees are introduced so we need that back in the new isometric tree."</em> The upgrades are the per-person isometric trees (§11.4's amendment), opened from each person's card after the first Paradigm Shift, and the <code>UPGRADES</code> button on the rail is gone. Two of this board's effects survive, carried by tree roots: Instant Messenger is the root of James's tree (§11.5) and the Daily Standup is the root of Billy's, because his arrival scene is him bringing it (§21.7.3). <code>sim/techTree.ts</code> stays as the vocabulary of effects a tree node can carry (<code>TreeNode.tech</code>, folded by <code>store.techOf</code>); nothing else reaches it until the economy rework wires more nodes. The rest of this section is history.</p>
-<p><strong>[future — noted 2026-09-27] A company-wide upgrade tree.</strong> <em>"I still want company wide upgrade tree, potentially can be something visible to the scene (debug rubber duck for example), put that in GDD for future"</em>. Beside the five people's trees, one tree that belongs to the studio itself, and whose purchases are things you can see in the room — the debug rubber duck on a desk is the example. Not designed yet. When it is: every purchase is an object in the scene (never only a number, the Garage to Galaxy rule that a figure needs a person or a thing on screen), it is drawn the way §11.4's trees are, and it is a door of its own rather than a sixth tab on anybody's card.</p>
+<p><strong>[future — noted 2026-09-27; built 2026-10-21 as §11.7] A company-wide upgrade tree.</strong> <em>"I still want company wide upgrade tree, potentially can be something visible to the scene (debug rubber duck for example), put that in GDD for future"</em>. Beside the five people's trees, one tree that belongs to the studio itself, and whose purchases are things you can see in the room — the debug rubber duck on a desk is the example. Not designed yet. When it is: every purchase is an object in the scene (never only a number, the Garage to Galaxy rule that a figure needs a person or a thing on screen), it is drawn the way §11.4's trees are, and it is a door of its own rather than a sixth tab on anybody's card. <strong>[amended 2026-10-21]</strong> Built: the tree is the CTO’s, and the CTO is the duck — §11.7.</p>
 </blockquote>
 <p>The in-run tree features <strong>three parallel branches</strong>. Upgrading Workforce without
 Communication Infra rapidly triggers the <strong>Communication Entropy Trap</strong>.</p>
@@ -10528,6 +10528,43 @@ and substantial improvement at every step. People still stand up. <strong>That i
 argument, not a balance artefact</strong> — §6 says the problem is coordination, and none of these
 four nodes is about coordination at all.</p>
 <hr />
+<h3 id="the-cto-is-a-rubber-duck-canon-added-2026-10-21">11.7 The CTO is a rubber duck <strong>[CANON - added 2026-10-21]</strong></h3>
+<p><em>"Want to create a new game mechanic, CTO, the rubber duck. Upgradable, can wear vanity items, this is yet another upgrade we can do. design a upgrade tree fitting for him, give him a funny name, and a story arch to introduce him. put him somewhere in our office, instead of on our desk right now."</em> This is §11's 2026-09-27 note made real, and it keeps the three promises the note made: <strong>every purchase is a thing you can see in the room</strong>, the tree is drawn the way §11.4's trees are, and it is <strong>a door of its own</strong> rather than a sixth tab on anybody's card.</p>
+<h4 id="who-he-is">11.7.1 Who he is</h4>
+<p><strong>B. Quackington III</strong> — <em>Quackington</em> to everybody, <em>B. QUACKINGTON III</em> to STUDIO_OS, which says his name in full exactly once, on the org change. A yellow rubber duck in a clawfoot bath. He never speaks; his one line in the whole game is <em>*squeak*</em>. The <em>III</em> is a question the founder asks and James declines (<em>"We don't talk about the first two."</em>), and it stays declined. His pass reads <code>CTO · EMPLOYEE #−1 · REPORTS TO NOBODY</code> and his payroll is one bath.</p>
+<p><strong>He is not a person and not a hero card.</strong> He has no HeroId, no seat, no trait and no offer letter, and he does not code: the room's work stream (§8.2a) leaves from everybody who works, so he is deliberately not one of the room's targets. He is a tree, a wardrobe, and a duck you can tap.</p>
+<h4 id="where-he-is">11.7.2 Where he is — the corner bath</h4>
+<p>From 2026-10-05 he was a crowned box labelled CTO on the founder's desk. <strong>He has an office now:</strong> a clawfoot bath on a rug in the north-east of the garage floor, south of the water cooler, east of Serena's plinth, north of the two east pods (<code>floorPlan.DUCK_BATH</code>, and a <code>bath</code> footprint in the walk grid). It is there from Act I, unremarked — the bath was in the garage when you moved in, and so was he. It stands turned to the lens (yaw 45°) so he looks out of the picture and the bath reads across the screen at its widest.</p>
+<p><strong>West of x = 11.4, and that is a measurement.</strong> The first placement was the corner proper, against the chamfer, and the frame showed him behind the east wall's glazing with its top rail drawn through him. On §12.1's camera a height <em>h</em> lands where a floor point 2<em>h</em> further back along x + z would, so the east wall's 4.6 m of glass covers every floor point with x &gt; 11.4; the bath's nearest corner is at 10.9.</p>
+<p>Tapping him squeaks him (a squash and a stretch at the water line) whether or not he is CTO, and once he is, opens his window.</p>
+<h4 id="what-he-does">11.7.3 What he does — he owns the bugs</h4>
+<p>§4.12's defects have had no owner since Mo went (2026-10-04): written at β per Story Point, doubled by a poke, carried onto the build, drawn on §10.7's ring, and from there turned into tickets, incidents and refunds that other people's trees answer. <strong>Nobody's tree touched the source.</strong> Rubber-duck debugging — explain the bug to the duck out loud, and halfway through you find it yourself — is the one joke in software that is exactly about that, so the duck is the source.</p>
+<table>
+<thead>
+<tr><th>Node</th><th>Era</th><th>What it does</th><th>He wears</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>The Corner Bath</strong> (root)<br /><em>It was in the garage when you moved in. So was he.</em></td><td>—</td><td>He is CTO: every game is written with 10% fewer bugs, from the org change, before anything is bought</td><td>CTO Lanyard (the org change hands it over)</td></tr>
+<tr><td><strong>Explain It Out Loud</strong> ×3</td><td>Garage</td><td>Bugs written −8% per level, compounding</td><td>Bow Tie; a stack of printouts per level by the bath</td></tr>
+<tr><td><strong>Reading Glasses</strong></td><td>Garage</td><td>He reads each build as it joins the queue: 15% of its bugs never reach the ring</td><td>Reading Glasses</td></tr>
+<tr><td><strong>Deal With It</strong> — pick one (fork E)</td><td>HQ</td><td>A poke writes half the bugs it did: a poked line is no buggier than any other</td><td>Pixel Shades</td></tr>
+<tr><td><strong>Monocle</strong> — pick one (fork E)</td><td>HQ</td><td>He reads the queue a second time: another 15%</td><td>Monocle</td></tr>
+<tr><td><strong>The Duck Knew All Along</strong> (breakthrough)</td><td>City</td><td>Bugs written −40%: the bug is explained before it is written</td><td>Tiny Crown</td></tr>
+<tr><td><strong>Press Junket</strong></td><td>HQ</td><td>No review rolls worse than 30% of the way up (§4.14's luck floor)</td><td>Top Hat</td></tr>
+<tr><td><strong>Satisfaction Quackarantee</strong></td><td>HQ</td><td>A bad review refunds half as much at launch</td><td>Necktie</td></tr>
+<tr><td><strong>Bubble Bath</strong></td><td>Garage</td><td>A new incident opens with 15% less work in it: he has seen this one before</td><td>Bubble Bath</td></tr>
+<tr><td><strong>Desk Duck for Everyone</strong> (repeatable)</td><td>HQ</td><td>Bugs written −5% per level, as many times as you like, on §11.4's repeatable price curve</td><td>Ducklings, one per level up to five</td></tr>
+</tbody>
+</table>
+<p><strong>Debugging runs east, the press west, the bath north, the desk ducks south</strong> — the board's directions say the branch. Fork E is James's fork C asked about bugs: the hand (poke all you like) or the read (catch more of what is written).</p>
+<p><strong>Every lever has a floor, and that is the design.</strong> The bugs are what Matt's and Serena's trees are <em>for</em>; a duck that could take the bug rate to zero would switch two people off. So the written rate never falls below about a third of β (<code>DUCK_DEFECT_FLOOR</code> 0.35 — the whole column without a desk duck is ≈0.42, so the repeatable sink has something to buy into for a while and never reaches the bottom), and no more than half a build's bugs are caught before the ring (<code>DUCK_CATCH_CAP</code>): the ring always has something on it. His catch and Serena's are two independent reads, combined as what gets past both. The numbers are first passes; the tests pin the directions and the floors. The tree is run state, like every tree; a Paradigm Shift clears it.</p>
+<h4 id="what-he-wears">11.7.4 What he wears — the wardrobe is the receipt</h4>
+<p><strong>Each node hands him one item the first time it is bought, and he puts it on.</strong> The room is the receipt for the purchase; a receipt in a drawer is not one. Four slots — head, face, neck, bath — each sized to read at the room's resting zoom (he is drawn at 1.4× a bath duck; at 1:1 a crown was three pixels). Two items are not from the tree: the <strong>Party Hat</strong> when the career has shipped 25 games, and the <strong>Space Helmet</strong> when James has gone to Proxima b (§21.8).</p>
+<p><strong>The wardrobe is permanent; the outfit is a choice.</strong> An item earned in any run is his in every run after (a permanent milestone, <code>duck.wear.&lt;id&gt;</code>), so a fork closed this run is a hat to come back for next run. What he wears is the player's to change on his window — a chip per item, <code>???</code> for one not yet earned with its source on hover, and on a short frame one button per slot that steps through what he owns. The outfit merges like §22.2's org chart: the newer device's layout, filtered to what the career owns.</p>
+<p><strong>Nothing in the wardrobe changes a number.</strong> The effect is the node's, worn or not. A hat that was also a stat would make the outfit an optimisation, and the point of a hat on a duck is the hat. This is also what keeps it clear of §7.8.8's <em>"no equipment slots"</em>: that rule forbids stat management of individuals, and the wardrobe has no stats. It is earned and never sold; if MONETISATION ever wants outfit variants, this is where they would hang, and that is a separate decision.</p>
+<h4 id="his-door">11.7.5 His door</h4>
+<p>A <code>CTO</code> app on the taskbar from the org change, badged with how many of his nodes are on sale, and the duck himself in the room. The window is the founder's screen with a duck in it: the pass across the top (portrait painted by the tree's own voxel painter, so the duck on the glass and the icons on his board are one hand), his live rows — <em>bugs written</em>, <em>caught before the ring</em> — and the wardrobe, then his board under it.</p>
+<hr />
 <hr />
 <h2 id="satirical-upgrade-themes-era-flavour-layer">12. Satirical Upgrade Themes (Era Flavour Layer)</h2>
 <p>Mapping the history of software engineering — from the ritualistic ceremonies of Agile to
@@ -11047,7 +11084,7 @@ be effective and where its unique effect is strongest.</p>
 <tr>
 <td><strong>CTO</strong></td>
 <td>Town</td>
-<td>Converts a percentage of entropy into cash</td>
+<td>Converts a percentage of entropy into cash <strong>[amended 2026-10-21]</strong> — superseded: the studio’s CTO is the rubber duck (§11.7), who owns the bugs and wears his upgrades. Kept as history.</td>
 <td>Monetises the dysfunction</td>
 </tr>
 <tr>
@@ -16457,6 +16494,27 @@ becomes permanent HUD furniture.</p>
 <p><strong>One at a time, and never late.</strong> Two due together are said one after the other, a bubble apart. A studio that crosses two buildings between bubbles hears only the higher one: <em>&quot;a hundred of us&quot;</em> said to a thousand is a line about a studio that no longer exists. James's lines are about the building, the fridge and the Wi-Fi — the tool and the process, never the people (§21.7.3 rule 3).</p>
 <p><strong>Measured, not asserted.</strong> <code>arrivalOrder.test.ts</code> prints the longest stretch of the hour with nothing said to the player — a scene or a line — and <code>npm run probe:pacing</code> prints the lines in its scenes column. The player who never buys anything stops growing at the wall, so after Matt the hour is quiet for them; that is a finding about that player's run, and a beat invented to fill it would be the event system again.</p>
 <p>Run 1 has none of this: §21.0e's four minutes are a script.</p>
+<h3 id="the-duck-is-promoted-canon-added-2026-10-21">21.7.9 The duck is promoted <strong>[CANON - added 2026-10-21]</strong></h3>
+<p><em>"…a story arch to introduce him."</em> The rubber duck has been in the bath in the corner of the garage since Act I and nobody has said a word about him (§11.7). <strong>He is promoted the first time a game goes out with known bugs on it</strong> — §21.7.3's rule, kept exactly: the CTO solves bugs, so the feeling is a game on sale with bugs the player could see on §10.7's ring and did not fix, because they shipped through them or because Serena's belt sent it while nobody was at the ring. Both are the same sentence: <em>we shipped it broken.</em> A release that left the ring clean has a density of zero, so "known bugs" is a fact on the release and not a new counter (<code>storyTriggers.duckPromoted</code>).</p>
+<p><strong>Not before the third game of the run</strong> (<code>DUCK_AFTER_SHIPS</code>): Run 2 opens on James, the first hire and the first launches, and a promotion on the first ring is a scene about a system the player has not met. A clock may hold a door shut, never open one. It is asked with the boards (§21.7.7) — after the founder's board, before James's title — because it is a board too and answers something the player just did. In a test play at 60× it landed on the sixth game of Run 2.</p>
+<p><strong>The scene is James's</strong>, because James is §21.7.0's man who is completely correct about a small thing. Fourteen lines:</p>
+<blockquote>
+<p>STUDIO_OS: <em>RELEASE SHIPPED. KNOWN BUGS: YES.</em><br />
+YOU: It went out with the bugs still in it.<br />
+JAMES: Did you ask the duck?<br />
+YOU: The duck in the bath.<br />
+JAMES: You explain the bug to him, one line at a time. Halfway through, you find it.<br />
+YOU: Rubber duck debugging is a joke, James.<br />
+JAMES: It's a methodology. He has never shipped a bug.<br />
+YOU: He has never shipped anything.<br />
+JAMES: Exactly.<br />
+QUACKINGTON: <em>*squeak*</em> — the lens goes to the bath<br />
+STUDIO_OS: <em>ORG CHANGE COMMITTED. B. QUACKINGTON III — CHIEF TECHNOLOGY OFFICER.</em><br />
+YOU: The third?<br />
+JAMES: We don't talk about the first two.<br />
+STUDIO_OS: <em>COMPENSATION: ONE (1) BATH. REPORTS TO: NOBODY.</em></p>
+</blockquote>
+<p>It ends on his window opened on his bath (§21.7.7e: the scene names an instrument and puts it in the player's hand), wearing the lanyard the org change came with. From then on a brass stand by the bath says CTO, and the promotion is the career's: every later run has a CTO from its first frame.</p>
 <h3 id="james-goes-to-proxima-centauri-canon-added-2026-08-30">21.8 James goes to Proxima Centauri <strong>[CANON — added 2026-08-30]</strong></h3>
 <p>§21.6's rule for the whole arc: <em>&quot;every prestige tier gets a James scene where he
 introduces it with total sincerity and it is faintly horrifying — stand-ups, ticketing,

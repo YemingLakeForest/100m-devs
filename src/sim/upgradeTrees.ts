@@ -48,7 +48,13 @@
 import { PIPELINE_ERA_COST, PIPELINE_LEVEL_STEP, PIPELINE_TREE, type PipelineNode } from './pipeline.ts'
 import type { CoordKind } from './dysfunction.ts'
 
-export const TREE_HEROES = ['you', 'james', 'billy', 'serena', 'matt'] as const
+/**
+ * [amended 2026-10-21] Six trees: the five people's and the CTO's (`sim/duck.ts`,
+ * GDD §11.7). He is not a person and not a hero card — the duck has no HeroId and
+ * no pass — but his tree is a tree, priced, gated and drawn by the same rules,
+ * so it lives in the same catalogue rather than in a copy of it.
+ */
+export const TREE_HEROES = ['you', 'james', 'billy', 'serena', 'matt', 'duck'] as const
 export type TreeHero = typeof TREE_HEROES[number]
 
 /** The rebuild's seven named slices of lost work (its §2.1), in the legend's order. */
@@ -95,6 +101,10 @@ export const TREE_HERO_DEFS: Record<TreeHero, TreeHeroDef> = {
   matt: {
     id: 'matt', name: 'Matt', role: 'Customer Support', slices: ['handoffs'],
     line: '“Four hundred people wrote in about the same button.” Tickets, incidents, and the four §17 puzzles in order.',
+  },
+  duck: {
+    id: 'duck', name: 'Quackington', role: 'CTO', slices: [],
+    line: 'B. Quackington III. You explain the bug to him; halfway through, you find it. He owns the bugs: fewer written, more caught, and the press told it was fine.',
   },
 }
 
@@ -448,6 +458,25 @@ const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
     N('h5', -3, -1, 'Status Page', 'status', 2, { p: ['h3a'], mv: ['handoffs', 'slacking', 3], d: 'Everyone can see it’s down, so nobody has to ask. Some stop working.' }),
     N('K', -3, -2, 'An FAQ People Read', 'faq', 3, { t: 'key', sl: 'handoffs', p: ['h4', 'h5'], all: true, lv: true, fx: 'The catalogue asks half as many questions.', d: 'It has never happened before, anywhere.' }),
   ],
+  // [2026-10-21] The CTO's tree — GDD §11.7, `sim/duck.ts` has the argument and
+  // the numbers. Every node is wired, and every node hands him something to wear
+  // the first time it is bought (`duck.itemForNode`): the room is the receipt.
+  // Debugging runs east (fewer bugs written, more caught before the ring, then a
+  // pick-one between the poke and the read), the press runs west, the bath north
+  // and the desk ducks south.
+  duck: [
+    N('R', 0, 0, 'The Corner Bath', 'bathtub', 0, { t: 'root', lv: true, fx: 'He is CTO: every game is written with 10% fewer bugs.', d: 'It was in the garage when you moved in. So was he. Nobody knows who left either.' }),
+    N('q1', 1, 0, 'Explain It Out Loud', 'bowtie', 0, { p: ['R'], t: 'lvl', max: 3, lv: true, fx: 'Bugs written −8% per level.', d: 'One line at a time, to the duck. Halfway through you hear it. He dresses for these.' }),
+    N('q2', 2, 0, 'Reading Glasses', 'readers', 0, { p: ['q1'], lv: true, fx: 'He reads each build as it joins the queue: 15% of its bugs never reach the ring.', d: 'He reads every build. Slowly. Nothing gets past him, except most things.' }),
+    // Fork E: the hand or the read — the same choice James's fork C offers, about bugs.
+    N('q3a', 3, 0, 'Deal With It', 'shades', 1, { p: ['q2'], ex: 'E', lv: true, fx: 'A poke writes half the bugs it did: a poked line is no buggier than any other.', d: 'Poke as hard as you like. He has seen worse, and he is wearing sunglasses.' }),
+    N('q3b', 2, 1, 'Monocle', 'monocle', 1, { p: ['q2'], ex: 'E', lv: true, fx: 'He reads the queue a second time: another 15% of each build’s bugs.', d: 'For the second read. Nobody asked for a second read.' }),
+    N('K', 3, 1, 'The Duck Knew All Along', 'crown', 2, { t: 'key', p: ['q3a', 'q3b'], lv: true, fx: 'Bugs written −40%: the bug is explained before it is written.', d: 'He knew where every bug was from the first day. He was waiting for you to say it out loud.' }),
+    N('p1', -1, 0, 'Press Junket', 'tophat', 1, { p: ['R'], lv: true, fx: 'No review rolls worse than 30% of the way up: the press has met the CTO.', d: 'He does the interviews. He says nothing. They call it his best one yet.' }),
+    N('p2', -2, 0, 'Satisfaction Quackarantee', 'necktie', 1, { p: ['p1'], lv: true, fx: 'A bad review refunds half as much at launch.', d: 'Every game comes with his personal guarantee, which is a picture of him.' }),
+    N('b1', 0, -1, 'Bubble Bath', 'bubbles', 0, { p: ['R'], lv: true, fx: 'A new incident opens with 15% less work in it: he has seen this one before.', d: 'He is very calm in an incident. Everyone stands round the bath until they are too.' }),
+    N('c1', 0, 1, 'Desk Duck for Everyone', 'ducklings', 1, { p: ['R'], t: 'lvl', rp: true, lv: true, fx: 'Bugs written −5% per level, as many times as you like — never below a third.', d: 'One on every desk, so nobody has to queue for the bath. The ducklings are still training.' }),
+  ],
 }
 
 /**
@@ -481,6 +510,7 @@ const mapTrees = (f: (tree: readonly TreeNode[]) => TreeNode[]): Record<TreeHero
   billy: f(CATALOGUE.billy),
   serena: f(CATALOGUE.serena),
   matt: f(CATALOGUE.matt),
+  duck: f(CATALOGUE.duck),
 })
 
 /** The board: every node that is drawn. */
@@ -497,6 +527,7 @@ export const TREE_BY_ID: Record<TreeHero, ReadonlyMap<string, TreeNode>> = {
   billy: byId('billy'),
   serena: byId('serena'),
   matt: byId('matt'),
+  duck: byId('duck'),
 }
 
 export function treeNode(hero: TreeHero, id: string): TreeNode | undefined {

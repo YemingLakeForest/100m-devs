@@ -288,6 +288,13 @@ export interface MetaSave {
   lessons: string[]
   /** Purchased entitlements (MONETISATION §6–7) — union. */
   entitlements: string[]
+  /**
+   * §11.7 [2026-10-21] — what the CTO is wearing, slot → item. A choice rather
+   * than an earning, so it merges like {@link orgChart}: the `savedAt` winner's
+   * outfit, less anything the merged career does not own (the wardrobe itself is
+   * `duck.wear.*` milestones, and those are a union).
+   */
+  duckOutfit: Record<string, string>
 
   /** All of the following are high-water marks and merge by **max**. */
   lifetimeRevenue: number
@@ -359,6 +366,7 @@ export function emptyMeta(): MetaSave {
     milestones: [],
     lessons: [],
     entitlements: [],
+    duckOutfit: {},
     lifetimeRevenue: 0,
     peakDevs: 0,
     lifetimeProjectsShipped: 0,
@@ -991,6 +999,8 @@ function normalisePermanent(value: unknown): PermanentSave {
       // correctly describes a career that has not been told anything yet.
       lessons: stringList(m.lessons),
       entitlements: stringList(m.entitlements),
+      // §11.7. Absent on every save written before the CTO, which is a duck wearing nothing.
+      duckOutfit: stringMap(m.duckOutfit),
       lifetimeRevenue: nonNegative(m.lifetimeRevenue, base.lifetimeRevenue),
       peakDevs: nonNegative(m.peakDevs, base.peakDevs),
       lifetimeProjectsShipped: nonNegative(m.lifetimeProjectsShipped, 0),
@@ -1033,8 +1043,8 @@ function maxMap(
  * not is a merge that depends on which device happened to sync first, which is
  * the bug the merge exists to prevent.
  *
- * `winner` is the last-write-wins side, and it is used for exactly one field:
- * the §22.2 org chart, which is a *layout* rather than an accumulation. Two
+ * `winner` is the last-write-wins side, and it is used for exactly two fields:
+ * the §22.2 org chart and the CTO's outfit (§11.7), which are *layouts* rather than accumulations. Two
  * different arrangements cannot be unioned into a third that either player
  * chose, so the most recent one wins and is then filtered to the cards the
  * merge actually produced.
@@ -1083,6 +1093,9 @@ export function mergePermanent(
       // §15.1a — a lesson learned on one device is learned.
       lessons: union(a.lessons, b.lessons),
       entitlements: union(a.entitlements, b.entitlements),
+      // §11.7 — the outfit is a layout, like the org chart: the winner's. What it
+      // names and the career does not own is dropped where it is read (`duck.wornOutfit`).
+      duckOutfit: { ...(winner === 'local' ? a.duckOutfit : b.duckOutfit) },
       lifetimeRevenue: Math.max(a.lifetimeRevenue, b.lifetimeRevenue),
       peakDevs: Math.max(a.peakDevs, b.peakDevs),
       lifetimeProjectsShipped: Math.max(a.lifetimeProjectsShipped, b.lifetimeProjectsShipped),

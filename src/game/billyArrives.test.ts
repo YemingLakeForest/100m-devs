@@ -27,6 +27,7 @@ import {
 import { emptyPermanent, setPermanent } from './save.ts'
 import {
   SCENE_BILLY_ARRIVES,
+  SCENE_DUCK_PROMOTED,
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
@@ -62,6 +63,9 @@ function atTheCap(devs: number, extra: string[] = []) {
         // §21.7.4 — James's first colleague is his promotion, and a studio
         // this size has long since had one.
         SCENE_JAMES_PROMOTED.id,
+        // §21.7.9 [2026-10-21] — and a studio that has shipped three games through
+        // Serena's belt has shipped one with bugs on it, so the duck is CTO.
+        SCENE_DUCK_PROMOTED.id,
         ...extra,
       ],
     },

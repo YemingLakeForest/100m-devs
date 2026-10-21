@@ -8,6 +8,7 @@ import type { SeatInstance, SeatInstances } from './worldArt.ts'
 import type { ProjectPlate } from './projectPlate.ts'
 import type { EndlessCity } from './city/endlessCity.ts'
 import type { HqSets } from './hqSets.ts'
+import type { DuckOffice } from './duckOffice.ts'
 
 export interface WorldTarget {
   rank: number
@@ -36,6 +37,8 @@ export interface Environment {
   backdrop?: EndlessCity
   /** The heroes' sets: the whiteboard, the dashboards, the ticket wall (`hqSets.ts`). */
   hq?: HqSets
+  /** §11.7 — the CTO in his bath (`duckOffice.ts`). The garage's only. */
+  duck?: DuckOffice
 }
 
 export interface GarageProp {

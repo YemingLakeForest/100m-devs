@@ -53,7 +53,8 @@ import { buildGarageEnvironment, GARAGE_ASSEMBLED, placeProp, showGarageSeats, s
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { placeInstances, showSeatInstances, type SeatInstance } from './worldArt.ts'
-import { LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
+import { DUCK_SEAT, LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
+import { NO_DUCK_LOOK, type DuckLook } from '../../sim/duck.ts'
 import { workSources } from './workSources.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
@@ -109,6 +110,13 @@ export interface GarageView {
    * the view only draws what it is told.
    */
   setReadouts(readouts: HqReadouts): void
+  /**
+   * §11.7 [2026-10-21] — the CTO in his bath: whether he is CTO yet, what he is wearing and what stands round the
+   * bath. Read off the store each frame like the readouts; the duck is rebuilt only when it changes.
+   */
+  setDuck(look: DuckLook): void
+  /** A tap landed on the duck: he squeaks. */
+  squeakDuck(): void
   /**
    * §15.1a [2026-10-04] — the first death's last scene: whoever is in the garage
    * goes up through the roof and every house lifts off. `liquidating` is true
@@ -391,6 +399,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   let env: Environment
   let heads = 0
+  /** §11.7 — the CTO's look as the stage last said it; a rebuild puts it back on him. */
+  let duckLook: DuckLook = NO_DUCK_LOOK
   let addressOffset = 0, visiting: number | null = null
   /** An ordinary seat the garage does not hold, in a city that has houses: its person is in one of them. */
   const inCity = (seat: number) => seat >= 0 && seat >= heads && city.count > 0
@@ -595,6 +605,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const side = o.name === 'arm-1' ? -1 : o.name === 'arm1' ? 1 : 0
       if (side && !o.parent?.userData.standing) arms.push({ arm: o, offset: arms.length * 1.7, side })
     })
+    // A rebuilt room has a fresh duck in it, wearing nothing: put his look back on.
+    env.duck?.setLook(duckLook)
     renderer.shadowMap.needsUpdate = true
     dirty = true
   }
@@ -1137,6 +1149,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     get liquidating() { return city.liquidating || anims.some((a) => a.kind === 'lift' && a.seat >= 0) },
     setReadouts(next) { readouts = next },
+    setDuck(look) {
+      duckLook = look
+      if (env?.duck?.setLook(look)) {
+        dirty = true
+        renderer.shadowMap.needsUpdate = true
+      }
+    },
+    squeakDuck() {
+      env?.duck?.squeak(clock)
+      dirty = true
+    },
     setHeroes(here) {
       const next = here.filter((id) => id === 'billy' || id === 'serena' || id === 'matt')
       wantedHeroes = next
@@ -1183,13 +1206,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         saved = null
         return
       }
+      // §11.7 — the duck is not a target (he does not code), so his head is asked for by name.
+      const duckAt = seat === DUCK_SEAT && env.duck ? env.duck.head(new T.Vector3()) : null
       const t = env.targets.find((target) => target.index === seat)
       const cityAt = inCity(seat) ? city.headOf(seat) : null
-      if (!t && !cityAt) return
+      if (!t && !cityAt && !duckAt) return
       if (!saved) saved = { pan: pan.clone(), zoom }
       // Look straight at their head; an orthographic view has no distance to fix.
-      const at = cityAt ?? t!.mesh.getWorldPosition(new T.Vector3())
-      if (!cityAt) at.y += t!.mesh.scale.y * 0.3
+      const at = duckAt ?? cityAt ?? t!.mesh.getWorldPosition(new T.Vector3())
+      if (!cityAt && !duckAt) at.y += t!.mesh.scale.y * 0.3
       const targetZoom = Math.max(zoom, 1.9)
       // The opening leaves the lower part of the frame for instructions.
       // Offset in camera-up space so the founder stays horizontally centred
@@ -1315,6 +1340,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (l.light.intensity !== intensity) { l.light.intensity = intensity; dirty = true }
       }
       animate()
+      // §11.7 — the duck's squeak.
+      if (env.duck?.update(clock)) dirty = true
       // The heroes' sets: dashboards, ticket wall and whiteboard repaint as the numbers move,
       // and the people in them never stop (§7.8.13). The ambient redraw below carries it.
       env.hq?.update(clock, readouts)
@@ -1380,7 +1407,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false
         return true
       })
-      const hit = ray.intersectObjects(live.map((t) => t.mesh), false)[0]
+      // §11.7 — the duck is asked alongside the people, nearest wins, and answers to his own id.
+      const duckHit = env.duck?.hit
+      const hit = ray.intersectObjects([...live.map((t) => t.mesh), ...(duckHit ? [duckHit] : [])], false)[0]
+      if (hit && hit.object === duckHit) return DUCK_SEAT
       if (hit) return live.find((t) => t.mesh === hit.object)?.index ?? null
       // Nobody in the garage under the finger: perhaps somebody in the city.
       return city.pick(ray)
@@ -1418,7 +1448,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     screenOf(seat) {
       frame()
       let p: T.Vector3 | null = null
-      if (inCity(seat)) {
+      if (seat === DUCK_SEAT) {
+        p = env.duck ? env.duck.head(new T.Vector3()) : null
+      } else if (inCity(seat)) {
         p = city.headOf(seat)
       } else {
         const t = env.targets.find((target) => target.index === seat)

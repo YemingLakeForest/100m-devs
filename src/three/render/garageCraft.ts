@@ -174,8 +174,9 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
  * The oak workstation the founder shared with James was a desk with a monitor on it. The boss of a studio that is
  * going to be a galaxy sits at a desk with *presence*: a walnut top with a green pad edged in brass, a pedestal
  * either side, a credenza behind the chair with a globe and a trophy on it, a rug under the lot, a tall leather
- * chair. The jokes are all still here — the duck promoted to CTO and the pizza boxes (`garageDeskStory`), the
- * oversized SHIP IT button — because they were the point of it.
+ * chair. The jokes are all still here — the pizza boxes (`garageDeskStory`), the oversized SHIP IT button — because
+ * they were the point of it. (The duck promoted to CTO sat here too until 2026-10-21; he has his own bath now,
+ * `duckOffice.ts`.)
  *
  * It is drawn on the same axes as every station: the occupant at the origin facing +z, the desk in front. The
  * footprint the sim reads (`floorPlan.BOSS_DESK`) is x −1.15…1.15, the back of the chair at −0.45 and the front of

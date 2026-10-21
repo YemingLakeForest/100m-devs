@@ -44,6 +44,7 @@ import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
+  currentDuckLook,
   finishLiquidation,
   currentEntropy,
   baseVelocity, developerVelocity, shelfBlocked, shelfCapacity, burnedFraction, projectOrdinal,
@@ -80,6 +81,7 @@ import type { FounderProfile } from '../game/founderProfile.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
 import {
   AT_BILLY,
+  AT_DUCK,
   AT_MATT,
   AT_SERENA,
   JAMES_DROPS_AT_LINE,
@@ -89,7 +91,7 @@ import {
   SCENE_SERENA_ARRIVES,
   SCENES,
 } from '../game/scenes.ts'
-import { leaderSeat } from '../three/sim/floorPlan.ts'
+import { DUCK_SEAT, leaderSeat } from '../three/sim/floorPlan.ts'
 import { hqReadouts } from './hqReadouts.ts'
 
 /**
@@ -136,6 +138,8 @@ export interface StageHandle {
   codeFounder(): number
   /** React hook for opening a hero's pass from their body in the room. */
   setHeroInspect(handler: ((id: HeroId) => void) | null): void
+  /** §11.7 — and the CTO's window, from the duck in his bath. */
+  setDuckInspect(handler: (() => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
   setFounderProfile(profile: FounderProfile): void
   /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
@@ -363,7 +367,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Over the room the lens goes to the speaker; STUDIO_OS has no body, so the
     // camera holds where it is for its lines.
     const row = typeof focus === 'number' ? ROW_FOCUS.get(focus) : undefined
-    const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : row ? leaderSeat(row) : null
+    // §21.7.9 — the duck's squeak: the lens goes to his bath.
+    const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : focus === AT_DUCK ? DUCK_SEAT : row ? leaderSeat(row) : null
     if (seat === null) return
     if (atlasZoom !== null) travel(1, -1)
     garage.focus(seat)
@@ -379,6 +384,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let critPunch = 0
 
   let heroInspect: ((id: HeroId) => void) | null = null
+  let duckInspect: (() => void) | null = null
 
   /** Where the lens is on the room's three stops, continuously. */
   const level = () => levelOfZoom(lensZoom())
@@ -408,6 +414,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       garage.hop(JAMES_SEAT)
       if (paid > 0) { handClick(JAMES_SEAT, paid); playKeyboardClick() }
       else playSfx('poke-void')
+      return
+    }
+    // §11.7 [2026-10-21] — the duck: a squeak, always (he has been squeakable since
+    // Act I, before anybody noticed him), and his window once he is CTO.
+    if (who === DUCK_SEAT) {
+      garage.squeakDuck()
+      playUi('click')
+      duckInspect?.()
       return
     }
     // The heroes are not coders: a tap on one is a hop, a click and their card
@@ -635,6 +649,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     layoffsSeen = layoffCount()
     garage.setHeadcount(state.devs, laidOff)
     garage.setReadouts(hqReadouts(state))
+    // §11.7 — the CTO, as the store has him: promoted or not, and what he is wearing.
+    garage.setDuck(currentDuckLook(state))
     // James arrives after the founder's *What—*, once the lens has reached his
     // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
     // *Ouch.* until he is down. A scene already past the line has him there.
@@ -891,6 +907,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     setHeroInspect(handler) {
       heroInspect = handler
+    },
+    setDuckInspect(handler) {
+      duckInspect = handler
     },
     setFounderProfile(profile: FounderProfile) {
       // The room's founder is the one the player made, not the default.

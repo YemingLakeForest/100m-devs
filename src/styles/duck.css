@@ -1,0 +1,116 @@
+/*
+ * The CTO's window — GDD §11.7 [2026-10-21]. The founder's pass (heroes.css)
+ * with a duck on it and a wardrobe in the fourth cell, where a hero's pass has
+ * its breakthrough slots.
+ *
+ * **No bare gaps** (CLAUDE.md, 2026-10-21): the pass is the window's `auto` row
+ * and the tree is its `1fr`, as on every card, so the spare height is the
+ * board's. Inside the pass the wardrobe is as tall as its four rows and the
+ * face is a square beside it; on a short frame the rows lie two by two so the
+ * pass does not grow past the face.
+ */
+
+/* The portrait is a 64 px buffer shown at whole multiples, nearest-neighbour: pixels, not a smear. */
+.duckcard__portrait {
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+
+.duckcard__wardrobe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--type-1x);
+}
+
+.duckcard__slot {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.duckcard__slot-name {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.duckcard__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ui-btn.duckcard__item {
+  padding: 1px 6px;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* A chip for something not earned yet is a promise, drawn as the tree draws a locked tile: dim, and no fill. */
+.ui-btn.duckcard__item:disabled {
+  color: var(--p1);
+  border-color: var(--p1);
+  border-style: dashed;
+  opacity: 1;
+}
+
+@container frame (max-height: 560px) {
+  .duckcard__wardrobe {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 10px;
+  }
+
+  .duckcard__slot {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+}
+
+/* The one-button-per-slot wardrobe, for frames too short for the chips. */
+.duckcard__compact {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ui-btn.duckcard__cycle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+/*
+ * A short frame (a phone on its side is 336 px): the chips would take the board's height, so the
+ * compact wardrobe stands in for them, and the name drops to a size that fits on one line.
+ */
+@container frame (max-height: 470px) {
+  .duckcard__wardrobe {
+    display: none;
+  }
+
+  .duckcard__compact {
+    display: grid;
+  }
+
+  .duckcard .herocard__name {
+    font-size: var(--type-1x);
+  }
+}
+
+/* Phone width: the face stays (it is the point of the window) and the words take the rest. */
+@container frame (max-width: 760px) {
+  .duckcard__pass {
+    grid-template-columns: auto minmax(0, 0.7fr) minmax(0, 1.3fr);
+  }
+
+  .duckcard__pass .herocard__role {
+    display: none;
+  }
+}

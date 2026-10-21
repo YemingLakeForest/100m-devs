@@ -231,6 +231,23 @@ describe('the monotonic merge — SAVE.md §3, GDD §24.3', () => {
     expect(mergePermanent(local, remote, 'local').meta.orgChart).toEqual({ '1': 'james' })
   })
 
+  it('takes the winner’s CTO outfit, and keeps every item either device earned — §11.7 [2026-10-21]', () => {
+    // The outfit is a choice, like the org chart; the wardrobe is an earning, a union of milestones.
+    const local = permanent({ milestones: ['duck.wear.crown'], duckOutfit: { head: 'crown' } })
+    const remote = permanent({ milestones: ['duck.wear.readers'], duckOutfit: { face: 'readers' } })
+    expect(mergePermanent(local, remote, 'remote').meta.duckOutfit).toEqual({ face: 'readers' })
+    expect(mergePermanent(local, remote, 'local').meta.duckOutfit).toEqual({ head: 'crown' })
+    expect(mergePermanent(local, remote).meta.milestones.sort()).toEqual(['duck.wear.crown', 'duck.wear.readers'])
+  })
+
+  it('reads a save from before the CTO as a duck wearing nothing — §11.7', () => {
+    const save = migrate({
+      version: SAVE_VERSION,
+      permanent: { layer1: emptyPermanent().layer1, meta: { heroCards: [] } },
+    } as unknown as SaveData)!
+    expect(save.permanent.meta.duckOutfit).toEqual({})
+  })
+
   it('unions unlocked nodes and takes the higher level on each', () => {
     const a: PermanentSave = {
       layer1: { bp: 0, paradigmNodes: ['L1-1A'], paradigmLevels: { 'L1-1A': 3 } },

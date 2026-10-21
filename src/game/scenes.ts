@@ -24,6 +24,8 @@ export interface Scene {
 const PLAYER = 'YOU'
 const JAMES = 'JAMES'
 const OS = 'STUDIO_OS'
+/** §21.7.9 — the CTO. He squeaks. */
+const DUCK = 'QUACKINGTON'
 
 /**
  * §10.7a.1 — where each speaker is.
@@ -624,6 +626,49 @@ export const SCENE_JAMES_PROXIMA: Scene = {
   ],
 }
 
+/**
+ * §21.7.9 — **the duck is promoted** [CANON - added 2026-10-21, at the user's
+ * instruction: *"design a upgrade tree fitting for him, give him a funny name,
+ * and a story arch to introduce him"*].
+ *
+ * He has been in the bath in the corner of the garage since Act I, and nobody
+ * has mentioned him. The first game to go out with known bugs on it is the
+ * moment (`storyTriggers.duckPromoted`), and the scene is James's, because
+ * James is §21.7.0's man who is completely correct about a small thing: he
+ * recommends rubber-duck debugging as a methodology, with total sincerity, and
+ * the org change commits before the founder has finished objecting.
+ *
+ * **The duck's one line is a squeak**, and the lens goes to him for it. He
+ * never speaks, in this scene or any other; that is the character. His name is
+ * the OS's to say, in full, once: `B. QUACKINGTON III`. The *III* is a question
+ * the founder asks and James declines, and it stays declined.
+ *
+ * It ends on his window, opened on his root (`Hud.finishDialogue`), the way
+ * James's Instant Messenger ends on James's tree (§21.7.7e): the scene names an
+ * instrument and puts it in the player's hand.
+ */
+export const AT_DUCK = 9
+
+export const SCENE_DUCK_PROMOTED: Scene = {
+  id: 'scene.run2.duck-promoted',
+  script: [
+    { speaker: OS, text: 'RELEASE SHIPPED. KNOWN BUGS: YES.' },
+    { speaker: PLAYER, text: 'It went out with the bugs still in it.', focus: AT_YOU },
+    { speaker: JAMES, text: 'Did you ask the duck?', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'The duck in the bath.', focus: AT_YOU },
+    { speaker: JAMES, text: 'You explain the bug to him, one line at a time. Halfway through, you find it.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'Rubber duck debugging is a joke, James.', focus: AT_YOU },
+    { speaker: JAMES, text: 'It’s a methodology. He has never shipped a bug.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'He has never shipped anything.', focus: AT_YOU },
+    { speaker: JAMES, text: 'Exactly.', focus: AT_JAMES },
+    { speaker: DUCK, text: '*squeak*', focus: AT_DUCK },
+    { speaker: OS, text: 'ORG CHANGE COMMITTED. B. QUACKINGTON III — CHIEF TECHNOLOGY OFFICER.' },
+    { speaker: PLAYER, text: 'The third?', focus: AT_YOU },
+    { speaker: JAMES, text: 'We don’t talk about the first two.', focus: AT_JAMES },
+    { speaker: OS, text: 'COMPENSATION: ONE (1) BATH. REPORTS TO: NOBODY.' },
+  ],
+}
+
 /** The promotion's title, verbatim — it renders on the card, the chart, the plate. */
 export const JAMES_PROMOTION_TITLE = 'GLOBAL HEAD OF HIS DESK'
 
@@ -640,6 +685,7 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_FOUNDER_BOARD.id]: SCENE_FOUNDER_BOARD,
   [SCENE_JAMES_PROMOTED.id]: SCENE_JAMES_PROMOTED,
   [SCENE_JAMES_PROXIMA.id]: SCENE_JAMES_PROXIMA,
+  [SCENE_DUCK_PROMOTED.id]: SCENE_DUCK_PROMOTED,
 }
 
 /**

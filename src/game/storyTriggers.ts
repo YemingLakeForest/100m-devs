@@ -357,6 +357,41 @@ export function jamesPromoted(arrived: ReadonlySet<HeroId>): boolean {
   return arrived.has('james') && arrived.size >= JAMES_PROMOTED_AT
 }
 
+/**
+ * §11.7, §21.7.9 [CANON - added 2026-10-21] — **the duck is promoted the first
+ * time a game goes out with known bugs in it.**
+ *
+ * §21.7.3's rule, kept exactly: the CTO solves bugs, so the feeling is a game
+ * on sale with bugs the player could see on §10.7's ring and did not fix —
+ * because they shipped through them, or because Serena's auto-ship sent it
+ * while nobody was at the ring. Both are the same sentence: *we shipped it
+ * broken.* A release that left the ring clean has a density of zero
+ * (`store.releaseFrom`), so "known bugs" is a fact on the release and not a
+ * new counter.
+ *
+ * Not before the third game of the run: the opening of Run 2 is James, the
+ * first hire and the first launches, and a promotion on the first ring is a
+ * scene about a system the player has not met yet. (A clock may hold a door
+ * shut, §21.7.3 — three games is the hold.) Serena's auto-ship always leaves
+ * bugs on, so a player who clears every ring by hand still meets him the day
+ * the belt starts shipping for them.
+ */
+export const DUCK_AFTER_SHIPS = 3
+
+export interface DuckSnapshot {
+  paradigmShifts: number
+  /** Games shipped this run. */
+  shipped: number
+  /** Releases on sale this run that went out with bugs left on them. */
+  buggyReleases: number
+}
+
+export function duckPromoted(s: DuckSnapshot): boolean {
+  if (s.paradigmShifts <= 0) return false
+  if (s.shipped < DUCK_AFTER_SHIPS) return false
+  return s.buggyReleases > 0
+}
+
 /** The predicate for a hero, or null for James (who needs no trigger). */
 export function arrivalPredicate(id: HeroId): ((s: StorySnapshot) => boolean) | null {
   switch (id) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NO_FOUNDER } from './founder.ts'
 import { NO_HERO_FOLD } from './heroRoster.ts'
 import { TREES, TREE_HEROES, isBuilt, syncCapMultiplier, treeKey } from './upgradeTrees.ts'
+import { duckFromTree } from './duck.ts'
 import {
   FAQ_TICKET_RATE,
   HEADSET_ONCALL_HEADS,
@@ -241,6 +242,8 @@ describe('every built node moves some fold', () => {
     (l) => withSerenaTree(fold, l),
     (l) => itWasDegraded(l),
     (l) => syncCapMultiplier(l),
+    // §11.7 [2026-10-21] — the CTO's levers, as a promoted duck has them.
+    (l) => duckFromTree(l, true),
   ]
   const readings = (levels: Record<string, number> | undefined) => FOLDS.map((f) => JSON.stringify(f(levels)))
   const empty = readings({})

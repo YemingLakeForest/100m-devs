@@ -162,6 +162,65 @@ export const ICONS: Record<string, readonly Box[]> = {
   sun: [[1.5, 1.5, 1, 2, 2, 2, 'yl'], [1, 2, 1.5, 3, 1, 1, 'yl'], [2, 1, 1.5, 1, 3, 1, 'yl'], [1.8, 1.8, 0.6, 1.4, 1.4, 0.4, 'or']],
   dock: [[0.4, 1.4, 0, 4.2, 2.2, 0.5, 'wd'], [0.7, 1.1, 0, 0.4, 0.4, 1.6, 'wd2'], [3.9, 1.1, 0, 0.4, 0.4, 1.6, 'wd2'], [1.7, 1.8, 0.5, 1.6, 1.2, 0.8, 'wh'], [2.2, 2.2, 1.3, 0.6, 0.4, 0.2, 'rd']],
   status: [[0.8, 2, 0, 3.4, 0.4, 3, 'bk'], [1, 2.42, 2, 3, 0.05, 0.6, 'gr'], [1, 2.42, 1.2, 3, 0.05, 0.6, 'gr'], [1, 2.42, 0.4, 3, 0.05, 0.6, 'rd']],
+  // [2026-10-21] The CTO's tree (GDD §11.7): each node's icon is the thing it hands him to wear.
+  bathtub: [[0.7, 1.4, 0, 0.4, 0.4, 0.4, 'go'], [3.9, 1.4, 0, 0.4, 0.4, 0.4, 'go'], [0.7, 3.4, 0, 0.4, 0.4, 0.4, 'go'], [3.9, 3.4, 0, 0.4, 0.4, 0.4, 'go'], [0.5, 1.2, 0.4, 4, 2.8, 1.5, 'wh'], [0.8, 1.5, 1.9, 3.4, 2.2, 0.05, 'sc'], [2.2, 2.1, 1.95, 1.2, 1, 0.8, 'yl'], [2.9, 2.5, 2.75, 0.7, 0.7, 0.7, 'yl'], [3.2, 3.2, 2.95, 0.4, 0.3, 0.2, 'or']],
+  bowtie: [[0.8, 2, 1.2, 1.5, 0.5, 1.4, 'cr'], [2.7, 2, 1.2, 1.5, 0.5, 1.4, 'cr'], [2.2, 1.9, 1.5, 0.6, 0.7, 0.8, 'rd']],
+  readers: [[0.6, 2, 1.4, 1.6, 0.3, 1.1, 'bk'], [0.8, 2.32, 1.55, 1.2, 0.05, 0.8, 'sc'], [2.8, 2, 1.4, 1.6, 0.3, 1.1, 'bk'], [3, 2.32, 1.55, 1.2, 0.05, 0.8, 'sc'], [2.2, 2, 1.9, 0.6, 0.3, 0.25, 'bk']],
+  shades: [[0.5, 2, 1.4, 4, 0.3, 1.1, 'bk'], [0.5, 2, 2.5, 4, 0.3, 0.3, 'bk'], [0.8, 2.32, 2, 0.8, 0.05, 0.3, 'gy']],
+  monocle: [[1.4, 2, 0.8, 2.2, 0.3, 2.2, 'go'], [1.7, 2.32, 1.1, 1.6, 0.05, 1.6, 'sc'], [3.5, 2.1, 0, 0.2, 0.2, 1, 'go']],
+  crown: [[0.8, 0.8, 0, 3.4, 3.4, 1.2, 'go'], [0.8, 0.8, 1.2, 0.8, 0.8, 1, 'go'], [3.4, 0.8, 1.2, 0.8, 0.8, 1, 'go'], [0.8, 3.4, 1.2, 0.8, 0.8, 1, 'go'], [3.4, 3.4, 1.2, 0.8, 0.8, 1, 'go'], [2.2, 4.22, 0.35, 0.6, 0.05, 0.5, 'rd']],
+  tophat: [[0.6, 0.6, 0, 3.8, 3.8, 0.3, 'bk'], [1.3, 1.3, 0.3, 2.4, 2.4, 2.8, 'bk'], [1.3, 1.3, 0.7, 2.4, 2.4, 0.5, 'cr']],
+  necktie: [[2, 2, 3.2, 1, 0.6, 0.7, 'bl'], [2.1, 2, 0.4, 0.8, 0.6, 2.8, 'bl'], [2.3, 2, 0, 0.4, 0.6, 0.4, 'bl']],
+  bubbles: [[0.6, 0.8, 0, 1.6, 1.6, 1.6, 'wh'], [2.6, 1.4, 0, 1.4, 1.4, 1.2, 'wh'], [1.6, 2.6, 0, 1.8, 1.8, 1.8, 'wh'], [2.2, 2, 1.6, 1.2, 1.2, 1.2, 'wh']],
+  ducklings: [...duckling(0.4, 0.6), ...duckling(2.6, 1.2), ...duckling(1.2, 2.8)],
+}
+
+/** A small duck, beak to the front: the ducklings, and the link tile's head. */
+function duckling(x: number, y: number): Box[] {
+  return [[x, y, 0, 1.4, 1.2, 0.8, 'yl'], [x + 0.5, y + 0.5, 0.8, 0.8, 0.7, 0.7, 'yl'], [x + 0.7, y + 1.2, 1, 0.4, 0.3, 0.2, 'or']]
+}
+
+/**
+ * The CTO, whole, in what he is wearing [2026-10-21] — his portrait on his
+ * window (`hud/DuckPanel.tsx`), painted by the same voxel painter as the tree's
+ * icons so the duck on the glass and the icons on his board are one hand. The
+ * beak faces +y, the camera's front face, so every item is hung on that face.
+ */
+export function duckBoxes(outfit: Readonly<Partial<Record<'head' | 'face' | 'neck' | 'tub', string>>>): readonly Box[] {
+  const b: Box[] = [
+    [1, 1, 0, 3, 2.6, 1.6, 'yl'],
+    [1, 1, 1.6, 0.8, 0.8, 0.6, 'yl'],
+    [2, 2, 1.6, 1.8, 1.8, 1.8, 'yl'],
+    [2.5, 3.8, 2.1, 0.8, 0.6, 0.5, 'or'],
+    [2.25, 3.82, 2.8, 0.3, 0.05, 0.4, 'bk'],
+    [3.25, 3.82, 2.8, 0.3, 0.05, 0.4, 'bk'],
+    [4.02, 1.5, 0.4, 0.05, 1.6, 0.8, 'or'],
+  ]
+  const head: Record<string, Box[]> = {
+    crown: [[2.1, 2.1, 3.4, 1.6, 1.6, 0.3, 'go'], [2.1, 3.4, 3.7, 0.3, 0.3, 0.4, 'go'], [2.75, 3.4, 3.7, 0.3, 0.3, 0.4, 'go'], [3.4, 3.4, 3.7, 0.3, 0.3, 0.4, 'go']],
+    tophat: [[1.8, 1.8, 3.4, 2.2, 2.2, 0.15, 'bk'], [2.2, 2.2, 3.55, 1.4, 1.4, 1.3, 'bk'], [2.2, 2.2, 3.7, 1.4, 1.4, 0.25, 'cr']],
+    partyhat: [[2.3, 2.3, 3.4, 1.2, 1.2, 0.6, 'pu'], [2.55, 2.55, 4, 0.7, 0.7, 0.6, 'gr'], [2.75, 2.75, 4.6, 0.3, 0.3, 0.4, 'rd']],
+    helmet: [[1.85, 1.85, 3.3, 2.1, 2.1, 0.6, 'wh'], [2.8, 2.8, 3.9, 0.15, 0.15, 0.6, 'gy'], [2.75, 2.75, 4.5, 0.25, 0.25, 0.25, 'rd']],
+  }
+  const face: Record<string, Box[]> = {
+    readers: [[2.1, 3.83, 2.75, 0.6, 0.05, 0.4, 'sc'], [3.1, 3.83, 2.75, 0.6, 0.05, 0.4, 'sc'], [2.7, 3.84, 2.9, 0.4, 0.05, 0.1, 'bk']],
+    shades: [[2, 3.83, 2.75, 1.8, 0.05, 0.45, 'bk']],
+    monocle: [[3.1, 3.83, 2.7, 0.55, 0.05, 0.55, 'go'], [3.2, 3.84, 2.8, 0.35, 0.05, 0.35, 'sc'], [3.35, 3.83, 1.9, 0.08, 0.05, 0.8, 'go']],
+  }
+  const neck: Record<string, Box[]> = {
+    lanyard: [[2, 3.62, 1.3, 1.8, 0.05, 0.25, 'rd'], [2.6, 3.65, 0.5, 0.6, 0.05, 0.75, 'wh']],
+    bowtie: [[2.35, 3.62, 1.2, 0.5, 0.08, 0.35, 'cr'], [3.15, 3.62, 1.2, 0.5, 0.08, 0.35, 'cr'], [2.85, 3.64, 1.25, 0.3, 0.08, 0.25, 'rd']],
+    necktie: [[2.75, 3.62, 1.3, 0.4, 0.06, 0.25, 'bl'], [2.8, 3.62, 0.35, 0.3, 0.06, 0.95, 'bl']],
+  }
+  const tub: Record<string, Box[]> = {
+    bubbles: [[0.2, 0.4, 0, 0.9, 0.9, 0.7, 'wh'], [4.1, 3.2, 0, 0.8, 0.8, 0.6, 'wh'], [0.3, 3.4, 0, 0.7, 0.7, 0.5, 'wh']],
+    ducklings: duckling(0.1, 3.4).map(([x, y, z, w, d, h, m]) => [x * 0.6, y * 0.6 + 1.6, z * 0.6, w * 0.6, d * 0.6, h * 0.6, m] as Box),
+  }
+  for (const [slot, table] of [['head', head], ['face', face], ['neck', neck], ['tub', tub]] as const) {
+    const id = outfit[slot]
+    if (id && table[id]) b.push(...table[id])
+  }
+  return b
 }
 
 /**
@@ -169,8 +228,10 @@ export const ICONS: Record<string, readonly Box[]> = {
  * blocks, in each person's own colours: James's orange hair and Diet Coke,
  * Serena's long black hair, Billy's tie, Matt's headset, your glasses.
  */
-export function headBoxes(hero: 'you' | 'james' | 'billy' | 'serena' | 'matt'): readonly Box[] {
-  const look: Record<typeof hero, { shirt: MaterialId; skin: MaterialId; hair: MaterialId }> = {
+export function headBoxes(hero: 'you' | 'james' | 'billy' | 'serena' | 'matt' | 'duck'): readonly Box[] {
+  // The CTO has no shirt and no hair: his link tile is a duck.
+  if (hero === 'duck') return [[1, 1, 0, 2.6, 2.2, 1.4, 'yl'], [1.9, 1.9, 1.4, 1.5, 1.4, 1.4, 'yl'], [2.3, 3.3, 1.8, 0.7, 0.5, 0.4, 'or'], [2.1, 3.32, 2.3, 0.25, 0.05, 0.3, 'bk'], [2.9, 3.32, 2.3, 0.25, 0.05, 0.3, 'bk']]
+  const look: Record<Exclude<typeof hero, 'duck'>, { shirt: MaterialId; skin: MaterialId; hair: MaterialId }> = {
     you: { shirt: 'bl', skin: 'sk', hair: 'hbr' },
     james: { shirt: 'wh', skin: 'sk', hair: 'or' },
     billy: { shirt: 'pu', skin: 'sk', hair: 'hbl' },
