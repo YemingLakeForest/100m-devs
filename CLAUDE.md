@@ -39,6 +39,17 @@ console will mis-render `§` and `—` even when the file is correct.
   refuses to fix the numbers (§25.3.2), test the order.
 - **Debug seams go through `dev/debugAccess.ts`.** Loopback browser sessions
   only; deployed HTML and Capacitor-native Android must not reach them.
+- **No bare gaps in the UI — 2026-10-21, at the user's instruction:** *"has a
+  big gap under the people cards make it a rule to avoid those gaps on the
+  ui"*. A window, panel or card must not leave a strip of empty space because
+  its content is shorter than its box. Stretching the boxes is not the fix — it
+  only moves the strip inside them (cards that run to the floor with a hollow
+  middle, or a subgrid row padded out by its one tall cell). Give the spare
+  height to something worth seeing (a portrait, a board, a chart, set as the
+  `1fr` row), size the box to its content, or cut the outlier so siblings stay
+  level. Check every new surface at desktop, tall and phone frames
+  (`1280x720`, `1280x1000`, `748x336`) and look for empty strips before
+  calling it done; the frame gate measures overlap and overflow, not emptiness.
 
 ## Before saying it works
 

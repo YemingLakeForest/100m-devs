@@ -504,11 +504,19 @@
  * every card a subgrid of the same five rows, so each band sits at one height
  * across all of them and the eye compares across.
  */
+/*
+ * [amended 2026-10-21] **The cards fill the window, and what grows is the face.**
+ * The first cut sat the cards at the top with a third of the window bare under
+ * them — *"has a big gap under the people cards make it a rule to avoid those
+ * gaps on the ui"*. Stretching the cards only moved the bare strip inside them,
+ * so the spare height goes to something worth looking at: the portrait row is
+ * `1fr`, a Lonestar-sized face on the branch's own colour, standing on the
+ * frame's floor. Everything under it keeps its natural height.
+ */
 .staffdir {
   display: grid;
   grid-template-columns: repeat(var(--staff, 4), minmax(0, 1fr));
-  grid-template-rows: repeat(5, auto);
-  align-content: start;
+  grid-template-rows: minmax(0, 1fr) repeat(5, auto);
   gap: 0 12px;
   height: 100%;
   padding: 12px;
@@ -517,10 +525,11 @@
 
 .staffdir__card {
   display: grid;
-  grid-row: span 5;
+  grid-row: span 6;
   grid-template-rows: subgrid;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
   padding: 10px;
   background: var(--n1);
   border: var(--rule) solid var(--n2);
@@ -528,20 +537,23 @@
   font-size: var(--type-1x);
 }
 
-.staffdir__top {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
+.staffdir__photo {
+  position: relative;
+  min-height: 0;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
+  overflow: hidden;
 }
 
 .staffdir__face {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
   image-rendering: pixelated;
-  border: var(--rule) solid var(--branch, var(--p2));
-  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
 }
 
 .staffdir__who {
@@ -588,6 +600,29 @@
   letter-spacing: 2px;
 }
 
+/*
+ * The band carries the trait's name and its live numbers, not its sentence: a
+ * subgrid row is as tall as its tallest card, and Matt's five-line sentence left
+ * the other three bands hollow (the rule above). The sentence is on the card.
+ */
+.staffdir .pass-always__text {
+  display: none;
+}
+
+.staffdir .pass-always__name {
+  padding-bottom: 6px;
+}
+
+/* Two chips to a line, so Matt's four rows are two lines and the bands stay level. */
+.staffdir .pass-always .herocard__facts > div {
+  gap: 4px;
+  padding: 1px 4px;
+}
+
+.staffdir .pass-always .herocard__facts dt {
+  letter-spacing: 0;
+}
+
 .staffdir__foot {
   display: flex;
   align-items: center;
@@ -611,20 +646,16 @@
 }
 
 @container frame (max-width: 1000px) {
-  .staffdir__face {
-    width: 48px;
-    height: 48px;
-  }
-
   .staffdir__quote {
     display: none;
   }
 }
 
-/* Short and narrow frames: the sentence goes, the band's name and the slots stay. */
+/* Short frames: the sentences go first; the face shrinks with what is left. */
 @container frame (max-height: 560px) {
   .staffdir__quote,
-  .staffdir .pass-always__text {
+  .staffdir .pass-always__text,
+  .staffdir .herocard__facts {
     display: none;
   }
 
@@ -639,21 +670,12 @@
     padding: 6px 8px;
   }
 
-  .staffdir__face,
   .staffdir__tag,
   .staffdir .pass-coming__head {
     display: none;
   }
 
-  .staffdir__top {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .staffdir__name {
-    font-size: var(--type-1x);
-  }
-
-  .staffdir .pass-always__name {
     font-size: var(--type-1x);
   }
 

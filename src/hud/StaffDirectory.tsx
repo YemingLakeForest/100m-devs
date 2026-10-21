@@ -5,7 +5,7 @@ import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { Button } from '../ui/Button.tsx'
 import { HeroFace } from './HeroFace.tsx'
-import { breakthroughsOf } from './heroCardModel.ts'
+import { breakthroughsOf, heroDuty } from './heroCardModel.ts'
 import { AlwaysBand, BreakthroughSlots } from './PassBands.tsx'
 
 /**
@@ -45,16 +45,30 @@ export function StaffDirectory({
         const n = counts[p.id] ?? 0
         return (
           <article key={p.id} className="staffdir__card" style={{ ['--branch' as string]: p.colour }}>
-            <header className="staffdir__top">
+            {/*
+              The portrait is the row that takes the spare height [2026-10-21]:
+              *"make it a rule to avoid those gaps on the ui"*. A window taller than
+              the words gets a bigger face, never a bare strip under the cards.
+            */}
+            <div className="staffdir__photo">
               <HeroFace look={who.look} id={p.id} shot="head" className="staffdir__face" />
-              <div className="staffdir__who">
-                <p className="staffdir__epithet">{p.hero.epithet}</p>
-                <h3 className="staffdir__name">{who.name}</h3>
-                <p className="staffdir__tag">{branch.name.toUpperCase()}</p>
-              </div>
+            </div>
+            <header className="staffdir__who">
+              <p className="staffdir__epithet">{p.hero.epithet}</p>
+              <h3 className="staffdir__name">{who.name}</h3>
+              <p className="staffdir__tag">{branch.name.toUpperCase()}</p>
             </header>
             <p className="staffdir__quote">&ldquo;{p.hero.flavour}&rdquo;</p>
-            <AlwaysBand trait={p.hero.trait} />
+            <AlwaysBand trait={p.hero.trait}>
+              <dl className="herocard__facts">
+                {/* Two at most, one line: a subgrid row is as tall as its tallest
+                    card, and Matt's four would hollow the other bands. All four
+                    are on his own pass. */}
+                {heroDuty(p, state.devs).slice(0, 2).map((row) => (
+                  <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
+                ))}
+              </dl>
+            </AlwaysBand>
             <div className="staffdir__coming">
               {tree && <BreakthroughSlots items={breakthroughsOf(tree, state, treesOpen)} />}
             </div>
