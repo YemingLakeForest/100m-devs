@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hero Pass Lessons</title>
+<style>
+@font-face { font-family: 'Departure Mono'; src: url('assets/departure.woff2') format('woff2'); font-display: block; }
+:root {
+  --n0: #181919; --n1: #292a29; --n2: #3c3e3c; --n3: #575a56; --n4: #767970; --n5: #97988f; --n6: #b8b9b0; --n7: #d9d8cd; --n8: #f1efe6;
+  --calm0: #0a2a30; --calm1: #1a6b78; --calm2: #35c9d9; --calm3: #b8f4ff;
+  --warn1: #8a5c12; --warn2: #e0a52e; --warn3: #ffe9b0;
+  --alarm1: #8a1f1f; --alarm2: #e03c3c; --alarm3: #ffb8b8;
+  --eng: #d8d8c0; --rel: #d05050; --sup: #78c078; --coh: #b088d0;
+  --mono: 'Departure Mono', ui-monospace, Consolas, monospace;
+  --t1: 11px; --t2: 22px; --t3: 33px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--n0); color: var(--n8); font: var(--t1)/1.35 var(--mono); padding: 16px; }
+h1.page { font-size: var(--t2); font-weight: 400; margin: 0 0 4px; color: var(--calm3); }
+p.lede { color: var(--n5); margin: 0 0 20px; max-width: 80ch; }
+.shot { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--n0); margin: 0 0 24px; }
+.cap { color: var(--n6); margin: 0 0 8px; letter-spacing: 1px; }
+.cap b { color: var(--warn2); font-weight: 400; }
+img.px { image-rendering: pixelated; display: block; }
+
+/* ---------- the proposed pass ---------- */
+.pass {
+  position: absolute; display: grid;
+  grid-template-columns: 96px 260px minmax(0, 1fr) 300px; gap: 14px;
+  padding: 8px 12px 8px 18px; background: var(--n1); border: 1px solid var(--calm1);
+}
+.pass::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--brand, var(--eng)); }
+.pass__face { width: 96px; height: 96px; border: 1px solid var(--n3); background: var(--n0); }
+.pass__face img { width: 100%; height: 100%; }
+.pass__who { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.pass__eyebrow { color: var(--n5); letter-spacing: 2px; }
+.pass__epithet { font-size: var(--t2); line-height: 1.05; color: var(--n8); letter-spacing: 1px; }
+.pass__name { font-size: var(--t2); line-height: 1; color: var(--brand, var(--eng)); }
+.pass__quote { color: var(--n5); margin-top: 2px; font-style: italic; }
+.pass__live { margin-top: 2px; display: flex; gap: 8px; color: var(--calm2); }
+.pass__live b { color: var(--calm3); font-weight: 400; }
+
+.band-h { display: flex; justify-content: space-between; align-items: center; padding: 3px 8px; letter-spacing: 2px; }
+.always { align-self: start; border: 1px solid var(--warn2); background: var(--n0); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+.always .band-h { background: var(--warn2); color: var(--n0); }
+.always .band-h span:last-child { opacity: .8; }
+.always__name { font-size: var(--t2); color: var(--warn3); padding: 6px 8px 0; line-height: 1.05; }
+.always__text { padding: 4px 8px 8px; color: var(--n8); }
+.kw { color: var(--calm2); border-bottom: 1px dotted currentColor; }
+.kw--cash { color: var(--warn2); }
+.kw--def { color: var(--alarm3); }
+
+.coming { display: grid; align-content: start; gap: 4px; }
+.coming .band-h { border: 1px solid var(--calm1); color: var(--calm2); }
+.slot { display: grid; grid-template-columns: 16px minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 4px 8px; border: 1px dashed var(--calm1); color: var(--n5); }
+.slot__name { color: var(--n6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot__gate { color: var(--calm2); letter-spacing: 1px; white-space: nowrap; }
+.slot.is-owned { border: 1px solid var(--warn2); background: var(--n0); }
+.slot.is-owned .slot__name { color: var(--warn3); }
+.slot.is-owned .slot__gate { color: var(--warn2); }
+.lock { position: relative; width: 10px; height: 12px; }
+.lock::before { content: ''; position: absolute; left: 2px; top: 0; width: 6px; height: 6px; border: 2px solid var(--calm1); border-bottom: 0; }
+.lock::after { content: ''; position: absolute; left: 0; bottom: 0; width: 10px; height: 7px; background: var(--calm1); }
+.tick { width: 10px; height: 10px; background: var(--warn2); }
+
+/* ---------- shot 2: four passes, one anatomy ---------- */
+.os { position: absolute; inset: 16px; border: 1px solid var(--calm1); background: var(--n0); }
+.os__bar { display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--calm1); letter-spacing: 3px; color: var(--calm1); }
+.os__bar b { color: var(--calm3); font-weight: 400; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 14px; }
+.card { display: grid; grid-template-rows: 124px 48px 104px 100px auto; background: var(--n1); border: 1px solid var(--n2); border-top: 5px solid var(--brand); }
+.card__top { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 10px; }
+.card__top img { width: 96px; height: 96px; border: 1px solid var(--n3); background: var(--n0); }
+.card__epithet { font-size: 16px; line-height: 1.1; letter-spacing: 1px; }
+.card__name { font-size: var(--t2); color: var(--brand); line-height: 1.1; margin-top: 4px; }
+.card__tag { display: inline-block; margin-top: 6px; padding: 1px 5px; border: 1px solid var(--brand); color: var(--brand); letter-spacing: 1px; }
+.card__quote { padding: 0 10px; color: var(--n5); font-style: italic; }
+.card .always { margin: 0 10px; }
+.card .always__name { font-size: 14px; }
+.card .coming { padding: 8px 10px 0; }
+.card__foot { padding: 10px; display: flex; gap: 6px; color: var(--n5); letter-spacing: 1px; }
+.card__foot b { color: var(--calm3); font-weight: 400; }
+.legend { position: absolute; left: 30px; right: 30px; bottom: 26px; display: flex; gap: 24px; color: var(--n5); }
+.legend i { display: inline-block; width: 14px; height: 10px; vertical-align: -1px; margin-right: 6px; }
+
+/* ---------- shot 3: the offer letter ---------- */
+.letter { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); width: 860px; background: var(--n1); border: 1px solid var(--n3); }
+.letter__head { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 16px; border-bottom: 3px double var(--n3); }
+.letter__title { font-size: var(--t2); letter-spacing: 3px; color: var(--n8); }
+.letter__ref { color: var(--n5); letter-spacing: 1px; }
+.letter__body { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 16px; }
+.step { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; letter-spacing: 2px; color: var(--n6); }
+.step i { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; background: var(--calm2); color: var(--n0); }
+.step.is-done i { background: var(--n3); color: var(--n7); }
+.letter__photo { position: relative; width: 200px; height: 200px; border: 1px solid var(--n3); background: var(--n0); }
+.letter__photo img { width: 100%; height: 100%; }
+.stamp { position: absolute; left: 50%; top: 84%; transform: translate(-50%,-50%) rotate(-12deg); padding: 3px 12px; border: 3px solid var(--sup); color: var(--sup); font-size: var(--t2); letter-spacing: 3px; background: rgba(24,25,25,.55); white-space: nowrap; }
+.field { display: grid; grid-template-columns: 120px 1fr; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--n2); }
+.field dt { color: var(--n5); letter-spacing: 1px; }
+.field dd { margin: 0; color: var(--n8); }
+.letter .always, .letter .coming { margin-top: 12px; }
+.letter__sign { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--n2); }
+.btn { display: inline-flex; gap: 12px; padding: 7px 14px; border: 1px solid var(--calm2); color: var(--calm2); letter-spacing: 2px; transform: skewX(-4deg); box-shadow: 3px 3px 0 var(--calm0); }
+.btn--primary { background: var(--calm2); color: var(--n0); box-shadow: 3px 3px 0 var(--calm1); }
+</style>
+</head>
+<body>
+<h1 class="page">Hero pass: lessons from Lonestar's pilot card</h1>
+<p class="lede">Mock-ups only, nothing here is in the game. Shot 1 lays the proposed pass over today's PERSONNEL window. The tabs and tree are a real screenshot of a99b703.</p>
+
+<!-- ================= SHOT 0: NOW ================= -->
+<p class="cap">NOW: a99b703, PERSONNEL / James</p>
+<div class="shot" id="shot-now">
+  <img class="px" src="assets/now-personnel.png" width="1280" height="720" alt="">
+</div>
+
+<!-- ================= SHOT 1 ================= -->
+<p class="cap">PROPOSED 1: <b>epithet before the name</b>, <b>warm = yours forever</b>, <b>cool = coming, and what it takes</b></p>
+<div class="shot" id="shot-pass">
+  <img class="px" src="assets/now-personnel.png" width="1280" height="720" alt="" style="position:absolute;inset:0">
+  <div style="position:absolute;left:66px;top:84px;width:1148px;height:150px;background:var(--n0)"></div>
+  <div class="pass" style="left:77px;top:86px;width:1126px;--brand:var(--eng)">
+    <div class="pass__face"><img class="px" src="assets/face-james.png" alt=""></div>
+    <div class="pass__who">
+      <div class="pass__eyebrow">ENGINEERING · #001</div>
+      <div class="pass__epithet">THE GENERALIST</div>
+      <div class="pass__name">James</div>
+      <div class="pass__quote">“Point him at anything.”</div>
+      <div class="pass__live">IN STAND-UP <b>KEEPS CODING</b></div>
+    </div>
+    <div class="always">
+      <div class="band-h"><span>ALWAYS</span><span>TRAIT</span></div>
+      <div class="always__name">FEWER COMMITMENTS</div>
+      <div class="always__text"><span class="kw">Daily Standups</span> never pause James’s own developer output.</div>
+    </div>
+    <div class="coming">
+      <div class="band-h"><span>BREAKTHROUGHS</span><span>0 / 2</span></div>
+      <div class="slot"><span class="lock"></span><span class="slot__name">Someone Already Wrote That</span><span class="slot__gate">GREP EVERYTHING</span></div>
+      <div class="slot"><span class="lock"></span><span class="slot__name">Ansible</span><span class="slot__gate">ERA 4</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SHOT 2 ================= -->
+<p class="cap">PROPOSED 2: <b>one anatomy, every band at the same height</b>, so four people compare row by row (for a staff overview, or the run report)</p>
+<div class="shot" id="shot-four">
+  <div class="os">
+    <div class="os__bar"><span>STUDIO_OS // <b>STAFF DIRECTORY</b></span><span>RUN 3</span></div>
+    <div class="grid4">
+      <div class="card" style="--brand:var(--eng)">
+        <div class="card__top"><img class="px" src="assets/face-james.png" alt=""><div><div class="card__epithet">THE GENERALIST</div><div class="card__name">James</div><span class="card__tag">ENGINEERING</span></div></div>
+        <div class="card__quote">“No speciality. Point him at anything; he does it properly.”</div>
+        <div class="always"><div class="band-h"><span>ALWAYS</span></div><div class="always__name">FEWER COMMITMENTS</div><div class="always__text"><span class="kw">Standups</span> never pause his output.</div></div>
+        <div class="coming"><div class="band-h"><span>BREAKTHROUGHS</span><span>1/2</span></div>
+          <div class="slot is-owned"><span class="tick"></span><span class="slot__name">Someone Already…</span><span class="slot__gate">OWNED</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">Ansible</span><span class="slot__gate">ERA 4</span></div></div>
+        <div class="card__foot">BUYABLE <b>3</b></div>
+      </div>
+      <div class="card" style="--brand:var(--rel)">
+        <div class="card__top"><img class="px" src="assets/face-serena.png" alt=""><div><div class="card__epithet">KEEPER OF THE QUEUE</div><div class="card__name">Serena</div><span class="card__tag">RELIABILITY</span></div></div>
+        <div class="card__quote">“It was never really down. It was degraded.”</div>
+        <div class="always"><div class="band-h"><span>ALWAYS</span></div><div class="always__name">DEGRADED, NOT DOWN</div><div class="always__text">The build queue holds <b style="font-weight:400;color:var(--warn3)">+2</b> builds.</div></div>
+        <div class="coming"><div class="band-h"><span>BREAKTHROUGHS</span><span>0/2</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">It Was Degraded</span><span class="slot__gate">ERA 3</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">Canary Worlds</span><span class="slot__gate">ERA 4</span></div></div>
+        <div class="card__foot">BUYABLE <b>2</b></div>
+      </div>
+      <div class="card" style="--brand:var(--sup)">
+        <div class="card__top"><img class="px" src="assets/face-matt.png" alt=""><div><div class="card__epithet">THE ONE WHO ANSWERS</div><div class="card__name">Matt</div><span class="card__tag">SUPPORT</span></div></div>
+        <div class="card__quote">“I don’t know what it does either.”</div>
+        <div class="always"><div class="band-h"><span>ALWAYS</span></div><div class="always__name">KNOWS THEIR NAMES</div><div class="always__text"><span class="kw">Tickets</span> −20%, <span class="kw kw--def">incidents</span> open half worked.</div></div>
+        <div class="coming"><div class="band-h"><span>BREAKTHROUGHS</span><span>0/2</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">Call Centre Floor</span><span class="slot__gate">SECOND HEADSET</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">Burning Systems</span><span class="slot__gate">ERA 4</span></div></div>
+        <div class="card__foot">BUYABLE <b>0</b></div>
+      </div>
+      <div class="card" style="--brand:var(--coh)">
+        <div class="card__top"><img class="px" src="assets/face-billy.png" alt=""><div><div class="card__epithet">THE TIMEKEEPER</div><div class="card__name">Billy</div><span class="card__tag">SCRUM MASTER</span></div></div>
+        <div class="card__quote">“If we shan’t need it, we shall give it back.”</div>
+        <div class="always"><div class="band-h"><span>ALWAYS</span></div><div class="always__name">FIFTEEN MINUTES</div><div class="always__text">Half the floor keeps working through <span class="kw">Standups</span>.</div></div>
+        <div class="coming"><div class="band-h"><span>BREAKTHROUGHS</span><span>0/1</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">It Could Have Been an Email</span><span class="slot__gate">DECLINE BY…</span></div></div>
+        <div class="card__foot">BUYABLE <b>1</b></div>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--warn2)"></i>WARM, FILLED: yours, now and every run</span><span><i style="border:1px dashed var(--calm1)"></i>COOL, DASHED: coming, with the gate printed on it</span><span><i style="background:var(--eng)"></i>TOP RULE: branch colour, one per person</span></div>
+  </div>
+</div>
+
+<!-- ================= SHOT 3 ================= -->
+<p class="cap">PROPOSED 3: <b>the arrival as an in-world form</b>. Numbered steps, a stamp, and the same two bands, so the pass the player meets is the pass they keep.</p>
+<div class="shot" id="shot-letter">
+  <div class="letter">
+    <div class="letter__head"><span class="letter__title">OFFER OF EMPLOYMENT</span><span class="letter__ref">FORM HR-7 · #003 · DAY 41</span></div>
+    <div class="letter__body">
+      <div>
+        <div class="step is-done"><i>1</i>PROBLEM FELT</div>
+        <div class="letter__photo"><img class="px" src="assets/face-serena.png" alt=""><div class="stamp">HIRED</div></div>
+        <div class="step" style="margin-top:12px"><i>2</i>SIGN HER ON</div>
+      </div>
+      <div>
+        <dl style="margin:0">
+          <div class="field"><dt>POSITION</dt><dd>KEEPER OF THE QUEUE</dd></div>
+          <div class="field"><dt>NAME</dt><dd style="color:var(--rel);font-size:var(--t2);line-height:1">Serena</dd></div>
+          <div class="field"><dt>DEPARTMENT</dt><dd>SITE RELIABILITY</dd></div>
+          <div class="field"><dt>REASON</dt><dd>The floor stopped on a full shelf. Twice.</dd></div>
+        </dl>
+        <div class="always"><div class="band-h"><span>ALWAYS</span><span>TRAIT</span></div><div class="always__name">DEGRADED, NOT DOWN</div><div class="always__text">The build queue holds two more builds before it stops the floor.</div></div>
+        <div class="coming"><div class="band-h"><span>BREAKTHROUGHS</span><span>0 / 2</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">It Was Degraded</span><span class="slot__gate">ERA 3</span></div>
+          <div class="slot"><span class="lock"></span><span class="slot__name">Canary Worlds</span><span class="slot__gate">ERA 4</span></div></div>
+      </div>
+    </div>
+    <div class="letter__sign"><span style="color:var(--n5)">“It’s up. It was never really down.”</span><span class="btn btn--primary">[ SIGN ]</span></div>
+  </div>
+</div>
+</body>
+</html>
