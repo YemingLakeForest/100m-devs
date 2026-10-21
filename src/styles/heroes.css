@@ -224,60 +224,61 @@
 }
 
 /*
- * §22.9.2 — the abilities box, and the only thing on this card in sentences.
+ * A hero's pass [amended 2026-10-21, after Lonestar's pilot card]: face, who,
+ * the ALWAYS band (the trait, with its live rows printed inside it, because the
+ * rows are the trait measured), and the breakthrough slots. The founder's pass
+ * keeps the four-cell row above; only a hero has a trait and slots.
  *
- * [amended 2026-10-20] **A band, headed in the branch colour.** It was small
- * cyan type at the right of the pass, the quietest thing on a card whose whole
- * argument is that a hero is a *different kind of object* from a developer —
- * and the trait is the difference. Lonestar heads a pilot's fixed talent with a
- * filled strip in its own colour and the eye goes there first; so does this.
- * The corner is cut, which is a printed object's corner, not a gradient.
+ * The trait band was headed in the branch colour (2026-10-20), so four colours
+ * meant one thing; it takes the amber that means "yours" now (passBands.css),
+ * and the branch keeps the pass's edge and the name.
  */
-.herocard__traits {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 0;
-  min-width: 0;
-  border: var(--rule) solid var(--branch, var(--p1));
-  background: var(--n0);
-  font-size: var(--type-1x);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+.herocard__pass--hero {
+  grid-template-columns: auto minmax(170px, 0.8fr) minmax(0, 1.4fr) minmax(200px, 1fr);
+  align-items: start;
 }
 
-.herocard__trait-name {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+.herocard__epithet {
   margin: 0;
-  padding: 2px 8px;
-  font-size: var(--type-1x);
-  font-weight: normal;
-  letter-spacing: 2px;
-  color: var(--n0);
-  background: var(--branch, var(--p2));
-}
-
-.herocard__trait-kind {
-  opacity: 0.7;
+  font-size: var(--type-2x);
+  line-height: 1.05;
   letter-spacing: 1px;
-}
-
-.herocard__trait-text,
-.herocard__flavour {
-  margin: 0;
-  padding: 4px 8px 0;
-  line-height: 1.4;
   color: var(--n8);
 }
 
-.herocard__flavour {
-  padding-bottom: 6px;
+/* What they are is the headline; who comes second, in their own colour. */
+.herocard__pass--hero .herocard__name {
+  font-size: var(--type-2x);
+  letter-spacing: 1px;
+  color: var(--branch, var(--p3));
+}
+
+.herocard__pass--hero .herocard__band {
+  justify-content: flex-start;
+  gap: 3px;
 }
 
 .herocard__flavour {
+  margin: 2px 0 0;
+  font-size: var(--type-1x);
+  line-height: 1.35;
   font-style: italic;
   color: var(--p1);
+}
+
+/* The live rows, inside the ALWAYS band: chips on one line, wrapping. */
+.pass-always .herocard__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 7px;
+}
+
+.pass-always .herocard__facts > div {
+  display: flex;
+  gap: 6px;
+  padding: 2px 6px;
+  border-color: var(--n2);
 }
 
 /*
@@ -369,7 +370,12 @@
     gap: 12px;
   }
 
-  .herocard__facts {
+  .herocard__pass--hero {
+    grid-template-columns: auto minmax(120px, 0.7fr) minmax(0, 1.2fr) minmax(170px, 1fr);
+  }
+
+  .herocard__facts,
+  .herocard__flavour {
     display: none;
   }
 }
@@ -382,6 +388,12 @@
   .herocard__portrait {
     width: 72px;
     height: 72px;
+  }
+
+  /* Scoped to the window: passBands.css may load after this file. */
+  .herocard .pass-always__name {
+    font-size: var(--type-1x);
+    letter-spacing: 2px;
   }
 }
 
@@ -406,8 +418,17 @@
   }
 
   .herocard__role,
-  .herocard__trait-text {
+  .herocard__pass--hero .pass-always__text {
     display: none;
+  }
+
+  .herocard__epithet,
+  .herocard__pass--hero .herocard__name {
+    font-size: var(--type-1x);
+  }
+
+  .pass-slot {
+    padding: 1px 6px;
   }
 
   .herocard__band {
@@ -436,6 +457,15 @@
   .herocard__people {
     margin-bottom: 4px;
   }
+
+  /* [2026-10-21] STAFF made the row one tab longer; the faces go so it stays one row. */
+  .herocard__tab-face {
+    display: none;
+  }
+
+  .ui-btn.herocard__tab {
+    padding: 2px 8px;
+  }
 }
 
 /* Narrow frames: the zoom buttons wrap rather than overlap in what is left. */
@@ -453,5 +483,202 @@
 
   .herocard__pass {
     grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Phone width: the face goes and the three word cells share the row. */
+  .herocard__pass--hero {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .herocard__pass--hero .herocard__portrait {
+    display: none;
+  }
+
+  .herocard__pass--hero .pass-slot__gate {
+    display: none;
+  }
+}
+
+/*
+ * The STAFF tab [2026-10-21] — `StaffDirectory.tsx`. One column per person, and
+ * every card a subgrid of the same five rows, so each band sits at one height
+ * across all of them and the eye compares across.
+ */
+.staffdir {
+  display: grid;
+  grid-template-columns: repeat(var(--staff, 4), minmax(0, 1fr));
+  grid-template-rows: repeat(5, auto);
+  align-content: start;
+  gap: 0 12px;
+  height: 100%;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.staffdir__card {
+  display: grid;
+  grid-row: span 5;
+  grid-template-rows: subgrid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--n1);
+  border: var(--rule) solid var(--n2);
+  border-top: 5px solid var(--branch, var(--p2));
+  font-size: var(--type-1x);
+}
+
+.staffdir__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.staffdir__face {
+  display: block;
+  width: 72px;
+  height: 72px;
+  image-rendering: pixelated;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
+}
+
+.staffdir__who {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.staffdir__who p,
+.staffdir__who h3 {
+  margin: 0;
+}
+
+.staffdir__epithet {
+  color: var(--n8);
+  letter-spacing: 1px;
+}
+
+.staffdir__name {
+  font-size: var(--type-2x);
+  font-weight: normal;
+  line-height: 1;
+  color: var(--branch, var(--p3));
+}
+
+.staffdir__tag {
+  justify-self: start;
+  padding: 1px 5px;
+  border: var(--rule) solid var(--branch, var(--p2));
+  color: var(--branch, var(--p2));
+  letter-spacing: 1px;
+}
+
+.staffdir__quote {
+  margin: 0;
+  line-height: 1.35;
+  font-style: italic;
+  color: var(--p1);
+}
+
+/* Four across: the trait's name is a label here, not the card's headline. */
+.herocard .staffdir .pass-always__name {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+}
+
+.staffdir__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--ui-slab) var(--ui-slab) 0;
+}
+
+.ui-btn.staffdir__open {
+  font-size: var(--type-1x);
+  padding: 3px 12px;
+}
+
+.staffdir__buy {
+  color: var(--warn-2);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.staffdir__foot .ui-btn {
+  flex: none;
+}
+
+@container frame (max-width: 1000px) {
+  .staffdir__face {
+    width: 48px;
+    height: 48px;
+  }
+
+  .staffdir__quote {
+    display: none;
+  }
+}
+
+/* Short and narrow frames: the sentence goes, the band's name and the slots stay. */
+@container frame (max-height: 560px) {
+  .staffdir__quote,
+  .staffdir .pass-always__text {
+    display: none;
+  }
+
+  .staffdir__card {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+}
+
+@container frame (max-height: 470px) {
+  .staffdir {
+    padding: 6px 8px;
+  }
+
+  .staffdir__face,
+  .staffdir__tag,
+  .staffdir .pass-coming__head {
+    display: none;
+  }
+
+  .staffdir__top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staffdir__name {
+    font-size: var(--type-1x);
+  }
+
+  .staffdir .pass-always__name {
+    font-size: var(--type-1x);
+  }
+
+  .staffdir .pass-slot {
+    padding: 1px 6px;
+  }
+
+  /* The count stays; the words go, as the tabs' counts carry no words either. */
+  .staffdir__buy-word {
+    display: none;
+  }
+
+  .staffdir__buy {
+    padding: 0 4px;
+    border: var(--rule) solid var(--warn-2);
+  }
+}
+
+@container frame (max-width: 760px) {
+  .staffdir {
+    gap: 0 6px;
+    padding: 6px;
+  }
+
+  .staffdir .pass-slot__gate {
+    display: none;
   }
 }

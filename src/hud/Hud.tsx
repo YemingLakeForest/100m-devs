@@ -73,8 +73,23 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
+  SCENE_SERENA_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_BILLY_ARRIVES,
   JAMES_DROPS_AT_LINE,
 } from '../game/scenes.ts'
+import { OfferLetter } from './OfferLetter.tsx'
+
+/**
+ * §22.9.4 — the arrival scenes that end on an offer letter. James is not here:
+ * he is the constant who is there before the studio has paperwork, and Act I's
+ * cold open is timed to the press without a page in the way.
+ */
+const LETTER_AFTER: Readonly<Record<string, HeroId>> = {
+  [SCENE_SERENA_ARRIVES.id]: 'serena',
+  [SCENE_MATT_ARRIVES.id]: 'matt',
+  [SCENE_BILLY_ARRIVES.id]: 'billy',
+}
 import { shouldShowReport } from './overnightModel.ts'
 import { TermSheet } from './TermSheet.tsx'
 import { ParadigmCutScene } from './ParadigmCutScene.tsx'
@@ -187,6 +202,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [galleryOpen, setGalleryOpen] = useState(false)
   // §10.7 [2026-10-03] — the build queue, opened from the rail's gauge.
   const [queueOpen, setQueueOpen] = useState(false)
+  // §22.9.4 — offer letters waiting to be signed, oldest first.
+  const [letters, setLetters] = useState<HeroId[]>([])
   // §8 — a person's upgrade tree lives on their own screen: a hero's card, the
   // founder's panel [2026-10-13]. There is no separate tree window any more.
   // The node the tree opens on.
@@ -234,6 +251,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // Resolved once per render: `heroById` rebuilds from `meta`, so asking twice
   // in one frame would build the same six objects twice.
   const openHero = state.selectedHero === null ? null : heroById(state.selectedHero)
+  const letterHero = letters.length > 0 ? heroById(letters[0]) : null
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -294,6 +312,11 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const finishDialogue = () => {
     const finished = state.scene
     dismissScene()
+
+    // §22.9.4 — a hire is not finished until the letter is signed. Queued, because
+    // one dismissal can satisfy the next arrival's predicate on the following tick.
+    const hired = finished ? LETTER_AFTER[finished] : undefined
+    if (hired) setLetters((q) => (q.includes(hired) ? q : [...q, hired]))
 
     /*
      * §21.6 — **this is how the trees are introduced** [2026-09-26]. *"the story
@@ -628,6 +651,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               }
             : undefined
         }
+      />
+
+      <OfferLetter
+        hero={state.scene ? null : letterHero}
+        state={state}
+        treesOpen={unlocks.trees}
+        onSign={() => setLetters((q) => q.slice(1))}
       />
 
       <div

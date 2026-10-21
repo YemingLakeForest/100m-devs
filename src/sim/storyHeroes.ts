@@ -66,6 +66,18 @@ export interface StoryHero {
   brings: readonly Instrument[]
   /** §22.9.2 — the role line in the card's footer. Promotions extend it, never replace it. */
   role: string
+  /**
+   * §22.9.2 [CANON - added 2026-10-21] — what they *are* to the studio, printed
+   * above the name. Lonestar's pilot cards read "Repair Master / Dongdong": the
+   * job is learned before the name, so the name sticks to the job. A role is a
+   * department and can grow with promotions; this never changes.
+   */
+  epithet: string
+  /**
+   * §22.9.4 — the REASON line on their offer letter: the problem the player felt,
+   * in the studio's voice. `arrives` is the designer's note; this is the form's.
+   */
+  hiredFor: string
 }
 
 export const STORY_HEROES: readonly StoryHero[] = [
@@ -86,6 +98,8 @@ export const STORY_HEROES: readonly StoryHero[] = [
     idle: 'typing',
     brings: [],
     role: 'ENGINEERING',
+    epithet: 'THE GENERALIST',
+    hiredFor: 'You could not code alone.',
   },
   /**
    * Serena — and her door moved [amended 2026-10-04]. She used to arrive on the
@@ -111,6 +125,8 @@ export const STORY_HEROES: readonly StoryHero[] = [
     idle: 'watching',
     brings: ['defects'],
     role: 'SITE RELIABILITY',
+    epithet: 'KEEPER OF THE QUEUE',
+    hiredFor: 'The floor stopped on a full shelf.',
   },
   /**
    * Matt — and he now owns *everything that lands on the player after a ship*
@@ -131,6 +147,8 @@ export const STORY_HEROES: readonly StoryHero[] = [
     idle: 'headset',
     brings: ['incidents', 'tickets'],
     role: 'CUSTOMER SUPPORT',
+    epithet: 'THE ONE WHO ANSWERS',
+    hiredFor: 'Incidents and tickets came in faster than anybody cleared them.',
   },
   /**
    * §21.7.3 amended 2026-08-29 — **Billy is the one hero somebody introduces.**
@@ -168,6 +186,8 @@ export const STORY_HEROES: readonly StoryHero[] = [
     idle: 'whiteboard',
     brings: [],
     role: 'SCRUM MASTER',
+    epithet: 'THE TIMEKEEPER',
+    hiredFor: 'Sync slipped as the studio grew, and James knew a chap.',
   },
 ]
 

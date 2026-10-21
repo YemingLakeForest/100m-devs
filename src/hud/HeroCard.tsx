@@ -65,8 +65,18 @@
  * small cyan type squeezed in at the right; it is a band headed in the branch
  * colour, the loudest thing on the pass. And the nodes bought this run are a
  * row of chips under it, so the pass grows as the player spends.
+ *
+ * ## What they are, then who; warm for yours, cool for coming [2026-10-21]
+ *
+ * After Lonestar's pilot-selection screen (*"What lessons can we learn here?"*,
+ * then *"Do these changes"*). The epithet sits above the name; the trait is an
+ * amber ALWAYS band with its live rows inside it; the breakthroughs are locked
+ * slots that print what stands in the way; and a STAFF tab lays every pass side
+ * by side (`StaffDirectory.tsx`). The bands are `PassBands.tsx`, shared with the
+ * offer letter an arrival ends on (§22.9.4).
  */
 
+import { useState } from 'react'
 import { Button } from '../ui/Button.tsx'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import type { GameState } from '../game/store.ts'
@@ -78,7 +88,9 @@ import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import type { TreeHero } from '../sim/upgradeTrees.ts'
 import { HeroFace } from './HeroFace.tsx'
-import { heroDuty } from './heroCardModel.ts'
+import { breakthroughsOf, heroDuty } from './heroCardModel.ts'
+import { AlwaysBand, BreakthroughSlots } from './PassBands.tsx'
+import { StaffDirectory } from './StaffDirectory.tsx'
 import { formatMoney } from './hudModel.ts'
 import { TreePane } from './UpgradeTrees.tsx'
 
@@ -129,6 +141,14 @@ export function HeroCard({
   const owned = tree && treesOpen
     ? TREES[tree].filter((n) => n.kind !== 'root' && n.kind !== 'link').map((n) => ({ node: n, level: treeLevelOf(tree, n.id, state) })).filter((o) => o.level > 0)
     : []
+  const keys = tree ? breakthroughsOf(tree, state, treesOpen) : []
+  /**
+   * The STAFF tab [2026-10-21] — everybody's pass at once, band for band, so
+   * four people compare row by row. It lives in this window and every pass in
+   * it opens that person's card, so §22.9.3's "the card is the hero screen"
+   * still holds in the sense that matters: nothing is managed from here.
+   */
+  const [directory, setDirectory] = useState(false)
 
   return (
     <OsWindow
@@ -144,8 +164,11 @@ export function HeroCard({
         the other is a thing the studio laminated.
       */
       title="PERSONNEL"
-      meta={showTree ? <span className="trees__cash">{formatMoney(state.cash)}</span> : undefined}
-      onClose={onClose}
+      meta={showTree && !directory ? <span className="trees__cash">{formatMoney(state.cash)}</span> : undefined}
+      onClose={() => {
+        setDirectory(false)
+        onClose()
+      }}
     >
       {hero && face && branch && (
         <>
@@ -159,6 +182,16 @@ export function HeroCard({
           <div className="herocard__side" style={{ ['--branch' as string]: hero.colour }}>
             {(people.length > 1 || onFounder) && (
               <div className="herocard__people" role="tablist" aria-label="People">
+                {people.length > 1 && (
+                  <Button
+                    className={directory ? 'herocard__tab is-chosen' : 'herocard__tab'}
+                    role="tab"
+                    aria-selected={directory}
+                    onClick={() => setDirectory(true)}
+                  >
+                    STAFF
+                  </Button>
+                )}
                 {onFounder && (
                   <Button className="herocard__tab" role="tab" aria-selected={false} onClick={onFounder}>
                     YOU
@@ -168,7 +201,7 @@ export function HeroCard({
                 {people.map((p) => {
                   const who = heroIdentity(p.id)
                   if (!who) return null
-                  const on = p.id === hero.id
+                  const on = !directory && p.id === hero.id
                   const n = counts[p.id] ?? 0
                   return (
                     <Button
@@ -177,7 +210,10 @@ export function HeroCard({
                       role="tab"
                       aria-selected={on}
                       style={{ ['--branch' as string]: p.colour }}
-                      onClick={() => onPick?.(p.id)}
+                      onClick={() => {
+                        setDirectory(false)
+                        onPick?.(p.id)
+                      }}
                     >
                       <HeroFace look={who.look} id={p.id} shot="head" className="herocard__tab-face" />
                       {who.name.toUpperCase()}
@@ -187,50 +223,56 @@ export function HeroCard({
                 })}
               </div>
             )}
-            <div className="herocard__pass">
+            {!directory && <div className="herocard__pass herocard__pass--hero">
               {/* The only round thing on the card, and what makes it a pass. */}
               <span className="herocard__punch" aria-hidden="true" />
 
               {/* The face, square: a head-and-shoulders on the branch's colour. */}
               <HeroFace look={face.look} id={hero.id} shot="head" className="herocard__portrait" />
 
+              {/*
+                [2026-10-21] **What they are, then who.** Lonestar's pilot reads
+                "Repair Master / Dongdong": the job is learned before the name, so
+                the name sticks to the job. The branch chip and the number move up
+                to an eyebrow, and the voice line sits under the name, where a
+                pilot's blurb sits, rather than in the trait's box.
+              */}
               <header className="herocard__band">
-                <h2 className="herocard__name">{face.name}</h2>
                 <p className="herocard__tags">
                   <span className="herocard__branch">{branch.name.toUpperCase()}</span>
                   <span className="herocard__employee">
-                    EMPLOYEE {employeeNumber(hero.id)}
+                    {employeeNumber(hero.id)}
                     <span className="herocard__gem" aria-hidden="true" />
                   </span>
                 </p>
+                <p className="herocard__epithet">{hero.hero.epithet}</p>
+                <h2 className="herocard__name">{face.name}</h2>
                 {/* §21.7.4 - the title only ever grows, and when it no longer fits
                     it wraps. It is never truncated. */}
                 {hero.hero.role.toUpperCase() !== branch.name.toUpperCase() && (
                   <p className="herocard__role">{hero.hero.role}</p>
                 )}
+                <p className="herocard__flavour">&ldquo;{hero.hero.flavour}&rdquo;</p>
               </header>
-
-              <dl className="herocard__facts">
-                {duty.map((row) => (
-                  <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
-                ))}
-              </dl>
 
               {/*
                 §22.9.2 - the abilities box: TRAIT only, and the only thing on this
-                card written in sentences. It is what the rows beside it measure.
+                card written in sentences. The live rows are the trait measured, so
+                they are printed inside it now rather than in a column of their own.
               */}
-              <div className="herocard__traits">
-                <h3 className="herocard__trait-name">
-                  {hero.hero.trait.name}
-                  <span className="herocard__trait-kind">TRAIT</span>
-                </h3>
-                <p className="herocard__trait-text">{hero.hero.trait.text}</p>
-                <p className="herocard__flavour">&ldquo;{hero.hero.flavour}&rdquo;</p>
-              </div>
+              <AlwaysBand trait={hero.hero.trait}>
+                {duty.length > 0 && (
+                  <dl className="herocard__facts">
+                    {duty.map((row) => (
+                      <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
+                    ))}
+                  </dl>
+                )}
+              </AlwaysBand>
 
-            </div>
-            {owned.length > 0 && (
+              <BreakthroughSlots items={keys} />
+            </div>}
+            {!directory && owned.length > 0 && (
               <div className="herocard__owned" aria-label="Owned this run">
                 <span className="herocard__owned-label">OWNED THIS RUN</span>
                 {owned.map(({ node, level }) => (
@@ -243,8 +285,19 @@ export function HeroCard({
             )}
           </div>
 
-          <section className="herocard__tree" aria-label={`${face.name}'s upgrades`}>
-            {showTree ? (
+          <section className="herocard__tree" aria-label={directory ? 'Staff directory' : `${face.name}'s upgrades`}>
+            {directory ? (
+              <StaffDirectory
+                people={people}
+                state={state}
+                treesOpen={treesOpen}
+                counts={counts}
+                onOpen={(id) => {
+                  setDirectory(false)
+                  onPick?.(id)
+                }}
+              />
+            ) : showTree ? (
               <TreePane open state={state} hero={tree} intro={intro} />
             ) : (
               <p className="herocard__locked">

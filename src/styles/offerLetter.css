@@ -1,0 +1,187 @@
+/*
+ * §22.9.4 — the offer letter [2026-10-21]. See `hud/OfferLetter.tsx`.
+ *
+ * A form: numbered steps down the left, ruled fields on the right, the pass's two
+ * bands under them. The stamp lands in four stepped frames, as the run report's
+ * does (§15.1b) — the same rubber, the branch's ink.
+ */
+
+.offer {
+  width: min(54rem, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+}
+
+.offer .os-window {
+  background: var(--n0);
+}
+
+.offer__ref {
+  color: var(--n5);
+  letter-spacing: 1px;
+}
+
+.offer__body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.offer__side {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.offer__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--n6);
+  letter-spacing: 2px;
+}
+
+.offer__step i {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-style: normal;
+  background: var(--p2);
+  color: var(--n0);
+}
+
+.offer__step.is-done i {
+  background: var(--n3);
+  color: var(--n8);
+}
+
+.offer__photo {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
+}
+
+.offer__face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.offer__stamp {
+  position: absolute;
+  left: 50%;
+  top: 80%;
+  margin: 0;
+  padding: 2px 10px;
+  font-size: var(--type-2x);
+  letter-spacing: 3px;
+  white-space: nowrap;
+  color: var(--branch, var(--p2));
+  border: 3px solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--n0) 70%, transparent);
+  transform: translate(-50%, -50%) rotate(-12deg);
+  animation: offer-stamp 400ms steps(4, end) 300ms both;
+}
+
+@keyframes offer-stamp {
+  0% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(2.2);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(1.3);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(0.94);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(1);
+  }
+}
+
+.offer__form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.offer__fields {
+  margin: 0;
+  display: grid;
+}
+
+.offer__fields > div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: var(--rule) solid var(--n2);
+}
+
+.offer__fields dt {
+  color: var(--n5);
+  letter-spacing: 1px;
+}
+
+.offer__fields dd {
+  margin: 0;
+  color: var(--n8);
+}
+
+.offer__fields .offer__name {
+  font-size: var(--type-2x);
+  line-height: 1;
+  color: var(--branch, var(--p3));
+}
+
+@container frame (max-height: 560px) {
+  .offer__photo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .offer__stamp {
+    font-size: var(--type-1x);
+  }
+
+  .offer .pass-always__text {
+    display: none;
+  }
+}
+
+@container frame (max-height: 470px) {
+  .offer__fields > div {
+    padding: 2px 0;
+  }
+
+  .offer__step {
+    display: none;
+  }
+
+  .offer .pass-coming {
+    display: none;
+  }
+}
+
+@container frame (max-width: 760px) {
+  .offer__photo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .offer__fields > div {
+    grid-template-columns: 6rem minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offer__stamp {
+    animation: none;
+  }
+}

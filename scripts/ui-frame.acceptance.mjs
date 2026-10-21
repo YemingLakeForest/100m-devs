@@ -586,12 +586,23 @@ async function sceneIssues(page, width, height) {
  * arrival scene on the following tick and the `?full` fixture satisfies
  * several arrival predicates at once.
  */
-async function clearScene(page) {
+async function clearScene(page, { stopAtLetter = false } = {}) {
   for (let i = 0; i < 200; i++) {
     const scrim = page.locator('.ui-dialogue__scrim')
+    // [2026-10-21] §22.9.4 — an arrival scene ends on an offer letter, which is
+    // modal and waits for SIGN. Sign it (or stop on it, for the letter's own check)
+    // and keep walking: the next arrival can follow on the next tick.
+    const letter = page.locator('.offer__form')
+    if (await letter.count()) {
+      if (stopAtLetter) return
+      await page.getByRole('button', { name: 'SIGN', exact: true }).click()
+      await page.waitForTimeout(450)
+      continue
+    }
     if (!(await scrim.count())) {
       await page.waitForTimeout(600)
-      if (!(await scrim.count())) return
+      if (!(await scrim.count()) && !(await letter.count())) return
+      continue
     }
     await page.mouse.click(320, 200)
     await page.waitForTimeout(450)
@@ -1013,6 +1024,41 @@ try {
         await clearScene(target)
         await openCard(target)
         await target.locator('.trees__canvas').waitFor({ state: 'visible' })
+      },
+    })
+
+    /*
+     * [2026-10-21] PERSONNEL's STAFF tab: every pass side by side, each band on
+     * one row (§22.9.3 amended). Four cards across the narrowest frame is the
+     * layout most likely to overflow, which is why it is gated.
+     */
+    await check(page, {
+      name: 'the staff directory',
+      width,
+      height,
+      path: '/?notitle&full&nopost',
+      action: async (target) => {
+        await clearScene(target)
+        await openCard(target)
+        await target.getByRole('tab', { name: 'STAFF' }).click()
+        await target.locator('.staffdir__card').first().waitFor({ state: 'visible' })
+      },
+    })
+
+    /*
+     * [2026-10-21] §22.9.4 — the offer letter an arrival scene ends on.
+     * `?arrive=serena` opens her scene with everybody before her recorded (`?full`
+     * has nobody left to arrive); the stamp's four frames land before the measure.
+     */
+    await check(page, {
+      name: 'an offer letter',
+      width,
+      height,
+      path: '/?notitle&nopost&arrive=serena',
+      action: async (target) => {
+        await clearScene(target, { stopAtLetter: true })
+        await target.locator('.offer__form').waitFor({ state: 'visible' })
+        await target.waitForTimeout(900)
       },
     })
 

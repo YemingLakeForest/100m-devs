@@ -77,6 +77,26 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
     expect(screen.getByText('The build queue holds two more builds before it stops the floor.')).toBeInTheDocument()
   })
 
+  it('says what they are before who they are [2026-10-21]', () => {
+    const { container } = render(<HeroCard hero={staffed()} state={at(40)} tree={null} treesOpen={false} {...noop} />)
+    const band = container.querySelector('.herocard__band')!
+    const epithet = band.querySelector('.herocard__epithet')!
+    const name = band.querySelector('.herocard__name')!
+    expect(epithet.textContent).toBe('KEEPER OF THE QUEUE')
+    expect(epithet.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('prints the trait as ALWAYS, and the breakthroughs still to come as locked slots with their gate', () => {
+    const { container } = render(<HeroCard hero={staffed()} state={at(40)} tree="serena" treesOpen={false} {...noop} />)
+    expect(container.querySelector('.pass-always__head')?.textContent).toContain('ALWAYS')
+    const slots = [...container.querySelectorAll('.pass-slot')]
+    expect(slots.length).toBeGreaterThan(0)
+    for (const s of slots) {
+      expect(s.className).toContain('is-locked')
+      expect(s.querySelector('.pass-slot__gate')?.textContent).toBe('AFTER A SHIFT')
+    }
+  })
+
   it('is closed when nobody is selected', () => {
     const { container } = render(
       <HeroCard hero={null} state={at(40)} tree={null} treesOpen={false} {...noop} />,
@@ -148,13 +168,29 @@ describe('the tree beside the pass, and the next person', () => {
     const serena = staffed('serena')
     const onPick = vi.fn()
     render(<HeroCard hero={matt} state={at(40)} tree={null} treesOpen={false} people={[matt, serena]} counts={{ serena: 2 }} {...noop} onPick={onPick} />)
+    // [2026-10-21] STAFF leads the row, then one tab a person.
     const tabs = screen.getAllByRole('tab')
-    expect(tabs).toHaveLength(2)
-    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
-    expect(tabs[0].className).toContain('is-chosen')
-    expect(tabs[1].textContent).toContain('2')
-    fireEvent.click(tabs[1])
+    expect(tabs.map((t) => t.textContent)).toEqual([expect.stringContaining('STAFF'), expect.stringContaining('MATT'), expect.stringContaining('SERENA')])
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true')
+    expect(tabs[1].className).toContain('is-chosen')
+    expect(tabs[2].textContent).toContain('2')
+    fireEvent.click(tabs[2])
     expect(onPick).toHaveBeenCalledWith('serena')
+  })
+
+  it('lays everybody out side by side on STAFF, and only opens cards from there', () => {
+    // [2026-10-21] §22.9.3 amended: a view, not a board — the one verb is OPEN.
+    const matt = staffed('matt')
+    const serena = staffed('serena')
+    const onPick = vi.fn()
+    const { container } = render(<HeroCard hero={matt} state={at(40)} tree="matt" treesOpen={false} people={[matt, serena]} {...noop} onPick={onPick} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'STAFF' }))
+    expect(container.querySelector('.herocard__pass')).toBeNull()
+    expect(container.querySelectorAll('.staffdir__card')).toHaveLength(2)
+    expect(screen.getByText('KEEPER OF THE QUEUE')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: "Open Serena's card" }))
+    expect(onPick).toHaveBeenCalledWith('serena')
+    expect(container.querySelector('.staffdir')).toBeNull()
   })
 
   it('draws no tabs for one person alone', () => {

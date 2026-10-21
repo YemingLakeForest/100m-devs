@@ -1,0 +1,163 @@
+/*
+ * The pass's two bands — `hud/PassBands.tsx`, GDD §22.9.2 [amended 2026-10-21].
+ *
+ * Warm and filled is yours: the trait, and any breakthrough already bought.
+ * Cool and dashed is coming: a breakthrough not yet owned, with its gate printed
+ * on it. The cool is the live phosphor, so it follows entropy like every other
+ * outline in the interface; the warm is the amber ramp, which never does.
+ */
+
+.pass-always {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: var(--rule) solid var(--warn-2);
+  background: var(--n0);
+  font-size: var(--type-1x);
+  /* A printed object's cut corner, not a gradient. */
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.pass-always__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: var(--type-1x);
+  font-weight: normal;
+  letter-spacing: 2px;
+  color: var(--n0);
+  background: var(--warn-2);
+}
+
+.pass-always__kind {
+  letter-spacing: 1px;
+}
+
+.pass-always__name {
+  margin: 0;
+  padding: 5px 8px 0;
+  font-size: var(--type-2x);
+  line-height: 1.05;
+  color: var(--warn-3);
+}
+
+.pass-always__text {
+  margin: 0;
+  padding: 3px 8px 6px;
+  line-height: 1.4;
+  color: var(--n8);
+}
+
+.pass-coming {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--type-1x);
+}
+
+.pass-coming__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 8px;
+  border: var(--rule) solid var(--p1);
+  color: var(--p2);
+  letter-spacing: 2px;
+}
+
+.pass-coming__slots {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pass-slot {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border: var(--rule) dashed var(--p1);
+  color: var(--n6);
+}
+
+.pass-slot__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pass-slot__gate {
+  max-width: 14ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
+/* A padlock in two hard boxes: the shackle, and the body under it. */
+.pass-slot__mark {
+  position: relative;
+  width: 10px;
+  height: 12px;
+}
+
+.pass-slot__mark::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--p1);
+  border-bottom: 0;
+}
+
+.pass-slot__mark::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 10px;
+  height: 7px;
+  background: var(--p1);
+}
+
+/* Buyable now: still cool, but solid and bright — the slot is open, not owned. */
+.pass-slot.is-ready {
+  border-style: solid;
+  border-color: var(--p2);
+  color: var(--p3);
+}
+
+.pass-slot.is-ready .pass-slot__gate {
+  color: var(--p3);
+}
+
+.pass-slot.is-owned {
+  border: var(--rule) solid var(--warn-2);
+  background: var(--n0);
+  color: var(--warn-3);
+}
+
+.pass-slot.is-owned .pass-slot__gate {
+  color: var(--warn-2);
+}
+
+.pass-slot.is-owned .pass-slot__mark::before {
+  display: none;
+}
+
+.pass-slot.is-owned .pass-slot__mark::after {
+  bottom: 1px;
+  width: 10px;
+  height: 10px;
+  background: var(--warn-2);
+}
