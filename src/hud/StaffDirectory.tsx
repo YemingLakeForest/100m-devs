@@ -54,9 +54,13 @@ export function StaffDirectory({
               <HeroFace look={who.look} id={p.id} shot="head" className="staffdir__face" />
             </div>
             <header className="staffdir__who">
-              <p className="staffdir__epithet">{p.hero.epithet}</p>
-              <h3 className="staffdir__name">{who.name}</h3>
-              <p className="staffdir__tag">{branch.name.toUpperCase()}</p>
+              {/* Short frames: the face moves here, beside the name, as on the pass. */}
+              <HeroFace look={who.look} id={p.id} shot="head" className="staffdir__mini" />
+              <div className="staffdir__words">
+                <p className="staffdir__epithet">{p.hero.epithet}</p>
+                <h3 className="staffdir__name">{who.name}</h3>
+                <p className="staffdir__tag">{branch.name.toUpperCase()}</p>
+              </div>
             </header>
             <p className="staffdir__quote">&ldquo;{p.hero.flavour}&rdquo;</p>
             <AlwaysBand trait={p.hero.trait}>

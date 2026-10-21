@@ -537,26 +537,40 @@
   font-size: var(--type-1x);
 }
 
+/*
+ * [amended 2026-10-21] **A portrait is a square, always.** The first cut framed
+ * the whole flexible row, so the frame was whatever shape the leftover space
+ * happened to be — a letterbox on one screen, a sliver on a phone, with the face
+ * floating in tinted bars — *"the avatar so wide and narrow? Why?"*. The row
+ * still takes the spare height, but it is only the room the photo may use: the
+ * framed square inside is as large as the row's shorter side (`cqmin`), centred.
+ * Where that square would be too small to read, the photo leaves the row and a
+ * small one stands beside the name instead (the short-frame block below).
+ */
 .staffdir__photo {
-  position: relative;
+  display: grid;
+  place-items: center;
   min-height: 0;
-  border: var(--rule) solid var(--branch, var(--p2));
-  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
-  overflow: hidden;
+  container-type: size;
 }
 
 .staffdir__face {
-  position: absolute;
-  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center bottom;
+  width: 100cqmin;
+  height: 100cqmin;
   image-rendering: pixelated;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
 }
 
 .staffdir__who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.staffdir__words {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -565,6 +579,17 @@
 .staffdir__who p,
 .staffdir__who h3 {
   margin: 0;
+}
+
+/* The face beside the name: only where the photo row has given up its room. */
+.staffdir__mini {
+  display: none;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 24%, var(--n0));
 }
 
 .staffdir__epithet {
@@ -668,6 +693,22 @@
 @container frame (max-height: 470px) {
   .staffdir {
     padding: 6px 8px;
+    grid-template-rows: repeat(3, auto) minmax(0, 1fr) auto;
+  }
+
+  /* Too short for a photo worth the name: the face goes beside the name. */
+  .staffdir__card {
+    grid-row: span 5;
+  }
+
+  .staffdir__photo {
+    display: none;
+  }
+
+  .staffdir__mini {
+    display: block;
+    width: 52px;
+    height: 52px;
   }
 
   .staffdir__tag,
