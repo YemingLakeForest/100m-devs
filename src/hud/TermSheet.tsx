@@ -107,7 +107,7 @@ export function TermSheet({
         now, so the four-row limit below is a *typographic* constraint rather
         than the only thing standing between the player and a dead end.
       */
-      footer={<Button onClick={onSign}>SIGN IT</Button>}
+      footer={<Button variant="primary" onClick={onSign}>SIGN IT</Button>}
     >
       {/*
         Their words, in their punctuation. The line break is theirs too — it is

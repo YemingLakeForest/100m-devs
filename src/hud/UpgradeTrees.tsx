@@ -109,6 +109,28 @@ function refusalLine(hero: TreeHero, node: TreeNode, why: TreeRefusal, s: GameSt
   }
 }
 
+/**
+ * What buying the next level changes, as two numbers [2026-10-20].
+ *
+ * Read off the node's own effect line rather than off the simulation, because
+ * the line is what the node promises and the promise is what is being priced:
+ * `+3% … per level` at level 2 is `+6% → +9%`. A one-off node is OFF → ON. A
+ * line with no number in it gets nothing, rather than a guess.
+ */
+function beforeAfter(node: TreeNode, level: number): { head: string; from: string; to: string } | null {
+  if (level >= node.max && !node.repeat) return null
+  const head = node.max > 1 ? `IF YOU BUY LEVEL ${level + 1}` : 'IF YOU BUY IT'
+  const m = (node.effect ?? node.text).match(/([+−-]?)(\d+(?:\.\d+)?)(%|×)/)
+  if (node.max > 1 && m && /per level/i.test(node.effect ?? node.text)) {
+    const sign = m[1] || '+'
+    const v = Number(m[2])
+    const fmt = (n: number) => (n === 0 ? `0${m[3]}` : `${sign}${+(v * n).toFixed(2)}${m[3]}`)
+    return { head, from: fmt(level), to: fmt(level + 1) }
+  }
+  if (node.max > 1) return { head, from: `LV ${level}`, to: `LV ${level + 1}` }
+  return level > 0 ? null : { head, from: 'OFF', to: 'ON' }
+}
+
 /** The proposal a node makes, in the demo's words, for the nodes that do not do it yet. */
 function proposal(node: TreeNode): string[] {
   const out: string[] = []
@@ -152,7 +174,11 @@ export function TreePane({ open, state, hero, intro = null }: TreePaneProps) {
   if (key !== openedOn) {
     setOpenedOn(key)
     if (key) {
-      setSelected(intro)
+      // [2026-10-20] The inspector is never empty on arrival: it opens on the
+      // scene's node, or else on the first node the player could buy now, so
+      // the one thing worth reading is already being read (Lonestar's tooltip
+      // is always up on the thing under your hand).
+      setSelected(intro ?? TREES[hero].find((n) => n.kind !== 'root' && n.kind !== 'link' && treeRefusalOf(hero, n.id, state) === null)?.id ?? null)
       setShowKey(false)
     }
   }
@@ -620,6 +646,17 @@ function Inspector({ hero, id, showKey, state, onClear }: {
         {node.all && <span className="trees__tag">NEEDS EVERY LINK</span>}
       </p>
       <p className="trees__text">{node.text}</p>
+      {node.kind !== 'root' && why !== 'maxed' && (() => {
+        const ba = beforeAfter(node, level)
+        return ba ? (
+          <div className="trees__ba">
+            <span className="trees__ba-head">{ba.head}</span>
+            <span className="trees__ba-from">{ba.from}</span>
+            <span className="trees__ba-arrow" aria-hidden="true">→</span>
+            <span className="trees__ba-to">{ba.to}</span>
+          </div>
+        ) : null
+      })()}
       {(node.wired || node.tech || node.coord || node.lever) && node.effect && <p className="trees__effect">{node.effect}</p>}
       {!node.wired && !node.tech && !node.coord && !node.lever && node.kind !== 'root' && (
         <div className="trees__effect" data-wired="false">
@@ -640,6 +677,7 @@ function Inspector({ hero, id, showKey, state, onClear }: {
       <div className="trees__act">
         {node.kind !== 'root' && why !== 'maxed' ? (
           <Button
+            variant="primary"
             className="trees__buy"
             disabled={why !== null}
             onClick={() => {

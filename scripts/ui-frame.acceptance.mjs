@@ -795,7 +795,8 @@ async function openCard(target) {
   // §10.8b — a launch window is modal, so clearing it first is the difference
   // between pressing TEAM and pressing the glass over TEAM.
   await clearRelease(target)
-  await target.getByRole('button', { name: 'TEAM', exact: true }).click()
+  // [2026-10-20] TEAM is PERSONNEL on the taskbar (GDD §10.1).
+  await target.getByRole('button', { name: 'PERSONNEL', exact: true }).click()
   await target.locator('.herocard__pass').waitFor({ state: 'visible' })
 }
 
@@ -1182,6 +1183,17 @@ try {
    * block stops fitting and the type has to step down a whole rung.
    */
   for (const [width, height] of [[640, 360], [997, 448]]) {
+    // §15.1b [2026-10-20] — the run report comes first, and is measured on its own.
+    await check(page, {
+      name: `the run report at ${width}x${height}`,
+      width,
+      height,
+      path: '/?act=bankrupt&nopost',
+      action: async (target) => {
+        await target.getByRole('button', { name: /TRIGGER PARADIGM SHIFT/ }).click()
+        await target.getByRole('button', { name: /START RUN \d+/ }).waitFor({ state: 'visible' })
+      },
+    })
     await check(page, {
       name: `the paradigm cut scene at ${width}x${height}`,
       width,
@@ -1189,6 +1201,7 @@ try {
       path: '/?act=bankrupt&nopost',
       action: async (target) => {
         await target.getByRole('button', { name: /TRIGGER PARADIGM SHIFT/ }).click()
+        await target.getByRole('button', { name: /START RUN \d+/ }).click()
         const boot = target.locator('.studio-boot[data-phase="in"]')
         await boot.waitFor({ state: 'visible' })
         // Onto the receipt, which is the page that decides whether this screen

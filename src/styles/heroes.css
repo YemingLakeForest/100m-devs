@@ -80,13 +80,14 @@
  * the branch-coloured left rail do the work the skew does elsewhere: they say at
  * a glance that this is a thing rather than a panel.
  *
- * Five cells on one row — face, who, the live rows, the trait, the pager — and
- * the row is as tall as the face, which is the only thing with a fixed size.
+ * Four cells on one row — face, who, the live rows, the trait — and the row is
+ * as tall as the face, which is the only thing with a fixed size. [amended
+ * 2026-10-20: the pager left the pass for the name tabs above it.]
  */
 .herocard__pass {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(150px, auto) minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  grid-template-columns: auto minmax(150px, auto) minmax(0, 1fr) minmax(0, 1.3fr);
   align-items: stretch;
   gap: 16px;
   padding: 12px 14px 12px 18px;
@@ -222,30 +223,56 @@
   color: var(--p3);
 }
 
-/* §22.9.2 — the abilities box, and the only thing on this card in sentences. */
+/*
+ * §22.9.2 — the abilities box, and the only thing on this card in sentences.
+ *
+ * [amended 2026-10-20] **A band, headed in the branch colour.** It was small
+ * cyan type at the right of the pass, the quietest thing on a card whose whole
+ * argument is that a hero is a *different kind of object* from a developer —
+ * and the trait is the difference. Lonestar heads a pilot's fixed talent with a
+ * filled strip in its own colour and the eye goes there first; so does this.
+ * The corner is cut, which is a printed object's corner, not a gradient.
+ */
 .herocard__traits {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-start;
+  gap: 0;
   min-width: 0;
-  padding-left: 14px;
-  border-left: var(--rule) solid var(--p0);
+  border: var(--rule) solid var(--branch, var(--p1));
+  background: var(--n0);
   font-size: var(--type-1x);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
 }
 
 .herocard__trait-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0;
+  padding: 2px 8px;
   font-size: var(--type-1x);
+  font-weight: normal;
   letter-spacing: 2px;
-  color: var(--branch, var(--n8));
+  color: var(--n0);
+  background: var(--branch, var(--p2));
+}
+
+.herocard__trait-kind {
+  opacity: 0.7;
+  letter-spacing: 1px;
 }
 
 .herocard__trait-text,
 .herocard__flavour {
   margin: 0;
+  padding: 4px 8px 0;
   line-height: 1.4;
-  color: var(--p2);
+  color: var(--n8);
+}
+
+.herocard__flavour {
+  padding-bottom: 6px;
 }
 
 .herocard__flavour {
@@ -253,46 +280,96 @@
   color: var(--p1);
 }
 
-/* The arrows replaced §13.11.2's roster strip [2026-09-26] — one window is the
-   whole of the heroes' information. They stand at the badge's end. */
-.herocard__pager {
+/*
+ * The name tabs [2026-10-20] — they replaced the ← → pager, which replaced
+ * §13.11.2's roster strip [2026-09-26]. Still one window for the whole of the
+ * heroes' information; the difference is that you can see who else is in it.
+ * The open card's tab is the filled one, and the number is how many of that
+ * person's nodes the player could buy now.
+ */
+.herocard__people {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: 6px;
-  padding-right: var(--ui-slab);
+  margin-bottom: 8px;
   padding-bottom: var(--ui-slab);
 }
 
-.herocard__pager > .ui-btn {
-  align-self: stretch;
-}
-
-.ui-btn.herocard__step {
-  min-width: 34px;
-  padding: 3px 8px;
-}
-
-.herocard__place {
-  order: 1;
-  color: var(--p1);
+.ui-btn.herocard__tab {
   font-size: var(--type-1x);
+  padding: 2px 10px 2px 4px;
+}
+
+.herocard__tab .ui-btn__label {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.herocard__tab-face {
+  display: block;
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+  border-bottom: 2px solid var(--branch, var(--p2));
+}
+
+.ui-btn small.herocard__tab-count {
+  padding: 0 4px;
+  /* Amber ink on the slab, outlined: the gate reads a badge against its button. */
+  color: var(--warn-2);
+  border: var(--rule) solid var(--warn-2);
+}
+
+.ui-btn.is-chosen small.herocard__tab-count {
+  color: var(--n0);
+  border-color: var(--n0);
+}
+
+/* What has been bought from this person's tree this run, as chips under the pass. */
+.herocard__owned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 8px;
+  font-size: var(--type-1x);
+}
+
+.herocard__owned-label {
+  color: var(--p1);
   letter-spacing: 1px;
+  margin-right: 4px;
+}
+
+.herocard__chip {
+  padding: 1px 6px;
+  color: var(--n8);
+  border: var(--rule) solid var(--branch, var(--p1));
+  background: var(--n0);
+  white-space: nowrap;
+}
+
+.herocard__chip b {
+  font-weight: normal;
+  color: var(--warn-2);
 }
 
 /*
- * Narrower and shorter frames shed the badge's words before its face: the
- * flavour line first, then the trait's sentence, then the pager folds to a row.
- * The trait's *name* stays — it is what the live rows are measuring.
+ * Narrower and shorter frames shed the badge's words before its face.
+ * [amended 2026-10-20] **The live rows go before the trait, not after it.** The
+ * trait is what makes the card a hero's (§22.9), and the rows are the trait
+ * measured — the tree under the pass already shows their effects lit. So a
+ * narrow frame drops the tiles, then the flavour, then the trait's sentence;
+ * the trait's band and name stay to the last.
  */
 @container frame (max-width: 1000px) {
   .herocard__pass {
-    grid-template-columns: auto minmax(120px, auto) minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(120px, auto) minmax(0, 1fr);
     gap: 12px;
   }
 
-  .herocard__traits {
+  .herocard__facts {
     display: none;
   }
 }
@@ -328,7 +405,8 @@
     letter-spacing: 1px;
   }
 
-  .herocard__role {
+  .herocard__role,
+  .herocard__trait-text {
     display: none;
   }
 
@@ -350,12 +428,13 @@
     padding: 3px 5px;
   }
 
-  .herocard__pager {
-    flex-direction: row;
+  /* The owned chips go before the trees do; the tree has the same facts lit. */
+  .herocard__owned {
+    display: none;
   }
 
-  .herocard__place {
-    order: 0;
+  .herocard__people {
+    margin-bottom: 4px;
   }
 }
 
@@ -367,11 +446,12 @@
     gap: 4px;
   }
 
-  .herocard__facts {
+  .herocard__facts,
+  .herocard__flavour {
     display: none;
   }
 
   .herocard__pass {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
   }
 }

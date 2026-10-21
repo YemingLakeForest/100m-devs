@@ -30,8 +30,16 @@ import { conceptsIn, type Concept } from './concepts.ts'
  */
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown'> {
-  /** `bait` is the §21 Act III mousetrap — the one control permitted to beg. */
-  variant?: 'default' | 'bait'
+  /**
+   * `bait` is the §21 Act III mousetrap — the one control permitted to beg.
+   *
+   * `primary` is **the** thing to press on its surface [2026-10-20, §10.8a
+   * amended]. Fill means something now: every other button is an outline you
+   * can press, and the one filled slab on a window or rail is the verb that
+   * window is about — HIRE, RESUME, BUY, PARADIGM SHIFT. Lonestar's rule, and
+   * the fix for a HUD where six cyan slabs all shouted at the same volume.
+   */
+  variant?: 'default' | 'bait' | 'primary'
   /** A button named entirely for one tracked concept keeps that concept's ink. */
   concept?: Concept
   /** Opt out when the action has a more specific press sound of its own. */
@@ -69,6 +77,7 @@ export function Button({ variant = 'default', concept, sound = true, className, 
   const classes = [
     'ui-btn',
     variant === 'bait' && 'ui-btn--bait',
+    variant === 'primary' && 'ui-btn--primary',
     hasConceptLabel && 'ui-btn--has-concept',
     concept && `ui-btn--concept kw--${concept}`,
     pressed && 'is-pressed',

@@ -608,6 +608,10 @@
 /* Desktop only, and additive — F2's contract is the press, which Button owns. */
 @media (hover: hover) {
   .title__slab .ui-btn:hover {
+    background: var(--p0);
+  }
+
+  .title__slab .ui-btn--primary:hover {
     background: var(--p3);
   }
 }
@@ -898,12 +902,25 @@
  * `.tech__node[data-locked]` already uses, and it survives the entropy hue
  * shifting every colour token underneath it.
  */
+/*
+ * [amended 2026-10-20] Buttons are outlines now and the chosen option is the
+ * filled one (`.ui-btn.is-chosen` in app.css), which says it directly. The
+ * dimming stays, lighter, so the row still reads at a glance in a screenshot.
+ */
 .opt__control--choice .ui-btn:not(.is-chosen) {
-  opacity: 0.45;
+  opacity: 0.8;
 }
 
 .opt__row--danger .opt__label {
   color: var(--p2);
+}
+
+/* [2026-10-20] RESET is an outline like every other button, in alarm ink: it is the
+   one control here that destroys something, and fill is spent on RESUME. */
+.ui-btn.opt__reset {
+  /* ALARM[3] ink: ALARM[2] on the dark wash is 4.1:1, under the gate's 4.5. */
+  color: var(--alarm-3);
+  border-color: var(--alarm-2);
 }
 
 .opt__warning {

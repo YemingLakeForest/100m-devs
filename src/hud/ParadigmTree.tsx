@@ -32,24 +32,50 @@ import {
 } from '../game/store.ts'
 import { formatCount } from '../sim/headcount.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
+import { formatMoney as formatMoneyShort } from './hudModel.ts'
+
+/**
+ * [2026-10-20] What the next level does, as two numbers — read off the node's
+ * own line (`−10% communication load per level` at level 1 is `−10% → −20%`).
+ * One-off nodes are OFF → ON; a line with no number says nothing rather than
+ * guess. The same rule the tree inspector uses (`UpgradeTrees.tsx`).
+ */
+function nextStep(node: ParadigmNode, level: number): { from: string; to: string } | null {
+  if (level >= node.maxLevel) return null
+  const m = node.effect.match(/([+−-]?)(\d+(?:\.\d+)?)(%|×)/)
+  if (node.maxLevel > 1 && m && /per level/i.test(node.effect)) {
+    const v = Number(m[2])
+    const fmt = (n: number) => (n === 0 ? 'NONE' : `${m[1] || '+'}${+(v * n).toFixed(2)}${m[3]}`)
+    return { from: fmt(level), to: fmt(level + 1) }
+  }
+  if (node.maxLevel > 1) return { from: `LV ${level}`, to: `LV ${level + 1}` }
+  return level === 0 ? { from: 'OFF', to: 'ON' } : null
+}
 
 function Node({
   node,
   level,
   bp,
+  bpAfterShift,
   onBuy,
 }: {
   node: ParadigmNode
   level: number
   bp: number
+  /** The wallet as it would be after the shift on offer, or null when there is none. */
+  bpAfterShift: number | null
   onBuy: () => void
 }) {
   const maxed = level >= node.maxLevel
   const cost = nodeCost(node, level)
   const affordable = canAfford(node, level, bp)
+  // §13.12.4 — the card says it, not just the shift's footnote: this is what the
+  // shift would buy.
+  const afterShift = !affordable && !maxed && bpAfterShift !== null && canAfford(node, level, bpAfterShift)
+  const step = nextStep(node, level)
 
   return (
-    <div className="paradigm__node" data-owned={level > 0 ? 'true' : 'false'}>
+    <div className="paradigm__node" data-owned={level > 0 ? 'true' : 'false'} data-after-shift={afterShift ? 'true' : undefined}>
       <div className="paradigm__node-head">
         <span className="paradigm__node-name">{node.name}</span>
         <span className="paradigm__node-level">
@@ -68,6 +94,12 @@ function Node({
         */}
         {!EFFECTIVE.has(node.id) && <em className="paradigm__soon"> — not wired up yet</em>}
       </p>
+      {step && (
+        <p className="paradigm__step">
+          <span>{step.from}</span> → <b>{step.to}</b>
+        </p>
+      )}
+      {afterShift && <p className="paradigm__after">YOU CAN AFFORD THIS AFTER THE SHIFT</p>}
       <Button onClick={onBuy} disabled={!affordable}>
         {maxed ? 'MAXED' : `${cost} BP`}
       </Button>
@@ -87,6 +119,8 @@ export function ParadigmTree({
   const permanent = getPermanent()
   const bp = permanent.layer1.bp
   const levels = permanent.layer1.paradigmLevels
+  const offer = paradigmShiftOffer(state)
+  const bpAfterShift = offer.available ? bp + offer.bp : null
 
   return (
     <OsWindow
@@ -132,6 +166,7 @@ export function ParadigmTree({
                 node={node}
                 level={levels[node.id] ?? 0}
                 bp={bp}
+                bpAfterShift={bpAfterShift}
                 onBuy={() => buyParadigmNode(node.id)}
               />
             ))}
@@ -237,6 +272,29 @@ function ShiftOffer({ state }: { state: GameState }) {
             : `THAT BUYS ${buys!.name.toUpperCase()}`}
         </p>
       )}
+      {/*
+        [2026-10-20] What the shift costs, as two lists, before the first press
+        rather than only in the armed warning: Lonestar's reward panel says what
+        you get one line at a time, and this is that panel's other half.
+      */}
+      <div className="paradigm__keep">
+        <div>
+          <h3>YOU KEEP</h3>
+          <ul>
+            <li>Every Bandwidth Point and every node here</li>
+            <li>Your heroes and their traits</li>
+            <li>The gallery, and what it still earns</li>
+          </ul>
+        </div>
+        <div data-lose="true">
+          <h3>STARTS AGAIN</h3>
+          <ul>
+            <li>{`Cash (${formatMoneyShort(state.cash)})`}</li>
+            <li>{`${formatCount(state.devs)} developers`}</li>
+            <li>Tree nodes bought with cash this run</li>
+          </ul>
+        </div>
+      </div>
       {armed ? (
         <>
           <p className="paradigm__shift-warning">
@@ -248,7 +306,7 @@ function ShiftOffer({ state }: { state: GameState }) {
           <Button onClick={() => setArmed(false)}>NOT YET</Button>
         </>
       ) : (
-        <Button onClick={() => setArmed(true)}>PARADIGM SHIFT</Button>
+        <Button variant="primary" onClick={() => setArmed(true)}>PARADIGM SHIFT</Button>
       )}
     </div>
   )

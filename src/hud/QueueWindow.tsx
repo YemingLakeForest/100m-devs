@@ -108,7 +108,7 @@ export function QueueWindow({
               {state.holding ? 'HOLDING' : 'HOLD'}
             </Button>
           )}
-          <Button className="ring__act queue__ship" disabled={!launch.ready || state.scene !== null} onClick={shipFront}>
+          <Button variant="primary" className="ring__act queue__ship" disabled={!launch.ready || state.scene !== null} onClick={shipFront}>
             {shipLabel}
           </Button>
         </>

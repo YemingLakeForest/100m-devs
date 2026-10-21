@@ -6,7 +6,7 @@
  * yet, and Serena's wired node *is* the pipeline's.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The Capacitor native-audio plugin cannot initialise under jsdom — see the
 // same mock in Hud.test.tsx.
@@ -89,13 +89,14 @@ describe('§8 — one person’s tree', () => {
   it('says NOT IN THE GAME YET on an unwired node, and not on a wired one', () => {
     shifted()
     __setState({ cash: 1e9 })
-    const { rerender } = draw('you')
-    // The inspector is keyed on selection; select through the board's keyboard.
-    // Left of the founder's root is Post on a Forum, which changes nothing yet.
-    fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowLeft' })
+    // [2026-10-20] The pane opens on a node now (the scene's, or the first one
+    // the player can buy), so the node under test is named rather than reached
+    // from an empty selection with the arrow keys. Post on a Forum changes
+    // nothing yet; Serena's Shelf is the pipeline's.
+    const { unmount } = render(<TreePane open state={getState()} hero="you" intro="h1" />)
     expect(document.querySelector('.trees__inspector')?.textContent).toContain('NOT IN THE GAME YET')
-    rerender(<TreePane open state={getState()} hero="serena" />)
-    fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowRight' })
+    unmount()
+    render(<TreePane open state={getState()} hero="serena" intro="s1" />)
     expect(document.querySelector('.trees__title')).toBeTruthy()
     expect(document.querySelector('.trees__inspector')?.textContent).not.toContain('NOT IN THE GAME YET')
   })

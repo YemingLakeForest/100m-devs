@@ -12,6 +12,7 @@ import {
   dismissShiftReport,
   effectiveDevCap,
   finishLaunch,
+  getPermanent,
   grantJames,
   hasSeenScene,
   heroById,
@@ -26,6 +27,7 @@ import {
   setHireMultiplier,
   shiftPaysNow,
   takeSeedRound,
+  treeRefusalOf,
   triggerParadigmShift,
   beginLiquidation,
   type GameState,
@@ -46,7 +48,7 @@ import { ReleaseReview } from './ReleaseReview.tsx'
 import { ShipTicker } from './ShipTicker.tsx'
 import { ReleaseRing } from './ReleaseRing.tsx'
 import { PipelineStrip } from './PipelineStrip.tsx'
-import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
+import { TREES, TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { pipelineAdvice } from './pipelineModel.ts'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
@@ -60,6 +62,9 @@ import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue, type LitKey } from '../ui/Dialogue.tsx'
 import { QueueWindow } from './QueueWindow.tsx'
+import { HeroRail, StatusItem, Taskbar, type TaskApp } from './StudioBars.tsx'
+import { cashTip, devsTip, shippedTip, syncTip, velocityTip } from './statusTips.ts'
+import type { TipSpec } from '../ui/OsTip.tsx'
 
 import '../styles/legibility.css'
 import { OsWindow } from '../ui/OsWindow.tsx'
@@ -229,7 +234,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // Resolved once per render: `heroById` rebuilds from `meta`, so asking twice
   // in one frame would build the same six objects twice.
   const openHero = state.selectedHero === null ? null : heroById(state.selectedHero)
-  const openAt = openHero ? roster.findIndex((h) => h.id === openHero.id) : -1
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -339,6 +343,120 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     openCardRef.current = openCard
   })
 
+  // §11.2 B2 — the past-peak line, read once and shared by the gauge and its tooltip.
+  const pastPeak = unlocks.trees ? pastPeakLine(state) : null
+
+  /**
+   * §10.1 [2026-10-20] — how many nodes the player could buy right now, across
+   * everybody who has a tree. It is the PERSONNEL badge: the taskbar's way of
+   * saying a window wants you. About a hundred refusal checks, each a lookup
+   * and a comparison, so it is simply counted every render.
+   */
+  const buyableBy: Record<string, number> = {}
+  let buyableCount = 0
+  if (unlocks.trees) {
+    const people: TreeHero[] = ['you', ...roster.map((h) => treeOf(h.id)).filter((h): h is TreeHero => h !== null)]
+    for (const who of people) {
+      let n = 0
+      for (const node of TREES[who]) if (treeRefusalOf(who, node.id, state) === null) n++
+      buyableBy[who] = n
+      buyableCount += n
+    }
+  }
+
+  const closeAll = () => {
+    setTreeOpen(false)
+    setFounderOpen(false)
+    setGameMenuOpen(false)
+    setGalleryOpen(false)
+    setQueueOpen(false)
+  }
+  const bp = getPermanent().layer1.bp
+  const urged = hasPrestiged() && shiftPaysNow(state)
+  const apps: TaskApp[] = [
+    ...(roster.length > 1
+      ? [{
+          id: 'personnel',
+          label: 'PERSONNEL',
+          open: openHero !== null,
+          badge: unlocks.trees && buyableCount > 0 ? String(buyableCount) : null,
+          onToggle: () => {
+            if (openHero) {
+              selectHero(null)
+              return
+            }
+            stage?.focusTeam()
+            openTeam()
+          },
+          tip: (): TipSpec => ({
+            title: 'PERSONNEL',
+            tag: 'WINDOW',
+            rows: [['PEOPLE', String(roster.length)], ...(unlocks.trees ? [['NODES YOU CAN BUY', String(buyableCount)] as const] : [])],
+            body: 'Everybody who works here, their trait, and their upgrades.',
+          }),
+        }]
+      : []),
+    ...(hasPrestiged()
+      ? [{
+          id: 'paradigm',
+          label: 'PARADIGM',
+          open: treeOpen,
+          urged,
+          // §13.12.4 — what the shift buys, on the door, when the shift is the move.
+          badge: urged ? '×10 SEATS' : bp > 0 ? `${bp} BP` : null,
+          onToggle: () => {
+            const was = treeOpen
+            closeAll()
+            selectHero(null)
+            setTreeOpen(!was)
+          },
+          tip: (): TipSpec => ({
+            title: 'PARADIGM TREE',
+            tag: 'WINDOW',
+            rows: [['BANDWIDTH', `${bp} BP`]],
+            body: 'Start the run again, stronger. What you buy here survives every run.',
+          }),
+        }]
+      : []),
+    ...(hasGallery
+      ? [{
+          id: 'gallery',
+          label: 'GALLERY',
+          open: galleryOpen,
+          onToggle: () => {
+            const was = galleryOpen
+            closeAll()
+            setGalleryOpen(!was)
+          },
+          tip: (): TipSpec => ({ title: 'GALLERY', tag: 'WINDOW', body: 'Every game you have released, across every run, and what each one still earns.' }),
+        }]
+      : []),
+    ...(unlocks.trees
+      ? [{
+          id: 'you',
+          label: 'YOU',
+          open: founderOpen,
+          onToggle: () => {
+            const was = founderOpen
+            closeAll()
+            setFounderOpen(!was)
+          },
+          tip: (): TipSpec => ({ title: 'YOU', tag: 'WINDOW', body: 'Your own pass and your own tree. You are the fifth tree, and worse at everything.' }),
+        }]
+      : []),
+    {
+      id: 'menu',
+      label: 'MENU',
+      open: gameMenuOpen,
+      onToggle: () => {
+        const was = gameMenuOpen
+        closeAll()
+        setGameMenuOpen(!was)
+      },
+      tip: (): TipSpec => ({ title: 'GAME MENU', tag: 'WINDOW', body: 'Sound, motion and your save. The studio keeps working while it is open.' }),
+    },
+  ]
+
   useEffect(() => {
     if (!stage) return
     stage.setHeroInspect((id) => openCardRef.current(id))
@@ -368,15 +486,52 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         gauges keep their pin to the bottom (`margin-top: auto`), so on a frame
         with room to spare the composition is the one §10.1 asks for.
       */}
+      {/*
+        §10.1 [amended 2026-10-20] — **one status bar, one taskbar.** The readings
+        that sat in both rails (cash, devs, shipped on the right; sync and velocity
+        on the left) are one row across the top now, each with its reasons a hover
+        away (`StudioBars.tsx`). The doors that were a pile of filled buttons in
+        the bottom right — TEAM, PARADIGM, YOU, GALLERY, and MENU from the left —
+        are a taskbar along the bottom. What is left in the rails is what is *not*
+        a reading or a door: the project and its charts on the left, the verb and
+        your own desk on the right.
+      */}
+      <div className="hud__status">
+        <StatusItem tip={() => cashTip(state)} className="hud__status-item--cash">
+          <Cash state={state} />
+        </StatusItem>
+        <StatusItem tip={() => devsTip(state)}>
+          <Devs state={state} />
+        </StatusItem>
+        <StatusItem tip={() => shippedTip(state)}>
+          <Shipped state={state} />
+        </StatusItem>
+        <StatusItem tip={() => velocityTip(state)}>
+          <Velocity state={state} />
+        </StatusItem>
+        <StatusItem tip={() => syncTip(entropy, pastPeak)}>
+          <Speedometer entropy={entropy} pastPeak={pastPeak} labelled={unlocks.entropyLabel} />
+        </StatusItem>
+        {/* §21.7.0 rule 5 — the clock James's gym runs on, only around the gym. */}
+        <StudioClock state={state} />
+        {/* §16 — light-lag and the barrier; nothing on a one-world studio. */}
+        <Starbound state={state} />
+      </div>
+
       <div className="hud__left">
+        {/*
+          The faces of everybody who has arrived (§7.8.12's front door). Gated as
+          TEAM was, on there being more than one of them: James alone in Act I has
+          no room to go back to and no card worth a face of its own yet.
+        */}
+        {roster.length > 1 && <HeroRail roster={roster} state={state} onOpen={openCard} />}
+
         {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
         <div className="hud__project">
           <BurnDown state={state}>
             {/*
               §10.7 [2026-10-03] — the queue, in the burn-down's block because the
-              burn-down feeds it: every finished build is a pipeline run here, with
-              the key that ships it. A tap opens `QueueWindow`; Serena's card,
-              where its size and speed are bought, is a button inside that.
+              burn-down feeds it. A tap opens `QueueWindow`.
             */}
             <PipelineStrip
               state={state}
@@ -389,110 +544,20 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               }}
             />
           </BurnDown>
-          {/*
-            §4.10e — the back catalogue, under the burn-down that will join it.
-            Directly under on purpose: the two charts are the same story told at
-            two ends, work going down and money coming in, and the whole reason
-            the revenue graph exists is that a player watching only the first one
-            concluded they were failing.
-          */}
+          {/* §4.10e — the back catalogue, under the burn-down that will join it. */}
           <RevenueGraph state={state} />
-          {/*
-            §4.15 — the defect counter sits with the burn-down because it is a
-            tax on that number: the two are the same project measured by what is
-            finished and by what is broken. It is hidden at zero, so it appearing
-            is itself the notification.
-
-            §21.0c gates the whole family here rather than inside each component.
-            The simulation already holds all three at zero during Run 1, so this
-            is belt and braces — and it is the braces that matter: a component
-            that renders nothing because its number happens to be zero is one
-            balance change away from rendering something.
-          */}
-          {/*
-            §4.15 — **all three backlogs, together, in one column.**
-
-            They shipped split across the two rails: defects here with the
-            burn-down, incidents and tickets over on the right under SHIPPED, on
-            the reasoning that the last two are facts about the *catalogue*. That
-            reasoning is sound and it lost to two better ones.
-
-            The first is §4.15's own thesis. The section exists because three
-            numbers that all go up and all mean "something is wrong" are three
-            copies of one anxiety unless the player can tell them apart — and the
-            way it proposes to do that is three colours and three shapes read as
-            a set. Split across sixty degrees of arc, they are not a set.
-
-            The second is that the right rail did not have the room and nothing
-            said so. Measured at 997x448 in Act III with a full catalogue, its
-            stack came to 649 px against 426 of frame: the hire button was cut
-            off mid-word and the touch switch, the §23.3 overlay, your own desk
-            and §10.1's whole nav were drawn below the bottom of the screen. This
-            is the hundred pixels that buys most of it back, and it is the one
-            move that improves the composition rather than merely relieving it.
-          */}
-          {/*
-            §21.7.6b — **the set assembles itself, one colour at a time.** §4.15's
-            argument that the three are one system told three ways is unchanged
-            and §25.7.2a's single column is what makes them readable as a set;
-            what has gone is their arriving *together*. Each bar appears when its
-            hero does — defects with Mo, incidents with Serena, tickets with Matt
-            — over the run §13.12.2 gives them.
-
-            A bar with no hero is not drawn at all, empty or otherwise, on this
-            section's own rule that a silent row is the loudest kind of
-            furniture. Reserving the space would be the set asserted before it
-            exists.
-          */}
+          {/* §4.15, §21.7.6b — the three backlogs, one colour at a time as each hero arrives. */}
           {unlocks.defects && <Defects state={state} />}
           {unlocks.incidents && <Incidents state={state} />}
           {unlocks.tickets && <Tickets state={state} />}
         </div>
 
-        {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
-        <div className="hud__gauges">
-          <Speedometer
-            entropy={entropy}
-            pastPeak={unlocks.trees ? pastPeakLine(state) : null}
-            labelled={unlocks.entropyLabel}
-          />
-          <Velocity state={state} />
-          {/* §21.7.0 rule 5 — the clock James's gym runs on [2026-10-16]. */}
-          <StudioClock state={state} />
-          {/*
-            §16 — the two readouts the top of the ladder adds, under the two the
-            whole game has had. They are in this rail rather than the right one
-            because they are readings and not verbs, and directly under the
-            speedometer because the first of them is the speedometer's own
-            number in a different unit. Both draw nothing on a one-world studio.
-          */}
-          <Starbound state={state} />
-          {/*
-            §23.3's overlay, at the foot of the reading rail.
-            **Instrumentation is not a control.** It sat among the play tools in
-            the right rail, where it competed with the thumb for the fourteen
-            pixels that were costing §10.1's nav its place on the frame. Nothing
-            about the gate cares which corner it is in, and everything about the
-            right rail cares that it is not there.
-          */}
-          {DEBUG_TOOLS_ENABLED && <PerfOverlay stage={stage} />}
-          {/*
-            §10.1's MENU — moved to the foot of the left rail. The right rail's
-            nav is the thumb's rail, all verbs; the menu is a place the player
-            goes to leave, so it belongs on the reading side, out of the action
-            stack.
-          */}
-          <Button
-            className="hud__menu"
-            onClick={() => {
-              setTreeOpen(false)
-              setFounderOpen(false)
-              setGameMenuOpen(true)
-            }}
-          >
-            MENU
-          </Button>
-        </div>
+        {/* §23.3's overlay, at the foot of the reading rail. Instrumentation is not a control. */}
+        {DEBUG_TOOLS_ENABLED && (
+          <div className="hud__gauges">
+            <PerfOverlay stage={stage} />
+          </div>
+        )}
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
@@ -500,143 +565,29 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <CollapsePlate state={state} />
 
       {/*
-        The right rail, and the same fix for the same defect: the resource
-        blocks were in the top row and the action bar in the middle one, and at
-        336 px the HIRE DEVELOPER button was drawn straight over the SHIPPED
-        readout. One column, button pinned to the bottom.
+        The right rail is the thumb's now, and only the thumb's: the verb (HIRE,
+        and the offer and dials that ride with it) and your own desk. Pinned to
+        the bottom, next to the taskbar, which is where Lonestar puts its one big
+        button.
       */}
       <div className="hud__right">
-        {/* Top-right — §10.1's resource bar, turned on its side to use the margin. */}
-        <div className="hud__resources">
-          <Cash state={state} />
-          <Devs state={state} />
-          <Shipped state={state} />
-        </div>
-        {/*
-          §26.2.2's address and its doors (`Lift.tsx`) stood here, over the Pixi
-          ladder. They went with it on 2026-09-28; the monitor's address bar
-          (PLAN-2026-09-27-garage-to-galaxy, phase 6) is their replacement.
-        */}
         <div className="hud__bottom">
           <ActionBar
             spec={actionFor(state.phase, unlocks.manualHire)}
             offer={offerFor(state.phase, state.massHired)}
             state={state}
           />
-
-          {/* The play tools stay pinned to the bottom. New hire actions stack
-              immediately above them instead of moving the tools around. */}
           <div className="hud__controls">
-          {/*
-            §7.8.12 — **TEAM: the way back to the room**, and §7.7.4's Hero
-            Anchor finally built as a control.
-
-            It replaces the `HERO` button that stood here, and the replacement
-            is the point rather than a saving. That button opened the roster
-            strip, which `Roster.tsx` itself calls *"not the intended front
-            door ... once [the suite] exists the way you reach Mo is by looking
-            at Mo"*. The strip now opens from the sign over the suite's door,
-            and the rail slot buys the thing the room never had: a way to get
-            back to it from a hundred million developers away.
-
-            **Gated on there being more than one of them**, unchanged and for
-            the unchanged reason: James arrives alone in Act I and §7.8.12 does
-            not build the walls until somebody joins him, so before that there
-            is no room to go back to and a button onto one is the §10.6
-            web-page tell.
-          */}
-          {/*
-            [2026-09-26] — and it opens the first card as it goes. The room is
-            where the heroes are, but the 3D garage does not seat Mo, Serena or
-            Matt, and the roster strip that reached them went with placement;
-            the card's arrows walk everybody who has arrived.
-          */}
-          {roster.length > 1 && (
-            <Button
-              onClick={() => {
-                stage?.focusTeam()
-                openTeam()
-              }}
-            >
-              TEAM
-            </Button>
-          )}
-          {/*
-            §13.2 — the tree appears only once a Paradigm Shift has happened.
-            Before the first one BP does not exist, and a permanently visible
-            button onto an empty currency would be the §10.6 web-page tell.
-          */}
-          {/*
-            §13.2, §13.12.4 [2026-10-16] — and it pulses, with what the shift
-            buys under it, when `shiftPaysNow` says the shift is the move: its BP
-            buys the next ×10 of seats, or the run has been stuck past the peak
-            for a minute (or at the cap with nothing to buy for three). It never
-            opens itself; the player still takes the shift.
-          */}
-          {hasPrestiged() &&
-            (shiftPaysNow(state) ? (
-              <Button className="hud__shift-pays" onClick={() => setTreeOpen((was) => !was)}>
-                PARADIGM
-                <small>×10 SEATS</small>
-              </Button>
-            ) : (
-              <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
-            ))}
-          {/*
-            §10.1's UPGRADES door stood here, onto the studio board. The board
-            was retired on 2026-09-26 — *"I thought upgrades are trees"* — and
-            each person's upgrades open from their own card now (GDD §8).
-          */}
-          {/*
-            [2026-10-02] — **CODE at the foot of the right rail, in MENU's slab,
-            with GALLERY to its left — the mirror of the left rail, where MENU is
-            the last thing. Pinned last so a new rail control grows upward, never
-            under it. [2026-10-13] The touch switch (TAP / DRAG / INFO) that sat
-            above is gone: a tap pokes, and a hero's tap opens their card.
-          */}
-          <div className="hud__act">
-            {/* The founder's panel — your own tree is behind it. It used to be
-                the INFO tap on your avatar; with the touch switch gone
-                [2026-10-13] it is a door of its own, and opens with the trees.
-                Its own row: three buttons do not fit the rail's width. */}
-            {unlocks.trees && (
+            <div className="hud__act">
               <div className="hud__act-row">
-                <Button
-                  className="hud__gallery-door"
-                  onClick={() => {
-                    setTreeOpen(false)
-                    setGameMenuOpen(false)
-                    setGalleryOpen(false)
-                    setFounderOpen((was) => !was)
-                  }}
-                >
-                  YOU
-                </Button>
+                <FounderDesk stage={stage} />
               </div>
-            )}
-            <div className="hud__act-row">
-              {/* §10.11 — the gallery door, now left of CODE. Not gated on
-                  anything but a record: it opens the moment there is something
-                  shipped to show, Run 1 included. */}
-              {hasGallery && (
-                <Button
-                  className="hud__gallery-door"
-                  onClick={() => {
-                    setTreeOpen(false)
-                    setFounderOpen(false)
-                    setGameMenuOpen(false)
-                    setGalleryOpen((was) => !was)
-                  }}
-                >
-                  GALLERY
-                </Button>
-              )}
-              <FounderDesk stage={stage} />
             </div>
-          </div>
           </div>
         </div>
       </div>
+
+      <Taskbar apps={apps} />
 
       {/* §10.8b — the two halves of a launch. The window is a modal decision
           the studio is stopped for; the reel is what the press said about it,
@@ -662,16 +613,21 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         tree={openHero ? treeOf(openHero.id) : null}
         treesOpen={unlocks.trees}
         intro={treesIntro}
-        place={{ at: openAt + 1, of: roster.length }}
+        people={roster}
+        counts={buyableBy}
         onClose={() => {
           setTreesIntro(null)
           selectHero(null)
         }}
-        onStep={(by) => {
-          if (roster.length === 0) return
-          const next = roster[(openAt + by + roster.length) % roster.length]
-          if (next) selectHero(next.id)
-        }}
+        onPick={(id) => selectHero(id)}
+        onFounder={
+          unlocks.trees
+            ? () => {
+                selectHero(null)
+                setFounderOpen(true)
+              }
+            : undefined
+        }
       />
 
       <div
@@ -849,7 +805,7 @@ function GameMenu({
       onClose={onResume}
       footer={
         <>
-          <Button onClick={onResume}>RESUME</Button>
+          <Button variant="primary" onClick={onResume}>RESUME</Button>
           <Button onClick={onMainMenu}>MAIN SCREEN</Button>
         </>
       }
@@ -908,7 +864,8 @@ function ActionButton({ spec, state }: { spec: ActionSpec; state: GameState }) {
   const q = priceOf(spec, state)
   return (
     <Button
-      variant={spec.variant}
+      // §10.8a [2026-10-20] — the rail's verb is its one filled slab; the mousetrap keeps its own.
+      variant={spec.variant === 'bait' ? 'bait' : 'primary'}
       onClick={RUN_ACTIONS[spec.action]}
       // §21.0 — a purchase the player cannot afford is refused by the store
       // anyway, but a button that looks live and does nothing is worse than one

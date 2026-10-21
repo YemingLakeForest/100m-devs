@@ -7086,6 +7086,9 @@ A screen-space badge would float free of the city and read as a map pin — whic
 </ul>
 <h4 id="the-executive-suite-where-the-heroes-sit-canon-added-2026-08-15-r74">7.8.12 The executive suite — where the heroes sit <strong>[CANON - added 2026-08-15; amended 2026-08-29, 2026-08-31]</strong> - R74</h4>
 <blockquote>
+<p><strong>[amended 2026-10-20] TEAM is PERSONNEL on the taskbar, and the faces are on the HUD.</strong> §10.1's taskbar carries the door, and a row of every arrived hero's face sits at the top of the left rail; a tap on a face opens that card. Gated as TEAM was, on there being more than one of them.</p>
+</blockquote>
+<blockquote>
 <p><strong>[amended 2026-10-04] The HQ scales from garage to galaxy — CANON, built as far as the survey.</strong> <em>"I want the HQ look and feel scales with how we progress from garage to galaxy."</em> The HQ is the one place on every rung that is recognisably the same place, so what changes with scale is its <strong>materiality</strong>, and what never changes is short: the roll-up door's silhouette, the founder's and James's plates, and <strong>the heroes' colours</strong> — each person who has walked in is a colour (<code>heroBranches.ts</code>) and the colour goes wherever the HQ goes. <code>sim/hqLook.ts</code> owns the ladder; no renderer decides for itself how big the HQ is.</p>
 <table>
 <thead><tr><th>Stage</th><th>Up to</th><th>The HQ is</th></tr></thead>
@@ -7724,6 +7727,11 @@ from freezing entirely.)</li>
 <h2 id="ui-hud-design">10. UI &amp; HUD Design</h2>
 <h3 id="main-gameplay-screen-component-table-canon">10.1 Main gameplay screen component table <strong>[CANON]</strong></h3>
 <blockquote>
+<p><strong>[amended 2026-10-20] One status bar, one taskbar — the Lonestar pass.</strong> The readings that were spread over both rails (cash, devs and shipped on the right; sync and velocity on the left) are <strong>one row across the top</strong>, the rails' own blocks turned on their side, each with its reasons a hover away (§10.6c). The doors that were a pile of filled buttons at the bottom right — TEAM, PARADIGM, YOU, GALLERY, and MENU from the foot of the left rail — are a <strong>STUDIO_OS taskbar along the bottom</strong>; the open window is the filled one, and a badge says when a window wants you (how many tree nodes the player could buy; ×10 SEATS on PARADIGM when §13.12.4 says the shift is the move). The left rail keeps the project, its charts and the backlogs, under a row of <strong>hero faces</strong> with live counters (a tap opens the card; §7.8.12). The right rail keeps only the verb and your own desk, pinned next to the taskbar.</p>
+<p><strong>Why.</strong> Lonestar keeps one thin bar of icon-and-number pairs along the top, the pilot's face always on screen with their counters under it, and exactly one big action button; everything else is the play area. Studio OS already says it is an operating system in every window's title bar (§10.6a), and an operating system's doors are a taskbar. Four corners of readouts at five sizes, and six equally loud buttons, were the opposite of that. The rails' own guarantees (§10.1a, the rails owning their columns, the script taking the middle) are unchanged: the two bars are full-width <code>auto</code> rows above and below them.</p>
+<p><em>"found this game Lonestar, the UI seems a good blueprint and inspiration for this game ... give improvement ideas, specially around the hero screens"</em>, then <em>"dont just about the heroes screen but the general Studio OS UI can be improved"</em>, then <em>"do a version with these improvement for my review"</em>.</p>
+</blockquote>
+<blockquote>
 <p><strong>[amended 2026-10-16] The left rail's backlogs are controls, not only readouts.</strong> §4.15's incident chips carry PATCH (the game's name) and REFUND &amp; MOVE ON (shown as REFUND, under OFF SALE) and a <em>−$X/s REFUNDING</em> line, and the ticket bar is a button (ANSWER). The rail stays <code>pointer-events: none</code>; only those buttons opt back in, so the swarm under the gaps stays pokeable (§7.1). See §4.15 for why each verb exists and what it costs.</p>
 </blockquote>
 <blockquote>
@@ -8170,6 +8178,10 @@ a scene, and the HUD stands its doors down in one expression applied to every wi
 each window's business to remember the rule — the second time it is derived it will be
 derived wrong.</p>
 <hr />
+<h3 id="c-the-one-tooltip-canon-added-2026-10-20">10.6c The one tooltip <strong>[CANON — added 2026-10-20]</strong></h3>
+<p>Every hover in Studio OS is the same object: <strong>a name, a tag in the corner, a few stat rows, then one or two sentences</strong> (<code>ui/OsTip.tsx</code>). It is opaque, hard-edged, and arrives in two stepped frames; it never fades.</p>
+<p><strong>Keywords chain.</strong> The sentences are §10.2a's concept text, so the tracked nouns arrive already inked; resting on one opens a second panel beside the first with that noun's line (<code>ui/glossary.ts</code>). The first panel stays up while the pointer travels into it, which is what makes the chain reachable. On touch, a tap toggles the panel and a tap elsewhere puts it away.</p>
+<p><strong>Why.</strong> Lonestar teaches nearly its whole system through one tooltip and a preview, and the reviews that praise the game praise it for exactly that; the one complaint they share is the systems that were <em>not</em> explained. The HUD said numbers and the reasons lived in this document. Rows are read off the same store functions the readouts use, so a tooltip cannot disagree with the number it explains.</p>
 <h3 id="the-dialogue-system-typed-out-and-unskippable-canon">10.7 The Dialogue System — typed out, and unskippable <strong>[CANON]</strong></h3>
 <p>All character dialogue is delivered <strong>one letter at a time</strong>, in the manner of a Game Boy
 Pokémon text box. This is the game's voice, and it is not decoration.</p>
@@ -8508,6 +8520,9 @@ scored beat (a §7.7.2 rung promotion, a Paradigm Shift). If the player is waiti
 game to finish being beautiful, it is not beautiful.</p>
 <hr />
 <h4 id="a-the-juice-vocabulary-techniques-from-references-canon">10.8a The juice vocabulary — techniques, from references <strong>[CANON]</strong></h4>
+<blockquote>
+<p><strong>[amended 2026-10-20] Fill means something.</strong> A button is an <strong>outline you can press</strong>; the <strong>filled slab</strong> is the one verb a surface is about (HIRE on the rail, RESUME, BUY, PARADIGM SHIFT, the title's first slab) or the option that is chosen. Disabled stays as it was (no slab, low contrast), and the Act III mousetrap keeps its gold. Every button used to be a filled slab, so a rail of six was six things shouting at one volume; Lonestar outlines its buttons and spends fill only on the selected option or the thing to press next. One filled slab per surface — the fill is the whole signal, and spending it twice spends it.</p>
+</blockquote>
 <p>F1–F6 say what must not happen. This says what <em>does</em>, in named techniques, so &quot;make it
 juicy&quot; is a spec rather than a mood. Every one below was observed in a shipped game and is
 achievable with the ADR 0001 stack.</p>
@@ -9435,6 +9450,9 @@ would bounce; and a house a layoff empties lifts off on its thrusters, the liqui
 bubble (<em>"This is not a layoff. This is a restructuring."</em>) still carries the line.</p>
 </blockquote>
 <h3 id="the-release-gallery-what-you-have-actually-made-canon-added-2026-08-10-r28">10.11 The Release Gallery — what you have actually made <strong>[CANON - added 2026-08-10]</strong> - R28</h3>
+<blockquote>
+<p><strong>[amended 2026-10-20] Two flat slabs, not a reflection; the score as one bar.</strong> The cover's masked, fading mirror was the one soft gradient in an interface that is otherwise hard-edged and stepped; the shelf reading survives on two offset blocks under the cover, the buttons' own depth idiom. The rating's breakdown is drawn as <strong>one stacked bar</strong>, a segment per cause in its colour and the points left on the table as the empty end, with the +N figures in the moving-number ink; the legend alone left the player to add them up.</p>
+</blockquote>
 <blockquote>
 <p><strong>Amended 2026-08-27 — the gallery goes with the run.</strong> The release history was career-wide and
 said so at length: it survived a Paradigm Shift, a Codebase Fork and a Multiverse Compiler,
@@ -13316,6 +13334,9 @@ screen, the camera zooms into a single pixel desk, and the new run begins with p
 BP perks applied.</p>
 <h4 id="a-the-reboot-is-a-cut-scene-canon-added-2026-08-27">15.1a The reboot is a cut scene <strong>[CANON — added 2026-08-27]</strong></h4>
 <blockquote>
+<p><strong>[amended 2026-10-20] A run report comes first — §15.1b.</strong></p>
+</blockquote>
+<blockquote>
 <p><strong>[amended 2026-10-04] The first death's last scene is a scene.</strong> TRIGGER PARADIGM SHIFT used to <em>be</em> the shift: one press and the studio was somewhere else. It now begins the liquidation: the bankruptcy panel goes, James says <em>"So. Same time tomorrow?"</em> over the studio, whoever is in the garage goes up through the roof (the hire's drop played backwards) and <strong>every house lifts off on its thrusters</strong>, one after another, leaving empty lots — and when the last has cleared the frame the shift lands and the receipt (above) follows. Then Run 2 opens on a studio with <strong>nobody in it but you</strong>: James is not in the room while the receipt is up, and drops in when it closes, so the first line of Run 2, <em>"James. You again."</em>, is said to a man who has just landed. The camera does not yet zoom to a single pixel desk. The pieces are <code>store.beginLiquidation</code> / <code>finishLiquidation</code>, the stage's driver (at least a beat, at most nine seconds), <code>garageView.liquidate</code> and <code>cityHouses.liquidate</code>.</p>
 </blockquote>
 <blockquote>
@@ -13440,6 +13461,9 @@ script says it ends, whichever numbers the player brought to it.]</em></p>
 A player who hits the same wall twice has not learned a second thing, and a list that repeats
 itself is a list nobody finishes reading. It also means the ledger is bounded by the catalogue
 rather than by how long somebody plays — which is what lets all of it fit on one page.</p>
+<h4 id="b-the-run-report-canon-added-2026-10-20">15.1b The run report <strong>[CANON — added 2026-10-20]</strong></h4>
+<p>Before the reboot plays, one STUDIO_OS window: <strong>the founder's pass with a rubber stamp landing on it</strong> (<em>SHIPPED 9</em>, the run number above), and the run's numbers beside it — games shipped, run time, revenue, peak developers, the Bandwidth it earned, and what it taught (<code>lessons.ts</code>). <strong>START RUN N</strong> is its one filled button, and the boot follows as before.</p>
+<p><strong>Why.</strong> Lonestar's victory screen stamps the pilot's portrait and lays the run out on one page, and the stamp is precisely the object a laminated staff pass would get (§22.9.1's register) — flat ink, four stepped frames, no glow. The boot's receipt says the same numbers as terminal lines; a page with a face on it is the one moment the run is looked back on rather than scrolled past. It costs the shift one press.</p>
 <h3 id="layer-2-screen-codebase-fork-terminal">15.2 Layer 2 screen — Codebase Fork Terminal</h3>
 <p>Overlays a semi-transparent dark terminal HUD over a blurred, pulsing view of your
 100,000,000+ developer swarm map.</p>
@@ -17050,6 +17074,9 @@ comes from an organisation that cannot hold even three correct people at once, w
 with faces on it.</p>
 </blockquote>
 <h3 id="the-card-face-what-a-hero-card-actually-looks-like-canon-added-2026-08-15-r56">22.9 The card face — what a hero card actually looks like <strong>[CANON - added 2026-08-15]</strong> - R56</h3>
+<blockquote>
+<p><strong>[amended 2026-10-20] Name tabs, a trait band, and what you own.</strong> The ← → pager said <em>2 / 4</em> in the smallest type on the card while its buttons were the largest things on it; it is now <strong>a row of name tabs</strong> over the pass — each person's face, name and how many of their nodes the player could buy, the open one filled — plus a YOU tab once the trees are open. <strong>The trait is a band headed in the branch colour</strong>, the loudest thing on the pass (it was small cyan type at the right, on the card whose argument is that a hero is a different kind of object, and the trait is the difference); on narrow frames the live rows go before it, not after. <strong>The nodes bought this run</strong> are a row of chips under the pass. The tree's inspector <strong>opens on a node</strong> (the scene's, or the first the player can buy) and shows <strong>before → after</strong> for the next level, read off the node's own line. After Lonestar's pilot cards: a fixed talent in a filled band of its own colour, the run's acquisitions in a second register, numbers in yellow, and the tooltip always up on the thing under your hand.</p>
+</blockquote>
 <blockquote>
 <p><strong>[amended 2026-09-26] Redone without placement.</strong> <em>"redo the info page, I don't want the heroes tray when info page is clicked neither"</em>. The pass stays. It says who the person is, what they are doing for the studio right now (live rows from the same fold the simulation charges), and carries UPGRADES in its foot once the trees are open. ← and → step to the next person who has arrived, replacing the roster strip. TEAM opens it on James, the belt opens Serena's, and a tap on a hero in the room opens theirs. Gone: level, XP bar, reach, coverage, BENCHED, PLACE, RECALL and SKILLS.</p>
 </blockquote>

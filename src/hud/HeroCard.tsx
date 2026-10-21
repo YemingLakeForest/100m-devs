@@ -54,12 +54,25 @@
  * and short, the leftover. The pass now lies across the top as a landscape badge
  * (square head-and-shoulders, name, the live rows, the trait) and the tree gets
  * the whole width and nearly all the height below it.
+ *
+ * ## Name tabs, a trait band, and what you own [2026-10-20]
+ *
+ * After Lonestar's pilot cards, for *"the general Studio OS UI"*. The ← → pager
+ * said `2 / 4` in the smallest type on the card while its two buttons were the
+ * largest things on it; it is a row of name tabs now, each with the person's
+ * face and how many of their nodes the player could buy, and the open one is
+ * the filled one. The trait — the one thing that makes a hero a hero — was
+ * small cyan type squeezed in at the right; it is a band headed in the branch
+ * colour, the loudest thing on the pass. And the nodes bought this run are a
+ * row of chips under it, so the pass grows as the player spends.
  */
 
 import { Button } from '../ui/Button.tsx'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import type { GameState } from '../game/store.ts'
 import { BRANCH_BY_ID } from '../sim/heroBranches.ts'
+import { treeLevelOf } from '../game/store.ts'
+import { TREES } from '../sim/upgradeTrees.ts'
 import { heroIdentity } from '../sim/identity.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
@@ -83,9 +96,11 @@ export function HeroCard({
   tree,
   treesOpen,
   intro = null,
-  place,
+  people = [],
+  counts = {},
   onClose,
-  onStep,
+  onPick,
+  onFounder,
 }: {
   hero: HeroRuntime | null
   /** The whole game state: the live rows read the headcount, the tree reads the wallet. */
@@ -96,16 +111,24 @@ export function HeroCard({
   treesOpen: boolean
   /** A node to open the tree on, selected (James's scene opens Instant Messenger). */
   intro?: string | null
-  /** Where this card sits among everybody who has arrived, 1-based. */
-  place: { at: number; of: number }
+  /** Everybody who has arrived, in the order the tabs show them. */
+  people?: readonly HeroRuntime[]
+  /** Nodes the player could buy right now, per tree — the number on each tab. */
+  counts?: Readonly<Record<string, number>>
   onClose: () => void
-  /** Step to the previous (-1) or next (+1) person. */
-  onStep: (by: -1 | 1) => void
+  /** Open somebody else's card. */
+  onPick?: (id: HeroRuntime['id']) => void
+  /** The founder's tab, once the trees are open: your own pass is a window of its own. */
+  onFounder?: () => void
 }) {
   const face = hero ? heroIdentity(hero.id) : null
   const branch = hero ? BRANCH_BY_ID.get(hero.branch) : null
   const duty = hero ? heroDuty(hero, state.devs) : []
   const showTree = hero !== null && tree !== null && treesOpen
+  // §8 — what this person's tree has had bought this run, in the order the tree lists it.
+  const owned = tree && treesOpen
+    ? TREES[tree].filter((n) => n.kind !== 'root' && n.kind !== 'link').map((n) => ({ node: n, level: treeLevelOf(tree, n.id, state) })).filter((o) => o.level > 0)
+    : []
 
   return (
     <OsWindow
@@ -134,6 +157,36 @@ export function HeroCard({
             drop it (heroes.css) rather than scroll it.
           */}
           <div className="herocard__side" style={{ ['--branch' as string]: hero.colour }}>
+            {(people.length > 1 || onFounder) && (
+              <div className="herocard__people" role="tablist" aria-label="People">
+                {onFounder && (
+                  <Button className="herocard__tab" role="tab" aria-selected={false} onClick={onFounder}>
+                    YOU
+                    {counts.you ? <small className="herocard__tab-count">{counts.you}</small> : null}
+                  </Button>
+                )}
+                {people.map((p) => {
+                  const who = heroIdentity(p.id)
+                  if (!who) return null
+                  const on = p.id === hero.id
+                  const n = counts[p.id] ?? 0
+                  return (
+                    <Button
+                      key={p.id}
+                      className={on ? 'herocard__tab is-chosen' : 'herocard__tab'}
+                      role="tab"
+                      aria-selected={on}
+                      style={{ ['--branch' as string]: p.colour }}
+                      onClick={() => onPick?.(p.id)}
+                    >
+                      <HeroFace look={who.look} id={p.id} shot="head" className="herocard__tab-face" />
+                      {who.name.toUpperCase()}
+                      {n > 0 ? <small className="herocard__tab-count">{n}</small> : null}
+                    </Button>
+                  )
+                })}
+              </div>
+            )}
             <div className="herocard__pass">
               {/* The only round thing on the card, and what makes it a pass. */}
               <span className="herocard__punch" aria-hidden="true" />
@@ -168,19 +221,26 @@ export function HeroCard({
                 card written in sentences. It is what the rows beside it measure.
               */}
               <div className="herocard__traits">
-                <h3 className="herocard__trait-name">{hero.hero.trait.name}</h3>
+                <h3 className="herocard__trait-name">
+                  {hero.hero.trait.name}
+                  <span className="herocard__trait-kind">TRAIT</span>
+                </h3>
                 <p className="herocard__trait-text">{hero.hero.trait.text}</p>
                 <p className="herocard__flavour">&ldquo;{hero.hero.flavour}&rdquo;</p>
               </div>
 
-              {place.of > 1 && (
-                <div className="herocard__pager">
-                  <Button className="herocard__step" onClick={() => onStep(-1)} aria-label="Previous person">←</Button>
-                  <span className="herocard__place">{place.at} / {place.of}</span>
-                  <Button className="herocard__step" onClick={() => onStep(1)} aria-label="Next person">→</Button>
-                </div>
-              )}
             </div>
+            {owned.length > 0 && (
+              <div className="herocard__owned" aria-label="Owned this run">
+                <span className="herocard__owned-label">OWNED THIS RUN</span>
+                {owned.map(({ node, level }) => (
+                  <span key={node.id} className="herocard__chip">
+                    {node.name}
+                    {node.max > 1 && <b>{node.repeat ? ` ${level}` : ` ${level}/${node.max}`}</b>}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <section className="herocard__tree" aria-label={`${face.name}'s upgrades`}>

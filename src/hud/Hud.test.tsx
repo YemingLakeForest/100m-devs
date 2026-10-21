@@ -129,7 +129,8 @@ describe('§10.8 F1 — nothing enters or leaves without motion', () => {
     // And the studio is still behind it, still reading out — the previous
     // version replaced the whole tree, so every readout on screen cut out in
     // one frame while the modal animated up over nothing.
-    expect(container.querySelector('.hud__resources')).not.toBeNull()
+    // [2026-10-20] The readings live in the status bar now (§10.1).
+    expect(container.querySelector('.hud__status .hud__block--cash')).not.toBeNull()
     expect(container.querySelector('.burndown')).not.toBeNull()
   })
 

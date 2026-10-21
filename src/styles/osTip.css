@@ -1,0 +1,99 @@
+/*
+ * The one tooltip — GDD §10.6c [2026-10-20]. See `ui/OsTip.tsx`.
+ *
+ * Flat, hard-edged, opaque: a terminal pane, not a lit box. It arrives in two
+ * stepped frames (the same `steps()` idiom as every other surface) and never
+ * fades — ART_DIRECTION §1, and the standing no-gradient rule.
+ */
+
+.os-tipped {
+  pointer-events: auto;
+}
+
+.os-tip {
+  position: fixed;
+  z-index: 60;
+  width: 17.5rem;
+  max-width: calc(100vw - 12px);
+  font-family: var(--font-terminal);
+  font-size: var(--type-1x);
+  line-height: 1.45;
+  color: var(--n7);
+  background: var(--n0);
+  border: var(--rule) solid var(--p2);
+  pointer-events: auto;
+  animation: os-tip-in 120ms steps(2, end);
+}
+
+.os-tip--chain {
+  width: 15rem;
+  border-color: var(--warn-2);
+}
+
+@keyframes os-tip-in {
+  from {
+    clip-path: inset(0 0 60% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.os-tip__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: var(--rule) solid var(--n2);
+  letter-spacing: 1px;
+}
+
+.os-tip__head b {
+  font-weight: 400;
+  color: var(--n8);
+}
+
+.os-tip__tag {
+  color: var(--n5);
+}
+
+.os-tip__rows {
+  margin: 0;
+  padding: 4px 8px;
+  display: grid;
+  gap: 1px;
+  border-bottom: var(--rule) solid var(--n2);
+}
+
+.os-tip__rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.os-tip__rows dt {
+  color: var(--n5);
+}
+
+.os-tip__rows dd {
+  margin: 0;
+  color: var(--n8);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.os-tip__body {
+  margin: 0;
+  padding: 6px 8px;
+}
+
+.os-tip .kw {
+  border-bottom: var(--rule) dotted currentColor;
+  cursor: help;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-tip {
+    animation: none;
+  }
+}

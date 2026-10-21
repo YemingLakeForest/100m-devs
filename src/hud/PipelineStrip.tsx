@@ -80,6 +80,9 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
 
       <PipelineRow v={q} onOpen={onOpen} label={`${summary} Open the queue.`}>
         <Button
+          // §10.8a [2026-10-20] — the key takes the fill when a build is waiting: then it
+          // is the verb the studio is stopped on, and HIRE is not.
+          variant={ready > 0 ? 'primary' : 'default'}
           className="pipe__ship qgauge__ship"
           data-key="ship"
           data-ready={ready > 0 ? 'true' : 'false'}

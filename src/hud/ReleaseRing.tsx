@@ -465,6 +465,7 @@ function Ring({ build, batch, seed }: { build: ShelvedBuild; batch: number; seed
       bodyClassName="release ring"
       footer={
         <Button
+          variant="primary"
           className="ring__act"
           data-mode={verdict ? 'done' : read.mode}
           disabled={verdict !== null}

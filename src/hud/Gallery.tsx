@@ -325,7 +325,8 @@ function Focused({ slide, laurels }: { slide: Slide; laurels: readonly string[] 
           {Math.round(slide.rating)}
           <em>/100</em>
         </span>
-        <RatingBar rating={slide.rating} />
+        {/* A release with a breakdown draws it as the bar itself, below; an aggregate keeps the meter. */}
+        {!parts && <RatingBar rating={slide.rating} />}
         <span
           className="gallery__mult"
           data-band={multiplier >= 1 ? 'up' : 'down'}
@@ -335,6 +336,20 @@ function Focused({ slide, laurels }: { slide: Slide; laurels: readonly string[] 
         </span>
       </div>
 
+      {/*
+        [2026-10-20] **The score as one stacked bar**, a segment per cause in the
+        cause's colour, and the points left on the table as the empty end. The
+        legend under it said +19, +15, +12 in dim type and left the player to add
+        them up; the bar shows what made the number at a glance — and how much
+        of a hundred was not made at all.
+      */}
+      {parts && (
+        <div className="gallery__stack" role="img" aria-label={`Score ${Math.round(slide.rating)} of 100`}>
+          {BREAKDOWN_ORDER.filter((key) => parts[key] > 0).map((key) => (
+            <span key={key} className="gallery__slice" data-part={key} style={{ width: `${Math.min(100, parts[key])}%` }} />
+          ))}
+        </div>
+      )}
       {parts && (
         <ul className="gallery__breakdown">
           {BREAKDOWN_ORDER.map((key) => (

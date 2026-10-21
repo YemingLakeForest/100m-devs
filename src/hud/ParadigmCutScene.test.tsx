@@ -39,9 +39,20 @@ describe('§15.1a — the reboot between two realities', () => {
     expect(container.querySelector('.studio-boot')).toBeNull()
   })
 
+  it('opens on the run report, stamped, and the boot follows it', () => {
+    // §15.1b [2026-10-20] — the run's numbers on one page before the reboot.
+    const { container } = render(<ParadigmCutScene report={report} onDone={vi.fn()} />)
+    expect(container.ownerDocument.querySelector('.run-report')).not.toBeNull()
+    expect(screen.getByText(/SHIPPED 9/)).toBeInTheDocument()
+    expect(container.querySelector('.studio-boot')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /START RUN 4/ }))
+    expect(container.querySelector('.studio-boot')).not.toBeNull()
+  })
+
   it('walks the receipt, the ledger and the boot, one tap at a time', () => {
     const onDone = vi.fn()
     const { container } = render(<ParadigmCutScene report={report} onDone={onDone} />)
+    fireEvent.click(screen.getByRole('button', { name: /START RUN 4/ }))
     const overlay = container.querySelector('.studio-boot') as HTMLElement
 
     expect(screen.getAllByText(/PARADIGM SHIFT 003/).length).toBeGreaterThan(0)
@@ -64,6 +75,7 @@ describe('§15.1a — the reboot between two realities', () => {
   it('never advances on its own — the player reads it at their own pace', () => {
     const onDone = vi.fn()
     render(<ParadigmCutScene report={report} onDone={onDone} />)
+    fireEvent.click(screen.getByRole('button', { name: /START RUN 4/ }))
     act(() => vi.advanceTimersByTime(60_000))
     expect(screen.getAllByText(/PARADIGM SHIFT 003/).length).toBeGreaterThan(0)
     expect(onDone).not.toHaveBeenCalled()

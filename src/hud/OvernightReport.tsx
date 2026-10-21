@@ -107,7 +107,7 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
           )}
           {/* Always available, never gated, never on a timer. The ad is an
               upgrade to a payout the player already owns. */}
-          <Button onClick={() => onCollect(1)}>COLLECT</Button>
+          <Button variant="primary" onClick={() => onCollect(1)}>COLLECT</Button>
         </div>
       }
     >

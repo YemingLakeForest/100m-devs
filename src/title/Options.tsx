@@ -194,7 +194,8 @@ export function Options() {
               <Button onClick={() => setArmed(false)}>KEEP IT</Button>
             </>
           ) : (
-            <Button onClick={() => setArmed(true)}>RESET</Button>
+            // [2026-10-20] The one control on this screen that destroys something is in alarm ink.
+            <Button className="opt__reset" onClick={() => setArmed(true)}>RESET</Button>
           )}
         </div>
       </div>

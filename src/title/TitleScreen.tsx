@@ -364,6 +364,8 @@ export function TitleScreen({ onStart, onNewGame, onExited, firstLaunch }: Title
             )}
           >
             <Button
+              // §10.8a [2026-10-20] — the first slab is the way in, and the only filled one.
+              variant={i === 0 ? 'primary' : 'default'}
               onClick={() => {
                 if (item === 'CONTINUE') leave(false)
                 else if (item === 'NEW GAME') setConfirmNewGame(true)

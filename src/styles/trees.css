@@ -223,6 +223,47 @@
   color: var(--p2);
 }
 
+/*
+ * Before → after [2026-10-20]: what the next level changes, as two numbers, the
+ * new one in the colour numbers that move are drawn in. Lonestar previews every
+ * action's outcome before it is committed; a price with no outcome beside it is
+ * the half of the sentence the inspector never said.
+ */
+.trees__ba {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0 0 8px;
+  padding: 4px 8px 6px;
+  border: var(--rule) solid var(--n2);
+}
+
+.trees__ba-head {
+  grid-column: 1 / -1;
+  color: var(--n5);
+  letter-spacing: 1px;
+}
+
+.trees__ba-from,
+.trees__ba-to {
+  font-size: var(--type-2x);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.trees__ba-from {
+  color: var(--n5);
+}
+
+.trees__ba-to {
+  color: var(--warn-2);
+}
+
+.trees__ba-arrow {
+  color: var(--n4);
+}
+
 .trees__effect {
   margin: 0 0 8px;
   padding: 6px 8px;

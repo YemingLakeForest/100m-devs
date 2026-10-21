@@ -322,7 +322,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
           <Button className="founder-setup__random" onClick={randomiseLook}>
             <Dice /> RANDOMISE LOOK
           </Button>
-          <Button className="founder-setup__continue" disabled={!validName} onClick={submit}>
+          <Button variant="primary" className="founder-setup__continue" disabled={!validName} onClick={submit}>
             ENTER THE STUDIO
           </Button>
         </div>

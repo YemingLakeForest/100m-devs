@@ -1,0 +1,190 @@
+/*
+ * §15.1b — the run report [2026-10-20]. See `hud/ParadigmCutScene.tsx`.
+ *
+ * Two columns: the founder's pass with the stamp on it, and the run's numbers.
+ * Flat panes and hard rules; the stamp lands in four stepped frames.
+ */
+
+.run-report {
+  width: min(52rem, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+}
+
+.run-report .os-window {
+  background: var(--n0);
+}
+
+.run-report__body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.run-report__bp {
+  color: var(--warn-2);
+}
+
+.run-report__card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 13rem;
+  padding: 14px 12px 10px;
+  background: var(--n1);
+  border: var(--rule) solid var(--n3);
+  border-top: 4px solid var(--p2);
+}
+
+.run-report__face {
+  display: block;
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  border: var(--rule) solid var(--n3);
+  background: var(--n0);
+}
+
+.run-report__name {
+  margin: 4px 0 0;
+  font-size: var(--type-2x);
+  color: var(--n8);
+}
+
+.run-report__role {
+  margin: 0;
+  color: var(--n5);
+  letter-spacing: 1px;
+}
+
+.run-report__stamp {
+  position: absolute;
+  left: 50%;
+  top: 44px;
+  margin: 0;
+  padding: 2px 10px;
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  white-space: nowrap;
+  color: var(--alarm-2);
+  border: 3px solid var(--alarm-2);
+  background: color-mix(in srgb, var(--n0) 55%, transparent);
+  transform: translateX(-50%) rotate(-12deg);
+  animation: run-stamp 400ms steps(4, end) 300ms both;
+}
+
+.run-report__stamp small {
+  display: block;
+  font-size: var(--type-1x);
+  text-align: center;
+  letter-spacing: 3px;
+}
+
+@keyframes run-stamp {
+  0% {
+    transform: translateX(-50%) rotate(-12deg) scale(2.2);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(-50%) rotate(-12deg) scale(1.3);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(-50%) rotate(-12deg) scale(0.94);
+  }
+  100% {
+    transform: translateX(-50%) rotate(-12deg) scale(1);
+  }
+}
+
+.run-report__facts {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.run-report__head {
+  margin: 0;
+  font-size: var(--type-3x);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--n8);
+}
+
+.run-report__stats {
+  margin: 0;
+  display: grid;
+  border: var(--rule) solid var(--n2);
+}
+
+.run-report__stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+}
+
+.run-report__stats > div + div {
+  border-top: var(--rule) solid var(--n1);
+}
+
+.run-report__stats dt {
+  color: var(--n5);
+  letter-spacing: 1px;
+}
+
+.run-report__stats dd {
+  margin: 0;
+  color: var(--n8);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-report__stats .run-report__money {
+  color: var(--warn-2);
+}
+
+.run-report__lesson {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--p2);
+  color: var(--n8);
+}
+
+.run-report__lesson span {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+@container frame (max-height: 470px) {
+  .run-report__face {
+    width: 64px;
+    height: 64px;
+  }
+
+  .run-report__stamp {
+    top: 28px;
+  }
+
+  .run-report__head {
+    font-size: var(--type-2x);
+  }
+}
+
+@container frame (max-width: 760px) {
+  .run-report__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .run-report__card {
+    justify-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-report__stamp {
+    animation: none;
+  }
+}

@@ -153,13 +153,43 @@
  * element painting over the cover behind it, and at these opacities the seam
  * shows. A mask removes the pixels instead.
  */
+/*
+ * [amended 2026-10-20] **The reflection is two flat slabs now, not a fade.**
+ * The masked mirror was a gradient — the one soft light-box in an interface
+ * that is otherwise hard-edged and stepped (ART_DIRECTION §1, and the standing
+ * no-gradient rule). The shelf reading survives on two offset blocks under the
+ * cover, the same offset-slab idiom the buttons use for depth. The element is
+ * kept, empty of paint, so the slide's height and its centring do not move.
+ */
 .gallery__reflect {
   display: block;
   margin-top: 2px;
-  transform: scaleY(-1);
-  opacity: 0.3;
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.9) 70%);
-  mask-image: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.9) 70%);
+  visibility: hidden;
+}
+
+.gallery__art {
+  display: block;
+  box-shadow:
+    0 8px 0 0 var(--n1),
+    0 14px 0 0 color-mix(in srgb, var(--n1) 50%, var(--n0));
+}
+
+/* The score as one stacked bar; the empty end is what was left on the table. */
+.gallery__stack {
+  display: flex;
+  height: 12px;
+  margin: 2px 0 4px;
+  border: var(--rule) solid var(--n3);
+  background: var(--n1);
+}
+
+.gallery__stack .gallery__slice {
+  height: 100%;
+  flex: none;
+}
+
+.gallery__stack .gallery__slice + .gallery__slice {
+  border-left: var(--rule) solid var(--n0);
 }
 
 .gallery__slide[data-focused='true'] .gallery__reflect .cover {
@@ -308,7 +338,8 @@
 }
 
 .gallery__part-value {
-  color: var(--p3);
+  /* [2026-10-20] Numbers that matter in the moving-number ink, labels in grey. */
+  color: var(--warn-2);
 }
 
 .gallery__slice {

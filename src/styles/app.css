@@ -289,12 +289,221 @@ body {
    * grows upward *over the simulation* when it needs more room, which is
    * exactly the order §10.1 asks for.
    */
-  grid-template-rows: minmax(0, 1fr) auto;
+  /*
+   * [amended 2026-10-20 — §10.1] A status bar above the rails and a taskbar
+   * below them, each spanning the frame. The rails keep the argument above
+   * whole: they still own their columns outright between the two bars, and the
+   * script still takes the middle column only. Both bars are `auto` rows, so a
+   * reading that wraps takes its height from the simulation, never from a rail.
+   */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas:
+    'status status status'
     'left bubble right'
-    'left script right';
+    'left script right'
+    'task task task';
   column-gap: 12px;
   row-gap: 8px;
+}
+
+/* --- the status bar, §10.1 [2026-10-20] ---------------------------------- */
+
+/*
+ * One row of readings across the top, after Lonestar's resource bar. The blocks
+ * are the rails' own (`Readouts.tsx`), turned on their side: label and number on
+ * one line, any sub-line under them. A rule between blocks rather than a box
+ * around each, because the bar is one object.
+ */
+.hud__status {
+  grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  /* Clear of each other by the gate's 3px (§10.1a): two painted readouts that
+     share an edge read as one box with a hairline in it. */
+  gap: 4px;
+  min-width: 0;
+  border-bottom: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 72%, transparent);
+}
+
+.hud__status > .hud__block,
+.hud__status-item {
+  flex: 0 1 auto;
+  min-width: 0;
+  border-right: var(--rule) solid var(--n2);
+}
+
+.hud__status-item--cash {
+  flex-basis: auto;
+}
+
+.hud__status .hud__block {
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: baseline;
+  align-content: center;
+  height: 100%;
+  padding: 2px 10px 3px;
+  border-left: none;
+  background: none;
+}
+
+.hud__status .hud__block > :not(.hud__label):not(.hud__num) {
+  grid-column: 1 / -1;
+}
+
+.hud__status .hud__block--cash .hud__num--major {
+  font-size: var(--type-2x);
+}
+
+.hud__status .hud__gauge-track {
+  height: 3px;
+  margin-top: 1px;
+}
+
+.hud__status-item:hover {
+  background: var(--n1);
+}
+
+/* --- the hero rail ------------------------------------------------------- */
+
+.hud__heroes {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hud__hero-face {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: var(--rule) solid var(--n3);
+  background: var(--n1);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hud__hero-face img,
+.hud__hero-face > span:first-child {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* The branch colour is a bar along the foot, the same ink as their pass. */
+.hud__hero-face::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--branch);
+}
+
+.hud__hero-face:hover,
+.hud__hero-face:focus-visible {
+  border-color: var(--p2);
+}
+
+.hud__hero-badge {
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  padding: 0 3px;
+  font-size: var(--type-1x);
+  line-height: 12px;
+  color: var(--branch);
+  background: var(--n0);
+  border: var(--rule) solid var(--branch);
+}
+
+/* --- the taskbar ----------------------------------------------------------- */
+
+/*
+ * Studio OS's doors, in a row along the bottom. Small outline slabs; the open
+ * window is the filled one (`.is-chosen`). The bar itself takes no pointers —
+ * only its buttons do — so the floor between them stays pokeable (§7.1).
+ */
+.hud__taskbar {
+  grid-area: task;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 4px;
+  padding-bottom: var(--ui-slab);
+  border-top: var(--rule) solid var(--p1);
+}
+
+.hud__taskbar-logo {
+  color: var(--p1);
+  letter-spacing: 2px;
+  padding-right: 6px;
+}
+
+.ui-btn.hud__task-btn {
+  font-size: var(--type-1x);
+  padding: 4px 10px;
+}
+
+.hud__task-btn .ui-btn__label {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui-btn small.hud__task-badge {
+  padding: 0 4px;
+  /* Amber ink on the slab, outlined: the gate reads a badge against its button. */
+  color: var(--warn-2);
+  border: var(--rule) solid var(--warn-2);
+  letter-spacing: 0;
+}
+
+.ui-btn.is-chosen small.hud__task-badge {
+  color: var(--n0);
+  border-color: var(--n0);
+}
+
+/*
+ * Short frames: the bars give height back before the rails do. Second readings
+ * in the status bar go (an alarm stays), the taskbar drops its wordmark and its
+ * brackets — the same trim §10.1a already makes to the rail's own controls.
+ */
+@media (max-height: 470px) {
+  .hud__status .hud__block > .hud__sub:not(.is-bad) {
+    display: none;
+  }
+
+  .hud__status .hud__block {
+    padding: 1px 8px 2px;
+  }
+
+  .hud__taskbar {
+    padding-top: 3px;
+    gap: 4px;
+  }
+
+  .hud__taskbar-logo,
+  .hud__taskbar .ui-btn__bracket {
+    display: none;
+  }
+
+  .ui-btn.hud__task-btn {
+    padding: 3px 8px;
+  }
+
+  .hud__hero-face {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 /*
@@ -1187,6 +1396,66 @@ body {
   font-size: var(--type-1x);
   line-height: 1.35;
   color: var(--p2);
+}
+
+/* [2026-10-20] The next level, as two numbers; the new one in the moving-number ink. */
+.paradigm__step {
+  margin: 0;
+  font-size: var(--type-1x);
+  color: var(--n5);
+  font-variant-numeric: tabular-nums;
+}
+
+.paradigm__step b {
+  font-weight: 400;
+  color: var(--warn-2);
+}
+
+.paradigm__after {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--warn-2);
+}
+
+.paradigm__node[data-after-shift='true'] {
+  border-left-color: var(--warn-2);
+}
+
+/* What the shift keeps and what it starts again, side by side. */
+.paradigm__keep {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: var(--rule) solid var(--n2);
+  font-size: var(--type-1x);
+}
+
+.paradigm__keep > div {
+  padding: 5px 8px;
+  min-width: 0;
+}
+
+.paradigm__keep > div + div {
+  border-left: var(--rule) solid var(--n2);
+}
+
+.paradigm__keep h3 {
+  margin: 0 0 3px;
+  font-size: var(--type-1x);
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--p2);
+}
+
+.paradigm__keep [data-lose] h3 {
+  color: var(--alarm-2);
+}
+
+.paradigm__keep ul {
+  margin: 0;
+  padding-left: 14px;
+  color: var(--n7);
+  line-height: 1.4;
 }
 
 .paradigm__soon {
@@ -2200,9 +2469,18 @@ body {
 
   font: inherit;
   font-size: var(--type-2x);
-  color: var(--n0);
-  background: var(--p2);
-  border: var(--rule) solid var(--p3);
+  /*
+   * **An outline you can press** [amended 2026-10-20 — §10.8a]. Every button
+   * was a filled slab, so a rail of six of them was six things shouting, and
+   * the one that mattered (HIRE) was the same volume as GALLERY. The rule now,
+   * after Lonestar: outline = pressable, fill = the one verb on the surface
+   * (`.ui-btn--primary`, below) or the option that is chosen (`.is-chosen`).
+   * The dark wash behind the outline is what keeps it legible over a lit floor;
+   * it is the readout blocks' backing, not a panel.
+   */
+  color: var(--p2);
+  background: color-mix(in srgb, var(--n0) 78%, transparent);
+  border: var(--rule) solid var(--p2);
   border-radius: 0;
   padding: 8px 14px;
   cursor: pointer;
@@ -2215,10 +2493,15 @@ body {
    * which reads as depth without being a lit object.
    */
   box-shadow: 3px 3px 0 0 var(--p0);
+  /*
+   * No background ease [2026-10-20]: with fill now meaning something, a button
+   * changes between outline and slab (SHIP! takes the fill while a build waits),
+   * and an eased fill under an instant ink change spends a few frames as cyan on
+   * cyan. The fill steps in one frame, like everything else in the palette.
+   */
   transition:
     transform 70ms cubic-bezier(0.32, 0, 0.67, 0),
-    box-shadow 70ms cubic-bezier(0.32, 0, 0.67, 0),
-    background 70ms linear;
+    box-shadow 70ms cubic-bezier(0.32, 0, 0.67, 0);
 }
 
 .ui-btn__face {
@@ -2248,7 +2531,7 @@ body {
 }
 
 .ui-btn__bracket {
-  color: var(--n0);
+  color: currentColor;
   opacity: 0.65;
 }
 
@@ -2274,6 +2557,42 @@ body {
 .ui-btn.is-pressed {
   transform: skewX(var(--btn-skew)) scale(0.96);
   box-shadow: 0 0 0 0 var(--p0);
+  color: var(--p3);
+  background: var(--p0);
+}
+
+/*
+ * The filled slab — the verb a surface is about, and the option that is chosen.
+ * One per surface; the fill is the whole signal, so spending it twice spends it.
+ */
+.ui-btn--primary,
+.ui-btn.is-chosen {
+  color: var(--n0);
+  background: var(--p2);
+  border-color: var(--p3);
+  box-shadow: 3px 3px 0 0 var(--p1);
+}
+
+.ui-btn--primary.is-pressed,
+.ui-btn.is-chosen.is-pressed {
+  color: var(--n0);
+  background: var(--p3);
+}
+
+/* A primary whose label carries a tracked noun (HIRE DEVELOPER) stays filled:
+   the noun's ink cannot be read on the slab, so it takes the slab's ink. */
+.ui-btn.ui-btn--primary.ui-btn--has-concept:not(:disabled) {
+  color: var(--n0);
+  background: var(--p2);
+  border-color: var(--p3);
+}
+
+.ui-btn.ui-btn--primary.ui-btn--has-concept:not(:disabled) .kw,
+.ui-btn.ui-btn--primary.ui-btn--has-concept:not(:disabled) .ui-btn__bracket {
+  color: var(--n0);
+}
+
+.ui-btn.ui-btn--primary.ui-btn--has-concept.is-pressed {
   background: var(--p3);
 }
 
