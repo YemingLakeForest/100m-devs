@@ -15,7 +15,6 @@
 import * as T from 'three'
 import { HQ_GARDEN } from '../sim/floorPlan.ts'
 import { box } from './worldArt.ts'
-import { duckSeat } from './duckOffice.ts'
 
 const SOIL = '#60513b', EDGE = '#87938a', TUB = '#394e55', WOOD = '#a18b65', WOOD_DARK = '#76583d'
 const LEAF = '#416652', LEAF_MID = '#52765b', LEAF_LIGHT = '#63836a', LAWN = '#7aae6c'
@@ -71,8 +70,6 @@ export function courtyardGarden(g: T.Object3D): void {
 
   // Stepping stones from the bench to the tree, and the bench's own paving.
   for (let row = 0; row < 4; row++) box(g, 1.0 + (row % 2 ? .12 : -.12), 0, 6.15 + row * .46, .56, .045, .36, '#b9b5a0', false)
-  // §11.7 [demo 2026-10-22] — with the CTO's paddling pool at the court's mouth, the pool is where the bench was.
-  if (duckSeat() === 'pool') { tub(g, -1.3, 8.35, 0); tub(g, 3.3, 8.35, 3); return }
   box(g, 1, 0, 8.25, 3.2, .045, 1.5, '#aaa58e', false)
 
   // The arbor and the bench, as they were: posts, beams and slats, with a little leaf and a few lilac flowers on top.

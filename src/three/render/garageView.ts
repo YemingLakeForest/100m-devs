@@ -111,8 +111,8 @@ export interface GarageView {
    */
   setReadouts(readouts: HqReadouts): void
   /**
-   * §11.7 [2026-10-21] — the CTO in his bath: whether he is CTO yet, what he is wearing and what stands round the
-   * bath. Read off the store each frame like the readouts; the duck is rebuilt only when it changes.
+   * §11.7 [2026-10-21] — the CTO in his corner: whether he is CTO yet, what he is wearing and what stands round
+   * him. Read off the store each frame like the readouts; the duck is rebuilt only when it changes.
    */
   setDuck(look: DuckLook): void
   /** A tap landed on the duck: he squeaks. */

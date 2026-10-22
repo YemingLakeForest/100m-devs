@@ -34,10 +34,20 @@
  * the node's, worn or not — because a hat that was also a stat would make the
  * outfit an optimisation, and the point of a hat on a duck is the hat.
  *
+ * **And some of it is bought [amended 2026-10-22].** *"I want vanity items
+ * purchasable on him too."* Beside the twelve he earns there is a rail of
+ * fifteen he can be bought ({@link SHOP_ITEMS}), with the run's cash, once he is
+ * CTO. They are permanent like the rest — bought once in a career, worn in every
+ * run after — and they are priced for it: {@link SHOP_MARKUP} times a tree node
+ * of the item's era, which is the same "a few minutes of income" the trees
+ * charge (§2.7's floor included), so a hat is never a rounding error and never a
+ * wall. Still no numbers on a hat: the shop is a cash sink with a duck on it.
+ *
  * Pure — no store, no clock, no renderer.
  */
 
 import { treeKey } from './upgradeTrees.ts'
+import { PIPELINE_ERA_COST } from './pipeline.ts'
 
 /** His name, as STUDIO_OS prints it on the org change. */
 export const DUCK_NAME = 'B. Quackington III'
@@ -117,7 +127,7 @@ const level = (levels: Levels, id: string, max: number): number =>
 
 /**
  * The duck, with his tree on him. {@link NO_DUCK} until he is promoted: before
- * the scene he is a duck in a bath, and a duck in a bath does not review code.
+ * the scene he is a duck in a corner, and a duck in a corner does not review code.
  */
 export function duckFromTree(levels: Levels, promoted: boolean): DuckEffects {
   if (!promoted) return NO_DUCK
@@ -151,21 +161,24 @@ export function combinedCatch(a: number, b: number): number {
 // --- the wardrobe -----------------------------------------------------------
 
 /**
- * Where an item goes. Four, and each one reads at the room's zoom on a duck the
- * size of a person's head: the crown of his head, his eyes, under his beak, and
- * the bath he sits in.
+ * Where an item goes. Four, and each one reads at the room's zoom: the crown of
+ * his head, his eyes, under his beak, and the floor beside him. The last is still
+ * keyed `tub` — it was the bath he sat in until 2026-10-22, and saves name it.
  */
 export const DUCK_SLOTS = ['head', 'face', 'neck', 'tub'] as const
 export type DuckSlot = typeof DUCK_SLOTS[number]
 
-export const SLOT_NAME: Record<DuckSlot, string> = { head: 'Head', face: 'Face', neck: 'Neck', tub: 'Bath' }
+export const SLOT_NAME: Record<DuckSlot, string> = { head: 'Head', face: 'Face', neck: 'Neck', tub: 'Beside' }
 
 export interface DuckItem {
   id: string
   name: string
   slot: DuckSlot
-  /** How it is earned: a node in his tree (`node`), or a moment (`milestone`). */
-  from: { node: string } | { moment: 'promoted' | 'shipped' | 'proxima' }
+  /**
+   * How it is had: a node in his tree (`node`), a moment (`moment`), or bought
+   * off the rail (`shop`, with the era it is priced in and opens at).
+   */
+  from: { node: string } | { moment: 'promoted' | 'shipped' | 'proxima' } | { shop: number }
   /** One line, for the wardrobe. */
   line: string
 }
@@ -183,12 +196,51 @@ export const DUCK_ITEMS: readonly DuckItem[] = [
   { id: 'readers', name: 'Reading Glasses', slot: 'face', from: { node: 'q2' }, line: 'He reads every build. Slowly. Out loud, in his head.' },
   { id: 'shades', name: 'Pixel Shades', slot: 'face', from: { node: 'q3a' }, line: 'Deal with it.' },
   { id: 'monocle', name: 'Monocle', slot: 'face', from: { node: 'q3b' }, line: 'For the second read. Nobody asked for a second read.' },
-  { id: 'lanyard', name: 'CTO Lanyard', slot: 'neck', from: { moment: 'promoted' }, line: 'Access to every floor. He has never left the bath.' },
+  { id: 'lanyard', name: 'CTO Lanyard', slot: 'neck', from: { moment: 'promoted' }, line: 'Access to every floor. He has never left the corner.' },
   { id: 'bowtie', name: 'Bow Tie', slot: 'neck', from: { node: 'q1' }, line: 'You explain things to him, so he dresses for it.' },
   { id: 'necktie', name: 'Necktie', slot: 'neck', from: { node: 'p2' }, line: 'The guarantee is in writing. He signed it with his foot.' },
-  { id: 'bubbles', name: 'Bubble Bath', slot: 'tub', from: { node: 'b1' }, line: 'He is very calm in an incident.' },
+  { id: 'bubbles', name: 'Bubbles', slot: 'tub', from: { node: 'b1' }, line: 'He is very calm in an incident.' },
   { id: 'ducklings', name: 'Ducklings', slot: 'tub', from: { node: 'c1' }, line: 'Every desk gets one. These are the ones still training.' },
+  // [2026-10-22] The rail: five a slot or so, cheapest first, in the eras they open at.
+  { id: 'propeller', name: 'Propeller Cap', slot: 'head', from: { shop: 0 }, line: 'Standard issue for the first hire. He was the first hire.' },
+  { id: 'beanie', name: 'Beanie', slot: 'head', from: { shop: 0 }, line: 'The office is kept at nineteen degrees for the servers.' },
+  { id: 'cap', name: 'Backwards Cap', slot: 'head', from: { shop: 1 }, line: 'He is the CTO of a startup. It is in the contract.' },
+  { id: 'headphones', name: 'Headphones', slot: 'head', from: { shop: 1 }, line: 'Not plugged into anything. Do not disturb.' },
+  { id: 'wizard', name: 'Wizard Hat', slot: 'head', from: { shop: 2 }, line: 'Any sufficiently advanced duck is indistinguishable from magic.' },
+  { id: 'viking', name: 'Viking Helmet', slot: 'head', from: { shop: 2 }, line: 'For the migration.' },
+  { id: 'glasses3d', name: '3D Glasses', slot: 'face', from: { shop: 0 }, line: 'He watches the build log in three dimensions.' },
+  { id: 'eyepatch', name: 'Eye Patch', slot: 'face', from: { shop: 1 }, line: 'Lost the other one to a merge conflict.' },
+  { id: 'vr', name: 'VR Headset', slot: 'face', from: { shop: 2 }, line: 'He is in the metaverse office. It also has a duck.' },
+  { id: 'scarf', name: 'Scarf', slot: 'neck', from: { shop: 0 }, line: 'Knitted by support, one ticket per row.' },
+  { id: 'chain', name: 'Bling', slot: 'neck', from: { shop: 1 }, line: 'Series A.' },
+  { id: 'cape', name: 'Cape', slot: 'neck', from: { shop: 2 }, line: 'Not every hero gets their pull request merged.' },
+  { id: 'mug', name: 'Coffee Mug', slot: 'tub', from: { shop: 0 }, line: 'WORLD’S OKAYEST CTO.' },
+  { id: 'ring', name: 'Rubber Ring', slot: 'tub', from: { shop: 1 }, line: 'In case the bath comes back.' },
+  { id: 'laptop', name: 'Laptop', slot: 'tub', from: { shop: 2 }, line: 'Lid closed. He has read it already.' },
 ]
+
+/** The items that are bought rather than earned. */
+export const SHOP_ITEMS: readonly DuckItem[] = DUCK_ITEMS.filter((i) => 'shop' in i.from)
+
+/**
+ * A bought item costs twice a tree node of its era. Twice, because a node is
+ * bought again every run and a hat is bought once in a career; and a node's era
+ * price, because that is the scale the player is already reading on his board.
+ */
+export const SHOP_MARKUP = 2
+
+/** The era an item is priced in and opens at, or null for one that is earned. */
+export function shopEra(item: DuckItem): number | null {
+  return 'shop' in item.from ? item.from.shop : null
+}
+
+/** What a bought item costs, with §2.7's income floor as the trees apply it. Null for an earned one. */
+export function duckItemPrice(item: DuckItem, floor = 0): number | null {
+  const era = shopEra(item)
+  if (era === null) return null
+  const authored = PIPELINE_ERA_COST[Math.min(Math.max(0, era), PIPELINE_ERA_COST.length - 1)] * SHOP_MARKUP
+  return Math.round(Math.max(authored, Number.isFinite(floor) ? floor * SHOP_MARKUP : 0))
+}
 
 export const DUCK_ITEM_BY_ID: ReadonlyMap<string, DuckItem> = new Map(DUCK_ITEMS.map((i) => [i.id, i]))
 
@@ -244,15 +296,15 @@ export function toggleItem(chosen: Readonly<Record<string, string>>, id: string)
 /**
  * What the room draws: whether he has been promoted (the nameplate, and his
  * lanyard is only his once he is), what he is wearing, and how many desk ducks
- * and printouts sit around the bath — the levels that are not an item.
+ * and printouts sit round him — the levels that are not an item.
  */
 export interface DuckLook {
   promoted: boolean
   outfit: DuckOutfit
-  /** Explain It Out Loud's levels: stacks of printouts beside the bath, 0..3. */
+  /** Explain It Out Loud's levels: stacks of printouts beside him, 0..3. */
   printouts: number
   /**
-   * Ducklings in the bath, while the Ducklings item is worn: one per level of
+   * Ducklings round him, while the Ducklings item is worn: one per level of
    * Desk Duck for Everyone this run, at least one (the item is the career's,
    * the levels are the run's), and no more than five fit.
    */

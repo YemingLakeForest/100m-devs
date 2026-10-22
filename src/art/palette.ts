@@ -22,6 +22,7 @@ export type RampName =
   | 'WARN'
   | 'ALARM'
   | 'RARITY'
+  | 'DUCK'
 
 export const RAMPS: Record<RampName, readonly string[]> = {
   /** Walls, floors, desks, monitors, shadow — everything structural. */
@@ -56,9 +57,17 @@ export const RAMPS: Record<RampName, readonly string[]> = {
    * one entry the ramps did not already carry.
    */
   RARITY: ['#6b3a8a'],
+  /**
+   * [2026-10-22] The CTO, and nothing else — ART_DIRECTION §2.1b. A rubber duck
+   * is toy yellow with an orange beak, and WARN's ramp is cream, gold and brown:
+   * on it the eight-bit duck's top and front came out the same cream and his
+   * shape went with them. Beak dark and beak, then his shaded, middle and lit
+   * yellow — three steps of yellow because a voxel is read by its three faces.
+   */
+  DUCK: ['#cf6a1c', '#f5892a', '#e8a92a', '#ffcf3a', '#ffe27a'],
 } as const
 
-/** Every colour in the system, in ramp order. 37 entries. */
+/** Every colour in the system, in ramp order. 42 entries. */
 export const MASTER_PALETTE: readonly string[] = Object.values(RAMPS).flat()
 
 /** Hero Card rarity frame colours — ART_DIRECTION §2.3, GDD §22.4. */

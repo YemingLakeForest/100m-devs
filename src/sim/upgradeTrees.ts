@@ -462,10 +462,10 @@ const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
   // the numbers. Every node is wired, and every node hands him something to wear
   // the first time it is bought (`duck.itemForNode`): the room is the receipt.
   // Debugging runs east (fewer bugs written, more caught before the ring, then a
-  // pick-one between the poke and the read), the press runs west, the bath north
+  // pick-one between the poke and the read), the press runs west, the bubbles north
   // and the desk ducks south.
   duck: [
-    N('R', 0, 0, 'The Corner Bath', 'bathtub', 0, { t: 'root', lv: true, fx: 'He is CTO: every game is written with 10% fewer bugs.', d: 'It was in the garage when you moved in. So was he. Nobody knows who left either.' }),
+    N('R', 0, 0, 'The Corner', 'duck', 0, { t: 'root', lv: true, fx: 'He is CTO: every game is written with 10% fewer bugs.', d: 'He was in the corner of the garage when you moved in. Nobody knows who left him.' }),
     N('q1', 1, 0, 'Explain It Out Loud', 'bowtie', 0, { p: ['R'], t: 'lvl', max: 3, lv: true, fx: 'Bugs written −8% per level.', d: 'One line at a time, to the duck. Halfway through you hear it. He dresses for these.' }),
     N('q2', 2, 0, 'Reading Glasses', 'readers', 0, { p: ['q1'], lv: true, fx: 'He reads each build as it joins the queue: 15% of its bugs never reach the ring.', d: 'He reads every build. Slowly. Nothing gets past him, except most things.' }),
     // Fork E: the hand or the read — the same choice James's fork C offers, about bugs.
@@ -474,8 +474,8 @@ const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
     N('K', 3, 1, 'The Duck Knew All Along', 'crown', 2, { t: 'key', p: ['q3a', 'q3b'], lv: true, fx: 'Bugs written −40%: the bug is explained before it is written.', d: 'He knew where every bug was from the first day. He was waiting for you to say it out loud.' }),
     N('p1', -1, 0, 'Press Junket', 'tophat', 1, { p: ['R'], lv: true, fx: 'No review rolls worse than 30% of the way up: the press has met the CTO.', d: 'He does the interviews. He says nothing. They call it his best one yet.' }),
     N('p2', -2, 0, 'Satisfaction Quackarantee', 'necktie', 1, { p: ['p1'], lv: true, fx: 'A bad review refunds half as much at launch.', d: 'Every game comes with his personal guarantee, which is a picture of him.' }),
-    N('b1', 0, -1, 'Bubble Bath', 'bubbles', 0, { p: ['R'], lv: true, fx: 'A new incident opens with 15% less work in it: he has seen this one before.', d: 'He is very calm in an incident. Everyone stands round the bath until they are too.' }),
-    N('c1', 0, 1, 'Desk Duck for Everyone', 'ducklings', 1, { p: ['R'], t: 'lvl', rp: true, lv: true, fx: 'Bugs written −5% per level, as many times as you like — never below a third.', d: 'One on every desk, so nobody has to queue for the bath. The ducklings are still training.' }),
+    N('b1', 0, -1, 'Bubble Bath', 'bubbles', 0, { p: ['R'], lv: true, fx: 'A new incident opens with 15% less work in it: he has seen this one before.', d: 'He is very calm in an incident. Everyone stands round him until they are too.' }),
+    N('c1', 0, 1, 'Desk Duck for Everyone', 'ducklings', 1, { p: ['R'], t: 'lvl', rp: true, lv: true, fx: 'Bugs written −5% per level, as many times as you like — never below a third.', d: 'One on every desk, so nobody has to queue for him. The ducklings are still training.' }),
   ],
 }
 

@@ -631,7 +631,7 @@ export const SCENE_JAMES_PROXIMA: Scene = {
  * instruction: *"design a upgrade tree fitting for him, give him a funny name,
  * and a story arch to introduce him"*].
  *
- * He has been in the bath in the corner of the garage since Act I, and nobody
+ * He has been sitting in the corner of the garage since Act I, and nobody
  * has mentioned him. The first game to go out with known bugs on it is the
  * moment (`storyTriggers.duckPromoted`), and the scene is James's, because
  * James is §21.7.0's man who is completely correct about a small thing: he
@@ -655,7 +655,7 @@ export const SCENE_DUCK_PROMOTED: Scene = {
     { speaker: OS, text: 'RELEASE SHIPPED. KNOWN BUGS: YES.' },
     { speaker: PLAYER, text: 'It went out with the bugs still in it.', focus: AT_YOU },
     { speaker: JAMES, text: 'Did you ask the duck?', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'The duck in the bath.', focus: AT_YOU },
+    { speaker: PLAYER, text: 'The duck in the corner.', focus: AT_YOU },
     { speaker: JAMES, text: 'You explain the bug to him, one line at a time. Halfway through, you find it.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'Rubber duck debugging is a joke, James.', focus: AT_YOU },
     { speaker: JAMES, text: 'It’s a methodology. He has never shipped a bug.', focus: AT_JAMES },

@@ -5,9 +5,10 @@
  *   npm run art:icon -- --from store/icon-master-512.png   # from real art
  *
  * **The second form is the live one.** `store/icon-master-512.png` is the
- * shipping icon: a CRT with a floor of developers inside it, remapped to the
- * §2.2 master palette so it agrees with everything else in the product. The
- * grid below is kept as the fallback that needs no art to exist.
+ * shipping icon: since 2026-10-22 the CTO, the eight-bit rubber duck on a red
+ * field, painted by `scripts/duck-icon.ts` (`npm run art:icon-master`) from the
+ * same voxel grid the game draws him with. The grid below is kept as the
+ * fallback that needs no art to exist.
  *
  * It is a *script* and not fifteen hand-exported PNGs on purpose: a
  * hand-exported icon has no source, so nobody can tell which of the files in
@@ -322,6 +323,14 @@ async function fromMaster(src: string) {
   }
 
   console.log(`Icon from master — ${rel(src)}, nearest-neighbour only\n`)
+
+  // The adaptive icon's background is the master's own field, read off its corner, so the inset foreground's
+  // square of field disappears into it. It was left at the CRT's dark when the master became the red duck
+  // (2026-10-22), and every launcher would have shown a red tile on a black one.
+  const fieldHex = `#${field.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+  const bgPath = join(RES, 'values/ic_launcher_background.xml')
+  await writeFile(bgPath, `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${fieldHex}</color>\n</resources>\n`)
+  console.log(`  ${rel(bgPath)}  ${fieldHex}`)
 
   console.log('Android:')
   for (const [dir, legacy, foreground] of DENSITIES) {

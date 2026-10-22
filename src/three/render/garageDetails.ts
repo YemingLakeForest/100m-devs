@@ -633,7 +633,7 @@ export function garageDeskStory(g: T.Group, id: string): void {
     for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) box(g, -1.2 + c * .28, 1.2 + r * .27, -.69, .2, .2, .01, ['#f2d95c', '#f2b05c', '#f08f7a'][(r + c) % 3])
     nameSign(g, '400 × THE BLUE BUTTON', -.5, 2.05, -.69, 1.2, 0, '#4e7d56')
   } else if (id === 'founder') {
-    // [2026-10-21] The rubber duck that sat here, crowned and labelled CTO, has an office of his own: a bath in the
+    // [2026-10-21] The rubber duck that sat here, crowned and labelled CTO, has an office of his own: the
     // north-east corner (`duckOffice.ts`, GDD §11.7) — *"put him somewhere in our office, instead of on our desk"*.
     // Pizza boxes are the founder's extremely informal filing system. [2026-10-05] They were a floor stack
     // under the desk's open front; the boss's desk has a front panel and a stack inside it is a stack nobody

@@ -16,7 +16,7 @@ import { FRONT_FRAME, entrance, frontGlazing, gableSign, garageDeskStory, garage
 import { sconce, standingLamp } from './glowArt.ts'
 import { hqInterior } from './hqInterior.ts'
 import { buildHqSets } from './hqSets.ts'
-import { duckOffice, duckSeat } from './duckOffice.ts'
+import { duckOffice } from './duckOffice.ts'
 import { OPS_STEP, heroRiser, opsPlinth, opsStep, ziggurat } from './hqShell.ts'
 import { craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
@@ -540,15 +540,12 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * taps on the side that faces the room.
    */
   const cooler = at('cooler')
-  // §11.7 [demo 2026-10-22] — with the CTO in the water cooler, his cooler is the room's one.
-  if (duckSeat() !== 'cooler') {
   box(g, cooler.x, 0, cooler.z, 0.46, 0.95, 0.46, '#d9dedd')
   box(g, cooler.x, 0.95, cooler.z, 0.5, 0.03, 0.5, '#b7bfbd')
   cylinder(g, cooler.x, 0.98, cooler.z, 0.17, 0.42, '#8dc3da')
   box(g, cooler.x - 0.1, 0.6, cooler.z + 0.24, 0.05, 0.05, 0.05, '#d1473b')
   box(g, cooler.x + 0.1, 0.6, cooler.z + 0.24, 0.05, 0.05, 0.05, '#4a7fb0')
   box(g, cooler.x, 0.4, cooler.z + 0.25, 0.26, 0.03, 0.08, '#8d9594')
-  }
   opsStep(prop(env, g, 'step:serena', OPS_STEP.x, OPS_STEP.z))
   /*
    * The lounge, backed onto the west wall and looking across the floor.
@@ -582,7 +579,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * new position, so the graph and the picture agree about where it is.
    */
   for (const f of GARAGE_FURNITURE) if (f.kind === 'planter') leafyPlanter(g, f.x, f.z, f.w)
-  // §11.7 [2026-10-21] — the CTO's corner bath. Built before the batch so the bath joins it; the duck is `dynamic`.
+  // §11.7 [2026-10-21] — the CTO's corner [amended 2026-10-22: no bath]. Built before the batch so his plate joins it; the duck is `dynamic`.
   env.duck = duckOffice(g)
   if (scenery === 'on') {
     if (!cityGrid) garageNeighborhood(g)

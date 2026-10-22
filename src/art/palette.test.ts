@@ -15,8 +15,8 @@ describe('the master palette (ART_DIRECTION §2.1)', () => {
     expect(RAMPS.ALARM).toHaveLength(4)
   })
 
-  it('is the 36 specified colours plus the one §2.3 rarity addition', () => {
-    expect(MASTER_PALETTE).toHaveLength(37)
+  it('is the 36 specified colours, the one §2.3 rarity addition and the five of the duck (§2.1b)', () => {
+    expect(MASTER_PALETTE).toHaveLength(42)
   })
 
   it('contains no duplicates — a duplicate would be a colour nobody chose twice', () => {

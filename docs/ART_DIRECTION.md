@@ -175,6 +175,15 @@ the `RARITY` violet. The borrowing is confined to icons a few pixels across, on 
 own lines stay in the live phosphor, and a node out of reach is drawn as a phosphor ghost
 rather than a dimmed colour — so no colour outside §2.2 is ever invented to say *locked*.
 
+**[amended 2026-10-22] §2.1b — the CTO has his own ramp, `DUCK`.** The rubber duck became the
+game's motif and its app icon (GDD §11.7.2), and a rubber duck is toy yellow with an orange
+beak. `WARN` is cream, gold and brown: drawn in it, the eight-bit duck's top and front faces
+came out the same cream and his shape went with them, and the shaded side was brown. So he
+has five colours of his own — beak dark, beak, and three steps of yellow, because a voxel is
+read by its three faces — and the job of the ramp is *the duck and nothing else*. His room
+model, his portrait and the icon master (`scripts/duck-icon.ts`) all draw from it. Spending
+it on anything else is a further amendment, as §2.1 says.
+
 ### 2.2 Starting values — **v0, validate on a real device before committing**
 
 ```

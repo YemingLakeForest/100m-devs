@@ -350,7 +350,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       return
     }
 
-    // §21.7.9 — the org change ends on the CTO's window, open on his bath: the
+    // §21.7.9 — the org change ends on the CTO's window, open on his root: the
     // instrument the scene named, in the player's hand (§21.7.7e).
     if (finished === SCENE_DUCK_PROMOTED.id) {
       openTree('duck', 'R')
@@ -531,7 +531,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     },
   ]
 
-  // §11.7 — tapping the duck in his bath opens his window, once he is CTO.
+  // §11.7 — tapping the duck in his corner opens his window, once he is CTO.
   const openDuckRef = useRef(() => openTree('duck'))
   useEffect(() => {
     openDuckRef.current = () => openTree('duck')

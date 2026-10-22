@@ -114,8 +114,11 @@ import {
   NO_DUCK,
   PARTY_HAT_SHIPS,
   combinedCatch,
+  DUCK_ITEM_BY_ID,
   duckFromTree,
+  duckItemPrice,
   duckLook,
+  shopEra,
   itemForMoment,
   itemForNode,
   ownedItems,
@@ -2912,7 +2915,7 @@ export function treeRefusalOf(hero: TreeHero, id: string, s: GameState = state):
   // building there is nobody left to introduce: it is not for sale.
   if (hero === 'james' && id === 'j3' && arrivedHeroes().has('billy')) return 'maxed'
   // §11.7 [2026-10-21] — the CTO's tree is his from the org change, and not before:
-  // until then he is a duck in a bath.
+  // until then he is a duck in a corner.
   if (hero === 'duck' && node.kind !== 'root' && !isDuckPromoted()) return 'absent'
   return treeRefusal(treeView(s), hero, node)
 }
@@ -3006,6 +3009,40 @@ export function wearDuckItem(id: string): boolean {
   const p = getPermanent()
   setPermanent({ ...p, meta: { ...p.meta, duckOutfit: toggleItem(p.meta.duckOutfit, id) } })
   set({})
+  saveGame()
+  return true
+}
+
+/**
+ * Why an item on his rail cannot be bought, or null. `earned` is an item that
+ * comes from the tree or a moment and is not for sale; `absent` is a duck who is
+ * not CTO yet (the rail is his from the org change, like his tree); `era` is one
+ * priced in an era the studio has not reached.
+ */
+export type DuckItemRefusal = 'owned' | 'earned' | 'absent' | 'era' | 'short' | null
+
+/** A bought item's price now, floored as a tree node is. Null for an earned one. */
+export function duckItemPriceOf(id: string, s: GameState = state): number | null {
+  const item = DUCK_ITEM_BY_ID.get(id)
+  return item ? duckItemPrice(item, pipelinePriceFloor(s)) : null
+}
+
+export function duckItemRefusalOf(id: string, s: GameState = state): DuckItemRefusal {
+  const item = DUCK_ITEM_BY_ID.get(id)
+  const era = item ? shopEra(item) : null
+  if (!item || era === null) return 'earned'
+  if (duckWardrobe().has(id)) return 'owned'
+  if (!currentUnlocks().trees || !isDuckPromoted()) return 'absent'
+  if (eraIndex(s.peakDevs) < era) return 'era'
+  return s.cash < (duckItemPriceOf(id, s) ?? Infinity) ? 'short' : null
+}
+
+/** §11.7 [2026-10-22] — buy an item off his rail with the run's cash: it is his for the career, and goes straight on. */
+export function buyDuckItem(id: string): boolean {
+  if (duckItemRefusalOf(id) !== null) return false
+  const price = duckItemPriceOf(id)!
+  set({ cash: state.cash - price })
+  grantDuckItem(DUCK_ITEM_BY_ID.get(id)!)
   saveGame()
   return true
 }

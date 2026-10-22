@@ -12,8 +12,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
   __setState,
+  buyDuckItem,
   buyTreeNode,
   dismissScene,
+  duckItemPriceOf,
+  duckItemRefusalOf,
   duckOf,
   duckOutfit,
   duckWardrobe,
@@ -124,6 +127,34 @@ describe('§11.7 — what you buy him, he wears', () => {
     expect(duckOutfit().face).toBeUndefined()
     // Not owned: nothing to put on.
     expect(wearDuckItem('crown')).toBe(false)
+  })
+
+  it('sells the rail only to a CTO, for cash, once in a career, and puts the purchase on', () => {
+    run2()
+    __setState({ devs: 10, cash: 1e12 })
+    expect(duckItemRefusalOf('beanie')).toBe('absent')
+    expect(buyDuckItem('beanie')).toBe(false)
+
+    run2([SCENE_DUCK_PROMOTED.id])
+    const price = duckItemPriceOf('beanie')!
+    expect(duckItemRefusalOf('beanie')).toBeNull()
+    expect(buyDuckItem('beanie')).toBe(true)
+    expect(getState().cash).toBe(1e12 - price)
+    expect(duckWardrobe().has('beanie')).toBe(true)
+    expect(duckOutfit().head).toBe('beanie')
+    // Bought once: the second time there is nothing to sell.
+    expect(duckItemRefusalOf('beanie')).toBe('owned')
+    expect(buyDuckItem('beanie')).toBe(false)
+    // An earned item is not for sale at any price.
+    expect(duckItemRefusalOf('crown')).toBe('earned')
+  })
+
+  it('will not sell what the run cannot pay for, nor an era the studio has not reached', () => {
+    run2([SCENE_DUCK_PROMOTED.id])
+    __setState({ devs: 10, cash: 0 })
+    expect(duckItemRefusalOf('beanie')).toBe('short')
+    __setState({ devs: 10, peakDevs: 10, cash: 1e15 })
+    expect(duckItemRefusalOf('vr')).toBe('era')
   })
 
   it('keeps the wardrobe across runs: the items are permanent milestones', () => {

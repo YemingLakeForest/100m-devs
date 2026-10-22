@@ -37,7 +37,7 @@ export interface Environment {
   backdrop?: EndlessCity
   /** The heroes' sets: the whiteboard, the dashboards, the ticket wall (`hqSets.ts`). */
   hq?: HqSets
-  /** §11.7 — the CTO in his bath (`duckOffice.ts`). The garage's only. */
+  /** §11.7 — the CTO in his corner (`duckOffice.ts`). The garage's only. */
   duck?: DuckOffice
 }
 

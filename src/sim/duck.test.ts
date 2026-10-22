@@ -13,11 +13,14 @@ import {
   DUCK_ITEMS,
   DUCK_SLOTS,
   NO_DUCK,
+  SHOP_ITEMS,
   combinedCatch,
   duckFromTree,
+  duckItemPrice,
   duckLook,
   itemForNode,
   ownedItems,
+  shopEra,
   toggleItem,
   wardrobeKey,
   wornOutfit,
@@ -125,10 +128,30 @@ describe('§11.7 — the wardrobe is the receipt', () => {
     expect(duckLook(L({ c1: 40 }), true, { tub: 'ducklings' }).ducklings).toBe(5)
   })
 
-  it('is a duck in a bath and nothing else before the org change', () => {
+  it('is a duck in a corner and nothing else before the org change', () => {
     const look = duckLook(L({ q1: 3 }), false, { head: 'crown' })
     expect(look.promoted).toBe(false)
     expect(look.outfit).toEqual({})
     expect(look.printouts).toBe(0)
+  })
+})
+
+describe('§11.7 [2026-10-22] — the rail: some of it is bought', () => {
+  it('prices what is for sale and nothing that is earned', () => {
+    for (const item of DUCK_ITEMS) expect(duckItemPrice(item) !== null).toBe(SHOP_ITEMS.includes(item))
+  })
+
+  it('has something for sale in every slot', () => {
+    for (const slot of DUCK_SLOTS) expect(SHOP_ITEMS.some((i) => i.slot === slot)).toBe(true)
+  })
+
+  it('charges more for a later era, and never less than the trees would floor it at', () => {
+    const byEra = [...SHOP_ITEMS].sort((a, b) => shopEra(a)! - shopEra(b)!)
+    for (let i = 1; i < byEra.length; i++) {
+      if (shopEra(byEra[i]) === shopEra(byEra[i - 1])) continue
+      expect(duckItemPrice(byEra[i])!).toBeGreaterThan(duckItemPrice(byEra[i - 1])!)
+    }
+    const floor = 1e12
+    for (const item of SHOP_ITEMS) expect(duckItemPrice(item, floor)!).toBeGreaterThanOrEqual(floor)
   })
 })

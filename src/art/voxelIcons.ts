@@ -26,6 +26,7 @@
  */
 
 import { RAMPS } from './palette.ts'
+import { duckVoxels, itemVoxels, type Ink, type Voxel } from './duckVoxels.ts'
 
 const N = RAMPS.NEUTRAL
 const W = RAMPS.WOOD
@@ -34,6 +35,7 @@ const G = RAMPS.GLOW
 const F = RAMPS.FOLIAGE
 const Y = RAMPS.WARN
 const R = RAMPS.ALARM
+const D = RAMPS.DUCK
 
 /** [top, front, side] — the three faces a box shows on the (1, 1) iso camera. */
 export type Material = readonly [string, string, string]
@@ -65,10 +67,27 @@ export const MATERIALS = {
   hbl: [Y[3], Y[3], Y[2]],
   // Deeper skin for Serena and Matt, the middle SKIN pair.
   sk2: [S[2], S[2], S[3]],
+  // [2026-10-22] The duck's party hat and rubber ring: the light end of ALARM, the one pink on the palette.
+  pk: [R[3], R[3], R[2]],
+  // [2026-10-22] The eight-bit duck, in his own ramp (ART_DIRECTION §2.1b): body, wing, beak.
+  dy: [D[4], D[3], D[2]],
+  dw: [D[3], D[2], D[1]],
+  db: [D[1], D[1], D[0]],
 } as const satisfies Record<string, Material>
 
 export type MaterialId = keyof typeof MATERIALS
 export type Box = readonly [number, number, number, number, number, number, MaterialId]
+
+/**
+ * The duck's inks as materials, for the painter. He has his own ramp (DUCK);
+ * gold is WARN's middle step, a shade darker than him, and the crown has points
+ * as well so it reads by shape.
+ */
+const INK_MATERIAL: Record<Ink, MaterialId> = {
+  yellow: 'dy', wing: 'dw', beak: 'db', eye: 'bk', white: 'wh', gold: 'or', ruby: 'rd', black: 'bk', red: 'rd',
+  darkred: 'cr', pink: 'pk', teal: 'sc', blue: 'bl', navy: 'gl', purple: 'pu', silver: 'si', cream: 'pa',
+  brown: 'br', green: 'gr', glass: 'sc', paper: 'wh',
+}
 
 /** A little person: body, head, hair. */
 const fig = (x: number, y: number, shirt: MaterialId, hair: MaterialId = 'br'): Box[] => [
@@ -163,7 +182,8 @@ export const ICONS: Record<string, readonly Box[]> = {
   dock: [[0.4, 1.4, 0, 4.2, 2.2, 0.5, 'wd'], [0.7, 1.1, 0, 0.4, 0.4, 1.6, 'wd2'], [3.9, 1.1, 0, 0.4, 0.4, 1.6, 'wd2'], [1.7, 1.8, 0.5, 1.6, 1.2, 0.8, 'wh'], [2.2, 2.2, 1.3, 0.6, 0.4, 0.2, 'rd']],
   status: [[0.8, 2, 0, 3.4, 0.4, 3, 'bk'], [1, 2.42, 2, 3, 0.05, 0.6, 'gr'], [1, 2.42, 1.2, 3, 0.05, 0.6, 'gr'], [1, 2.42, 0.4, 3, 0.05, 0.6, 'rd']],
   // [2026-10-21] The CTO's tree (GDD §11.7): each node's icon is the thing it hands him to wear.
-  bathtub: [[0.7, 1.4, 0, 0.4, 0.4, 0.4, 'go'], [3.9, 1.4, 0, 0.4, 0.4, 0.4, 'go'], [0.7, 3.4, 0, 0.4, 0.4, 0.4, 'go'], [3.9, 3.4, 0, 0.4, 0.4, 0.4, 'go'], [0.5, 1.2, 0.4, 4, 2.8, 1.5, 'wh'], [0.8, 1.5, 1.9, 3.4, 2.2, 0.05, 'sc'], [2.2, 2.1, 1.95, 1.2, 1, 0.8, 'yl'], [2.9, 2.5, 2.75, 0.7, 0.7, 0.7, 'yl'], [3.2, 3.2, 2.95, 0.4, 0.3, 0.2, 'or']],
+  // [2026-10-22] The root is the duck himself, the eight-bit grid shrunk into the five-unit footprint.
+  duck: voxelBoxes(duckVoxels({}), 0.4),
   bowtie: [[0.8, 2, 1.2, 1.5, 0.5, 1.4, 'cr'], [2.7, 2, 1.2, 1.5, 0.5, 1.4, 'cr'], [2.2, 1.9, 1.5, 0.6, 0.7, 0.8, 'rd']],
   readers: [[0.6, 2, 1.4, 1.6, 0.3, 1.1, 'bk'], [0.8, 2.32, 1.55, 1.2, 0.05, 0.8, 'sc'], [2.8, 2, 1.4, 1.6, 0.3, 1.1, 'bk'], [3, 2.32, 1.55, 1.2, 0.05, 0.8, 'sc'], [2.2, 2, 1.9, 0.6, 0.3, 0.25, 'bk']],
   shades: [[0.5, 2, 1.4, 4, 0.3, 1.1, 'bk'], [0.5, 2, 2.5, 4, 0.3, 0.3, 'bk'], [0.8, 2.32, 2, 0.8, 0.05, 0.3, 'gy']],
@@ -181,46 +201,34 @@ function duckling(x: number, y: number): Box[] {
 }
 
 /**
- * The CTO, whole, in what he is wearing [2026-10-21] — his portrait on his
- * window (`hud/DuckPanel.tsx`), painted by the same voxel painter as the tree's
- * icons so the duck on the glass and the icons on his board are one hand. The
- * beak faces +y, the camera's front face, so every item is hung on that face.
+ * Voxels (his frame: beak +x, up +y, flank +z) as the painter's boxes: the beak
+ * goes to the camera's right and his +z flank to its front face, so the portrait
+ * is the room's three-quarter view. `s` is the size of a voxel in icon units.
+ */
+export function voxelBoxes(voxels: readonly Voxel[], s = 1): Box[] {
+  const minX = Math.min(...voxels.map((v) => v[0])), minZ = Math.min(...voxels.map((v) => v[2]))
+  return voxels.map(([x, y, z, ink]) => [(x - minX) * s, (z - minZ) * s, y * s, s, s, s, INK_MATERIAL[ink]] as Box)
+}
+
+/**
+ * The CTO, whole, in what he is wearing [amended 2026-10-22] — his portrait on
+ * his window (`hud/DuckPanel.tsx`): `art/duckVoxels.ts`'s eight-bit duck, the same
+ * grid the room draws, one box a voxel.
  */
 export function duckBoxes(outfit: Readonly<Partial<Record<'head' | 'face' | 'neck' | 'tub', string>>>): readonly Box[] {
-  const b: Box[] = [
-    [1, 1, 0, 3, 2.6, 1.6, 'yl'],
-    [1, 1, 1.6, 0.8, 0.8, 0.6, 'yl'],
-    [2, 2, 1.6, 1.8, 1.8, 1.8, 'yl'],
-    [2.5, 3.8, 2.1, 0.8, 0.6, 0.5, 'or'],
-    [2.25, 3.82, 2.8, 0.3, 0.05, 0.4, 'bk'],
-    [3.25, 3.82, 2.8, 0.3, 0.05, 0.4, 'bk'],
-    [4.02, 1.5, 0.4, 0.05, 1.6, 0.8, 'or'],
-  ]
-  const head: Record<string, Box[]> = {
-    crown: [[2.1, 2.1, 3.4, 1.6, 1.6, 0.3, 'go'], [2.1, 3.4, 3.7, 0.3, 0.3, 0.4, 'go'], [2.75, 3.4, 3.7, 0.3, 0.3, 0.4, 'go'], [3.4, 3.4, 3.7, 0.3, 0.3, 0.4, 'go']],
-    tophat: [[1.8, 1.8, 3.4, 2.2, 2.2, 0.15, 'bk'], [2.2, 2.2, 3.55, 1.4, 1.4, 1.3, 'bk'], [2.2, 2.2, 3.7, 1.4, 1.4, 0.25, 'cr']],
-    partyhat: [[2.3, 2.3, 3.4, 1.2, 1.2, 0.6, 'pu'], [2.55, 2.55, 4, 0.7, 0.7, 0.6, 'gr'], [2.75, 2.75, 4.6, 0.3, 0.3, 0.4, 'rd']],
-    helmet: [[1.85, 1.85, 3.3, 2.1, 2.1, 0.6, 'wh'], [2.8, 2.8, 3.9, 0.15, 0.15, 0.6, 'gy'], [2.75, 2.75, 4.5, 0.25, 0.25, 0.25, 'rd']],
-  }
-  const face: Record<string, Box[]> = {
-    readers: [[2.1, 3.83, 2.75, 0.6, 0.05, 0.4, 'sc'], [3.1, 3.83, 2.75, 0.6, 0.05, 0.4, 'sc'], [2.7, 3.84, 2.9, 0.4, 0.05, 0.1, 'bk']],
-    shades: [[2, 3.83, 2.75, 1.8, 0.05, 0.45, 'bk']],
-    monocle: [[3.1, 3.83, 2.7, 0.55, 0.05, 0.55, 'go'], [3.2, 3.84, 2.8, 0.35, 0.05, 0.35, 'sc'], [3.35, 3.83, 1.9, 0.08, 0.05, 0.8, 'go']],
-  }
-  const neck: Record<string, Box[]> = {
-    lanyard: [[2, 3.62, 1.3, 1.8, 0.05, 0.25, 'rd'], [2.6, 3.65, 0.5, 0.6, 0.05, 0.75, 'wh']],
-    bowtie: [[2.35, 3.62, 1.2, 0.5, 0.08, 0.35, 'cr'], [3.15, 3.62, 1.2, 0.5, 0.08, 0.35, 'cr'], [2.85, 3.64, 1.25, 0.3, 0.08, 0.25, 'rd']],
-    necktie: [[2.75, 3.62, 1.3, 0.4, 0.06, 0.25, 'bl'], [2.8, 3.62, 0.35, 0.3, 0.06, 0.95, 'bl']],
-  }
-  const tub: Record<string, Box[]> = {
-    bubbles: [[0.2, 0.4, 0, 0.9, 0.9, 0.7, 'wh'], [4.1, 3.2, 0, 0.8, 0.8, 0.6, 'wh'], [0.3, 3.4, 0, 0.7, 0.7, 0.5, 'wh']],
-    ducklings: duckling(0.1, 3.4).map(([x, y, z, w, d, h, m]) => [x * 0.6, y * 0.6 + 1.6, z * 0.6, w * 0.6, d * 0.6, h * 0.6, m] as Box),
-  }
-  for (const [slot, table] of [['head', head], ['face', face], ['neck', neck], ['tub', tub]] as const) {
-    const id = outfit[slot]
-    if (id && table[id]) b.push(...table[id])
-  }
-  return b
+  return voxelBoxes(duckVoxels(outfit, { ducklings: outfit.tub === 'ducklings' ? 1 : 0 }))
+}
+
+/**
+ * How every flat picture of him is turned (`isoBoard.paintTurned`): his profile,
+ * beak to the right with its end just showing, from a little above. The angle
+ * the user picked the icon at in round 3.
+ */
+export const DUCK_TURN = { yaw: -0.95, elev: 0.5 } as const
+
+/** One wardrobe item on its own, for its tile. */
+export function itemBoxes(id: string): readonly Box[] {
+  return voxelBoxes(itemVoxels(id))
 }
 
 /**

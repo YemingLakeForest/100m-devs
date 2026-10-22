@@ -5,22 +5,41 @@
  * sixth tab on anybody's card"*, so this is the founder's screen
  * (`Founder.tsx`) with the duck in it: the same pass lying across the top and
  * the same board under it, opened from the CTO app on the taskbar or by tapping
- * him in his bath. The one thing on his pass nobody else has is the wardrobe,
+ * him in his corner. The one thing on his pass nobody else has is the wardrobe,
  * because he is the one member of staff whose upgrades you can see him wearing.
  *
  * The portrait is painted by the tree's own voxel painter (`isoBoard.paintVoxels`)
- * from `voxelIcons.duckBoxes`, so the duck on the glass is drawn in the same
- * hand as the icons on his board, and changes the moment his outfit does.
+ * from `voxelIcons.duckBoxes` — `art/duckVoxels.ts`'s eight-bit grid, the one the
+ * room draws [amended 2026-10-22] — so the duck on the glass is the duck in the
+ * corner, and changes the moment his outfit does.
+ *
+ * [2026-10-22] *"I want vanity items purchasable on him too."* The wardrobe is a
+ * rail of tiles, one per item, each painted from the same grid: what he owns in
+ * colour, what is for sale in colour with its price, what is earned and not yet
+ * as a phosphor ghost. A tile picks; the line under the rail says what it is and
+ * does the one thing it can — wear it, take it off, buy it, or say how it is had.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '../ui/Button.tsx'
 import { OsWindow } from '../ui/OsWindow.tsx'
-import { duckOf, duckOutfit, duckWardrobe, isDuckPromoted, wearDuckItem, type GameState } from '../game/store.ts'
-import { DUCK_ITEMS, DUCK_NAME, DUCK_SLOTS, DUCK_TITLE, SLOT_NAME, type DuckOutfit } from '../sim/duck.ts'
+import {
+  buyDuckItem,
+  duckItemPriceOf,
+  duckItemRefusalOf,
+  duckOf,
+  duckOutfit,
+  duckWardrobe,
+  isDuckPromoted,
+  wearDuckItem,
+  type DuckItemRefusal,
+  type GameState,
+} from '../game/store.ts'
+import { DUCK_ITEMS, DUCK_NAME, DUCK_SLOTS, DUCK_TITLE, SLOT_NAME, type DuckItem, type DuckOutfit } from '../sim/duck.ts'
 import { treeNode } from '../sim/upgradeTrees.ts'
-import { duckBoxes } from '../art/voxelIcons.ts'
-import { Raster, paintVoxels } from './isoBoard.ts'
+import { ERAS } from '../sim/eras.ts'
+import { DUCK_TURN, duckBoxes, itemBoxes, type Box } from '../art/voxelIcons.ts'
+import { Raster, pack, paintTurned, turnedBounds, type Px } from './isoBoard.ts'
 import { formatMoney } from './hudModel.ts'
 import { TreePane } from './UpgradeTrees.tsx'
 import { useGameState } from './useGameState.ts'
@@ -30,21 +49,32 @@ import '../styles/duck.css'
 
 /** The portrait's buffer, in board pixels; CSS scales it up by whole steps, nearest-neighbour. */
 const PORTRAIT_PX = 64
-/** Board pixels per voxel unit. Seven fills the frame with a duck in a party hat and keeps a pixel at the top. */
-const PORTRAIT_UNIT = 7
+/** A wardrobe tile's buffer. */
+const TILE_PX = 24
+
+/**
+ * Paint voxels into a square buffer as big as they fit, centred, in his turned
+ * view (`DUCK_TURN`, the icon's angle): the portrait and the tiles are the app
+ * icon's drawing at another size.
+ */
+function paintFitted(canvas: HTMLCanvasElement, px: number, boxes: readonly Box[], margin: number, ghost: readonly [Px, Px, Px] | null, maxUnit = 4): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx || boxes.length === 0) return
+  const { x0, x1, y0, y1 } = turnedBounds(boxes, DUCK_TURN)
+  const room = px - margin * 2
+  const u = Math.min(maxUnit, room / Math.max(x1 - x0, 0.01), room / Math.max(y1 - y0, 0.01))
+  const image = ctx.createImageData(px, px)
+  const r = new Raster(px, px, new Uint32Array(image.data.buffer))
+  paintTurned(r, px / 2 - ((x0 + x1) / 2) * u, px / 2 - ((y0 + y1) / 2) * u, boxes, u, DUCK_TURN, ghost)
+  ctx.putImageData(image, 0, 0)
+}
 
 /** The duck, in what he is wearing, as pixels. */
 export function DuckPortrait({ outfit, className }: { outfit: DuckOutfit; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const key = DUCK_SLOTS.map((s) => outfit[s] ?? '-').join('|')
   useEffect(() => {
-    const el = canvas.current
-    const ctx = el?.getContext('2d')
-    if (!el || !ctx) return
-    const image = ctx.createImageData(PORTRAIT_PX, PORTRAIT_PX)
-    const r = new Raster(PORTRAIT_PX, PORTRAIT_PX, new Uint32Array(image.data.buffer))
-    paintVoxels(r, PORTRAIT_PX / 2, 52, duckBoxes(outfit), PORTRAIT_UNIT, null)
-    ctx.putImageData(image, 0, 0)
+    if (canvas.current) paintFitted(canvas.current, PORTRAIT_PX, duckBoxes(outfit), 3, null)
     // `key` is the outfit, said as a string: the object is rebuilt every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
@@ -60,87 +90,109 @@ export function DuckPortrait({ outfit, className }: { outfit: DuckOutfit; classN
   )
 }
 
-/** Where an item comes from, said as the wardrobe says it to somebody who does not own it yet. */
-function sourceOf(item: (typeof DUCK_ITEMS)[number]): string {
-  if ('node' in item.from) return `BUY ${treeNode('duck', item.from.node)?.name.toUpperCase() ?? 'IT'}`
-  switch (item.from.moment) {
-    case 'promoted': return 'MAKE HIM CTO'
-    case 'shipped': return 'SHIP 25 GAMES'
-    case 'proxima': return 'SEND JAMES TO PROXIMA B'
+/** The locked-tile ghost the tree uses, read off the glass so it follows the phosphor. */
+function ghostOf(el: HTMLElement): readonly [Px, Px, Px] {
+  const css = getComputedStyle(el)
+  const v = (name: string, fallback: string) => {
+    const hex = css.getPropertyValue(name).trim()
+    return pack(/^#[0-9a-f]{6}$/i.test(hex) ? hex : fallback)
+  }
+  return [v('--p1', '#1a6b78'), v('--p0', '#0a2a30'), v('--n1', '#241f2e')]
+}
+
+/** One item's tile picture: in colour when it is his or for sale, a ghost when it is earned and not yet. */
+function ItemIcon({ id, ghost }: { id: string; ghost: boolean }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (canvas.current) paintFitted(canvas.current, TILE_PX, itemBoxes(id), 1, ghost ? ghostOf(canvas.current) : null, 3)
+  }, [id, ghost])
+  return <canvas ref={canvas} width={TILE_PX} height={TILE_PX} className="duckcard__icon" aria-hidden="true" />
+}
+
+/** Where an earned item comes from, said to somebody who does not own it yet. */
+function sourceOf(item: DuckItem): string {
+  if ('node' in item.from) return `Buy ${treeNode('duck', item.from.node)?.name ?? 'it'} on his board`
+  if ('moment' in item.from) {
+    switch (item.from.moment) {
+      case 'promoted': return 'Make him CTO'
+      case 'shipped': return 'Ship 25 games'
+      case 'proxima': return 'Send James to Proxima b'
+    }
+  }
+  return 'For sale'
+}
+
+/** Why a bought item is not for sale yet, in the button's words. */
+function refusalWords(why: DuckItemRefusal, item: DuckItem): string {
+  switch (why) {
+    case 'absent': return 'MAKE HIM CTO FIRST'
+    case 'era': return 'shop' in item.from ? `OPENS IN ${ERAS[Math.min(item.from.shop, ERAS.length - 1)].label.toUpperCase()}` : ''
+    default: return ''
   }
 }
 
 /**
- * The wardrobe: a row per slot, a chip per item. An owned item toggles on and
- * off; one not yet owned is a `???` that says where it comes from, so the
- * wardrobe is also a list of things still to do.
+ * The wardrobe: every item as a tile in slot order, and a line under the rail
+ * for the one picked. It starts on what he wears on his head, or the first tile.
  */
-function Wardrobe() {
+function Wardrobe({ state }: { state: GameState }) {
   const owned = duckWardrobe()
   const worn = duckOutfit()
-  return (
-    <div className="duckcard__wardrobe" aria-label="Wardrobe">
-      {DUCK_SLOTS.map((slot) => (
-        <div key={slot} className="duckcard__slot">
-          <span className="duckcard__slot-name">{SLOT_NAME[slot].toUpperCase()}</span>
-          <span className="duckcard__items">
-            {DUCK_ITEMS.filter((i) => i.slot === slot).map((item) => {
-              const have = owned.has(item.id)
-              const on = worn[slot] === item.id
-              return (
-                <Button
-                  key={item.id}
-                  className={['duckcard__item', on && 'is-chosen'].filter(Boolean).join(' ')}
-                  disabled={!have}
-                  aria-pressed={have ? on : undefined}
-                  title={have ? `${item.name}. ${item.line}` : `Not yet: ${sourceOf(item).toLowerCase()}.`}
-                  aria-label={have ? `${on ? 'Take off' : 'Wear'} ${item.name}` : `${item.name}, not yet earned: ${sourceOf(item).toLowerCase()}`}
-                  onClick={() => wearDuckItem(item.id)}
-                >
-                  {have ? item.name.toUpperCase() : '???'}
-                </Button>
-              )
-            })}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
+  const [picked, setPicked] = useState<string>(() => worn.head ?? DUCK_ITEMS[0].id)
+  const items = DUCK_SLOTS.flatMap((slot) => DUCK_ITEMS.filter((i) => i.slot === slot))
+  const item = items.find((i) => i.id === picked) ?? items[0]
+  const have = owned.has(item.id)
+  const on = worn[item.slot] === item.id
+  const forSale = 'shop' in item.from
+  const why = forSale && !have ? duckItemRefusalOf(item.id, state) : null
+  const price = forSale ? duckItemPriceOf(item.id, state) : null
 
-/**
- * The wardrobe on a short frame (a phone on its side): one button per slot that
- * names what he has on and steps to the next item he owns, then to nothing. The
- * full wardrobe is four rows of chips and would take the board's height; CSS
- * shows one or the other (`duck.css`), so both are always in the document.
- */
-function CompactWardrobe() {
-  const owned = duckWardrobe()
-  const worn = duckOutfit()
+  let action: React.ReactNode
+  if (have) {
+    action = <Button className="duckcard__act" onClick={() => wearDuckItem(item.id)}>{on ? 'TAKE OFF' : 'WEAR'}</Button>
+  } else if (forSale) {
+    const words = refusalWords(why, item)
+    action = (
+      <Button className="duckcard__act" disabled={why !== null} onClick={() => buyDuckItem(item.id)}>
+        {words || `BUY ${formatMoney(price ?? 0)}`}
+      </Button>
+    )
+  } else {
+    // Earned, not bought: the slot says so in a word, and the line under it says how (a phone hides the line, so
+    // the tile's title carries it too).
+    action = <span className="duckcard__how" title={sourceOf(item)}>EARNED</span>
+  }
+
   return (
-    <div className="duckcard__compact" aria-label="Wardrobe, one button per slot">
-      {DUCK_SLOTS.map((slot) => {
-        const mine = DUCK_ITEMS.filter((i) => i.slot === slot && owned.has(i.id))
-        const at = mine.findIndex((i) => i.id === worn[slot])
-        // The next item he owns, or off again after the last.
-        const next = at + 1 < mine.length ? mine[at + 1] : null
-        const current = at >= 0 ? mine[at] : null
-        return (
-          <Button
-            key={slot}
-            className="duckcard__item duckcard__cycle"
-            disabled={mine.length === 0}
-            aria-label={`${SLOT_NAME[slot]}: ${current?.name ?? 'nothing'}. ${next ? `Next: ${next.name}` : 'Next: nothing'}`}
-            onClick={() => {
-              if (next) wearDuckItem(next.id)
-              else if (current) wearDuckItem(current.id)
-            }}
-          >
-            {/* One string: the button's label puts every child on its own row. */}
-            {`${SLOT_NAME[slot].toUpperCase()} · ${current ? current.name.toUpperCase() : mine.length ? '—' : '???'}`}
-          </Button>
-        )
-      })}
+    <div className="duckcard__wardrobe">
+      <div className="duckcard__rail" role="group" aria-label="Wardrobe">
+        {items.map((i) => {
+          const mine = owned.has(i.id)
+          const sale = 'shop' in i.from && !mine
+          const look = mine ? (worn[i.slot] === i.id ? 'is-worn' : 'is-owned') : sale ? (duckItemRefusalOf(i.id, state) === null ? 'is-buyable' : 'is-sale') : 'is-locked'
+          return (
+            <button
+              key={i.id}
+              type="button"
+              className={['duckcard__tile', look, i.id === item.id && 'is-picked'].filter(Boolean).join(' ')}
+              aria-pressed={i.id === item.id}
+              aria-label={`${SLOT_NAME[i.slot]}: ${mine || sale ? i.name : 'not yet earned'}${mine && worn[i.slot] === i.id ? ', wearing' : ''}`}
+              title={mine || sale ? i.name : `??? ${sourceOf(i)}`}
+              onClick={() => setPicked(i.id)}
+            >
+              <ItemIcon id={i.id} ghost={!mine && !sale} />
+            </button>
+          )
+        })}
+      </div>
+      <div className="duckcard__pick">
+        <span className="duckcard__pick-name">
+          <span className="duckcard__slot-name">{SLOT_NAME[item.slot].toUpperCase()}</span>{' '}
+          {have || forSale ? item.name.toUpperCase() : '???'}
+        </span>
+        {action}
+        <span className="duckcard__pick-line">{have || forSale ? item.line : `Not yet. ${sourceOf(item)}.`}</span>
+      </div>
     </div>
   )
 }
@@ -154,7 +206,7 @@ export function DuckPanel({
   open: boolean
   onClose: () => void
   state: GameState
-  /** A node to open the tree on, selected — the promotion opens it on his bath. */
+  /** A node to open the tree on, selected — the promotion opens it on his root. */
   intro?: string | null
 }) {
   useGameState()
@@ -192,8 +244,7 @@ export function DuckPanel({
             <div><dt>CAUGHT BEFORE THE RING</dt><dd>{promoted && fx.catches > 0 ? percent(fx.catches) : '—'}</dd></div>
             <div><dt>PAYROLL</dt><dd>ONE BATH</dd></div>
           </dl>
-          <Wardrobe />
-          <CompactWardrobe />
+          <Wardrobe state={state} />
         </div>
       </div>
       <section className="herocard__tree" aria-label="The CTO's upgrades">

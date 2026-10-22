@@ -7,7 +7,7 @@
     "art:build-palette": "tsx scripts/build-palette.ts",
     "art:check": "tsx scripts/art-check.ts",
     "art:icon": "tsx scripts/build-icon.ts",
-    "art:icon-prep": "tsx scripts/prep-icon-source.ts",
+    "art:icon-master": "tsx scripts/duck-icon.ts",
     "art:quantise": "tsx scripts/art-quantise.ts",
     "build": "tsc -b && vite build",
     "check": "npm run lint && tsc -b && vitest run && npm run art:check && npm run test:ui-frame",

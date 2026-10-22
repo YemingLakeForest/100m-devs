@@ -5,9 +5,9 @@
  *
  * **No bare gaps** (CLAUDE.md, 2026-10-21): the pass is the window's `auto` row
  * and the tree is its `1fr`, as on every card, so the spare height is the
- * board's. Inside the pass the wardrobe is as tall as its four rows and the
- * face is a square beside it; on a short frame the rows lie two by two so the
- * pass does not grow past the face.
+ * board's. Inside the pass the wardrobe is a rail of tiles as tall as its rows
+ * (three on a desktop frame, two on a phone's) with one line under it, and the
+ * face is a square beside it.
  */
 
 /* The portrait is a 64 px buffer shown at whole multiples, nearest-neighbour: pixels, not a smear. */
@@ -16,21 +16,72 @@
   object-fit: contain;
 }
 
+/*
+ * [2026-10-22] The wardrobe is a rail of tiles, one per item, and a line under it for the one picked. The rail is
+ * as tall as its rows and the line is two rows of text, so the pass is sized by its content and the tree keeps
+ * the spare height.
+ */
 .duckcard__wardrobe {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   align-content: center;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   font-size: var(--type-1x);
 }
 
-.duckcard__slot {
+.duckcard__rail {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 3px;
   min-width: 0;
+}
+
+.duckcard__tile {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 2px;
+  border: var(--rule) solid var(--p1);
+  background: transparent;
+  cursor: pointer;
+}
+
+.duckcard__tile:focus-visible {
+  outline: 2px solid var(--p3);
+  outline-offset: 1px;
+}
+
+/* Earned and not yet: a dashed promise, as the tree draws a locked tile. */
+.duckcard__tile.is-locked { border-style: dashed; }
+/* For sale: dashed until it can be bought, then edged in his colour. */
+.duckcard__tile.is-sale { border-style: dashed; border-color: var(--warn-2); }
+.duckcard__tile.is-buyable { border-color: var(--warn-2); }
+.duckcard__tile.is-owned { border-color: var(--p2); }
+.duckcard__tile.is-worn { border-color: var(--p3); background: var(--p0); }
+.duckcard__tile.is-picked { box-shadow: inset 0 0 0 2px var(--p3); }
+
+.duckcard__icon {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.duckcard__pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.duckcard__pick-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 .duckcard__slot-name {
@@ -38,66 +89,38 @@
   letter-spacing: 1px;
 }
 
-.duckcard__items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.duckcard__pick-line {
+  grid-column: 1 / -1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--p1);
 }
 
-.ui-btn.duckcard__item {
-  padding: 1px 6px;
+.duckcard__how {
+  color: var(--p1);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.ui-btn.duckcard__act {
+  padding: 1px 8px;
   font-size: var(--type-1x);
   letter-spacing: 1px;
   white-space: nowrap;
 }
 
-/* A chip for something not earned yet is a promise, drawn as the tree draws a locked tile: dim, and no fill. */
-.ui-btn.duckcard__item:disabled {
-  color: var(--p1);
-  border-color: var(--p1);
-  border-style: dashed;
-  opacity: 1;
-}
-
-@container frame (max-height: 560px) {
-  .duckcard__wardrobe {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 3px 10px;
-  }
-
-  .duckcard__slot {
-    grid-template-columns: 36px minmax(0, 1fr);
-  }
-}
-
-/* The one-button-per-slot wardrobe, for frames too short for the chips. */
-.duckcard__compact {
-  display: none;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.ui-btn.duckcard__cycle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-}
-
-/*
- * A short frame (a phone on its side is 336 px): the chips would take the board's height, so the
- * compact wardrobe stands in for them, and the name drops to a size that fits on one line.
- */
+/* A short frame (a phone on its side is 336 px): smaller tiles, no joke line, and the name on one line. */
 @container frame (max-height: 470px) {
-  .duckcard__wardrobe {
-    display: none;
+  .duckcard__rail {
+    grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+    gap: 2px;
   }
 
-  .duckcard__compact {
-    display: grid;
-  }
+  .duckcard__tile { padding: 1px; }
+
+  .duckcard__pick-line { display: none; }
 
   .duckcard .herocard__name {
     font-size: var(--type-1x);

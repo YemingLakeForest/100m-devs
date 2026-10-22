@@ -92,7 +92,6 @@ import {
   SCENES,
 } from '../game/scenes.ts'
 import { DUCK_SEAT, leaderSeat } from '../three/sim/floorPlan.ts'
-import { DUCK_MODELS, DUCK_SEATS, setDuckModel, setDuckSeat, type DuckModel, type DuckSeat } from '../three/render/duckOffice.ts'
 import { hqReadouts } from './hqReadouts.ts'
 
 /**
@@ -139,7 +138,7 @@ export interface StageHandle {
   codeFounder(): number
   /** React hook for opening a hero's pass from their body in the room. */
   setHeroInspect(handler: ((id: HeroId) => void) | null): void
-  /** §11.7 — and the CTO's window, from the duck in his bath. */
+  /** §11.7 — and the CTO's window, from the duck in his corner. */
   setDuckInspect(handler: (() => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
   setFounderProfile(profile: FounderProfile): void
@@ -246,12 +245,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // into a roar.
   const lastLand: Record<'desk' | 'chair' | 'body', number> = { desk: -1, chair: -1, body: -1 }
   let lastLeave = -1
-  // §11.7 [2026-10-22, demo] — `?duck=pool|cooler|office|plinth` builds the CTO's seat under review.
-  // `debugSearchParams` is empty outside a loopback session, so a shipped build always gets the default.
-  const seat = params.get('duck')
-  if ((DUCK_SEATS as readonly string[]).includes(seat ?? '')) setDuckSeat(seat as DuckSeat)
-  const model = params.get('duckmodel')
-  if ((DUCK_MODELS as readonly string[]).includes(model ?? '')) setDuckModel(model as DuckModel)
   const garage = createGarageView(w, h, undefined, {
     lite,
     onLand(piece) {
@@ -374,7 +367,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Over the room the lens goes to the speaker; STUDIO_OS has no body, so the
     // camera holds where it is for its lines.
     const row = typeof focus === 'number' ? ROW_FOCUS.get(focus) : undefined
-    // §21.7.9 — the duck's squeak: the lens goes to his bath.
+    // §21.7.9 — the duck's squeak: the lens goes to him.
     const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : focus === AT_DUCK ? DUCK_SEAT : row ? leaderSeat(row) : null
     if (seat === null) return
     if (atlasZoom !== null) travel(1, -1)

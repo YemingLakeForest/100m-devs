@@ -236,6 +236,84 @@ export function paintVoxels(r: Raster, ox: number, oy: number, boxes: readonly B
   }
 }
 
+/**
+ * A turned view of unit voxels [2026-10-22] — the CTO's portrait, his wardrobe
+ * tiles and the app icon (GDD §11.7.2).
+ *
+ * `paintVoxels` is the board's camera, fixed at 45°, and an eight-bit duck seen
+ * corner-on from there is a yellow box: his beak and his flank foreshorten
+ * equally and his head sinks into his body. A rubber duck is recognised by its
+ * profile, so this turns the grid about its middle by `yaw` first and looks a
+ * little lower (`elev`), which is the view the room and round 3's icon use.
+ * Still pixel art: each face is one material step, filled whole, back to front,
+ * no edge blended — only faces that meet air and face the lens are drawn.
+ */
+export interface Turn { yaw: number; elev: number }
+
+/** Where the grid turns about: the middle of its footprint. */
+function turnCentre(boxes: readonly Box[]): [number, number] {
+  let sx = 0, sy = 0
+  for (const b of boxes) { sx += b[0] + 0.5; sy += b[1] + 0.5 }
+  return [sx / Math.max(1, boxes.length), sy / Math.max(1, boxes.length)]
+}
+
+function turner(t: Turn, [cx, cy]: [number, number]) {
+  const c = Math.cos(t.yaw), s = Math.sin(t.yaw), se = Math.sin(t.elev), ce = Math.cos(t.elev)
+  /** Box space (x, y on the floor, z up) to screen units (x right, y down) and depth toward the lens. */
+  return (x: number, y: number, z: number): [number, number, number] => {
+    const dx = x - cx, dy = y - cy
+    const rx = dx * c - dy * s, ry = dx * s + dy * c
+    return [(rx - ry) / Math.SQRT2, ((rx + ry) / Math.SQRT2) * se - z * ce, ((rx + ry) / Math.SQRT2) * ce + z * se]
+  }
+}
+
+/** The screen box a turned grid covers, in units: what a caller fits and centres it by. */
+export function turnedBounds(boxes: readonly Box[], t: Turn): { x0: number; x1: number; y0: number; y1: number } {
+  const p = turner(t, turnCentre(boxes))
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
+  for (const [x, y, z, w, d, h] of boxes) for (const [a, b, c] of [[x, y, z], [x + w, y, z], [x, y + d, z], [x + w, y + d, z], [x, y, z + h], [x + w, y, z + h], [x, y + d, z + h], [x + w, y + d, z + h]]) {
+    const [sx, sy] = p(a, b, c)
+    x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy)
+  }
+  return { x0, x1, y0, y1 }
+}
+
+const FACE_QUADS: readonly { n: readonly [number, number, number]; q: readonly (readonly [number, number, number])[] }[] = [
+  { n: [0, 0, 1], q: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]] },
+  { n: [1, 0, 0], q: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]] },
+  { n: [-1, 0, 0], q: [[0, 0, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]] },
+  { n: [0, 1, 0], q: [[0, 1, 0], [1, 1, 0], [1, 1, 1], [0, 1, 1]] },
+  { n: [0, -1, 0], q: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] },
+]
+
+/**
+ * Paint unit voxels turned. A side face takes the material's front step when it
+ * leans toward the light (from the lens's left) and its side step when it leans
+ * away, so the flank and the beak end of a block are always two values apart.
+ */
+export function paintTurned(r: Raster, ox: number, oy: number, boxes: readonly Box[], u: number, t: Turn, ghost: readonly [Px, Px, Px] | null) {
+  const p = turner(t, turnCentre(boxes))
+  const filled = new Set(boxes.map((b) => `${b[0]},${b[1]},${b[2]}`))
+  const c = Math.cos(t.yaw), s = Math.sin(t.yaw)
+  const faces: { depth: number; pts: Pt[]; colour: Px }[] = []
+  for (const [x, y, z, , , , m] of boxes) {
+    const mat = ghost ?? MATERIAL_PX[m]
+    for (const { n, q } of FACE_QUADS) {
+      if (filled.has(`${x + n[0]},${y + n[1]},${z + n[2]}`)) continue
+      // The face's normal, turned: drawn only if it faces the lens (+x +y on the screen's diagonal).
+      const nx = n[0] * c - n[1] * s, ny = n[0] * s + n[1] * c
+      if (n[2] === 0 && nx + ny <= 0) continue
+      const pts = q.map(([a, b, cc]) => p(x + a, y + b, z + cc))
+      const depth = pts.reduce((sum, v) => sum + v[2], 0) / 4
+      // Within 45° of the lens is the face you look at (his flank): the front step. Anything more edge-on is the side.
+      const colour = n[2] === 1 ? mat[0] : nx + ny > 1 ? mat[1] : mat[2]
+      faces.push({ depth, pts: pts.map(([sx, sy]) => [ox + sx * u, oy + sy * u] as const), colour })
+    }
+  }
+  faces.sort((a, b) => a.depth - b.depth)
+  for (const f of faces) r.fillPoly(f.pts, f.colour)
+}
+
 // --- the board ----------------------------------------------------------------
 
 export interface BoardNode {

@@ -550,7 +550,7 @@ export function placeFor(headcount: number): Place {
  */
 export interface Furniture {
   readonly kind: 'counter' | 'sofa' | 'coffee-table' | 'board' | 'shelving' | 'unit' | 'planter'
-    | 'bench' | 'locker' | 'island' | 'screen' | 'banner' | 'cooler' | 'plinth' | 'bath'
+    | 'bench' | 'locker' | 'island' | 'screen' | 'banner' | 'cooler' | 'plinth' | 'duck'
   readonly x: number
   readonly z: number
   readonly w: number
@@ -583,29 +583,25 @@ export interface Furniture {
 }
 
 /**
- * **The CTO's corner bath** — GDD §11.7 [2026-10-21, at the user's instruction: *"put him somewhere in our office,
- * instead of on our desk right now"*].
+ * **The CTO's corner** — GDD §11.7 [2026-10-21, at the user's instruction: *"put him somewhere in our office, instead
+ * of on our desk right now"*; amended 2026-10-22].
  *
  * The rubber duck sat on the founder's desk from 2026-10-05, crowned and labelled CTO, as a desk ornament. A CTO with a
- * tree and a wardrobe needs to be somewhere you can see what he is wearing and somewhere you can tap, so he has an office:
- * a clawfoot bath in the north-east of the floor, the one stretch of it nobody is sat at — south of the water cooler,
- * east of Serena's plinth, north of the two east pods. A bath because he is a rubber duck, and the bath is why he is in
- * the garage at all: it was here when you moved in (the scene says so, `scenes.SCENE_DUCK_PROMOTED`).
+ * tree and a wardrobe needs to be somewhere you can see what he is wearing and somewhere you can tap, so he has the one
+ * stretch of the north-east floor nobody is sat at — south of the water cooler, east of Serena's plinth, north of the two
+ * east pods. He stood in a clawfoot bath there for a day; since 2026-10-22 he is the eight-bit duck sitting on the floor
+ * itself (`three/render/duckOffice.ts`), with his ducklings, printouts and whatever he has beside him round him.
  *
- * **It stands across the lens.** `yaw` is 45° — the station convention, "45 faces the lens" — so the duck looks straight
- * out of the picture and the bath's length runs across the screen (its long axis is world (1, −1)), which is the widest
- * it can read.
- *
- * **And west of x 11.4, which is a measurement and not a taste.** The first cut stood it in the corner proper, against
+ * **West of x 11.4, which is a measurement and not a taste.** The first cut stood him in the corner proper, against
  * the chamfer, and the frame showed the duck behind the east wall's glazing with its top rail drawn straight through
  * him (found by looking). The camera looks along (−1, −1, −1), so a point's height *h* lands on screen where a floor
  * point 2*h* further back along x + z would; the east wall (x = 16) glazes up to 4.6 m, so its top rail covers every
- * floor point with x + z > 22.8 − (x − z), i.e. **x > 11.4**. The bath's nearest corner is at 10.9.
+ * floor point with x + z > 22.8 − (x − z), i.e. **x > 11.4**. Turned, his farthest duckling reaches about 11.2.
  *
- * `x`/`z` is the middle of the bath. The walk grid blocks {@link GARAGE_FURNITURE}'s `bath` entry, the axis-aligned
- * square the turned bath and its mat occupy.
+ * `x`/`z` is the middle of his body. The walk grid blocks {@link GARAGE_FURNITURE}'s `duck` entry, the square his
+ * ducklings, mug and laptop can reach.
  */
-export const DUCK_BATH = { x: 10.0, z: -6.5, yaw: Math.PI / 4, length: 1.6, width: 0.82 } as const
+export const DUCK_SPOT = { x: 10.0, z: -6.5 } as const
 /**
  * The CTO's pick id: not a seat (he is not on the roster and does not code — a seat in `env.targets` would make the room's
  * work stream leave from him), but the number the stage and the view pass for "the duck" where they pass a person.
@@ -685,9 +681,9 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // Shared furniture connects the paired bays without moving the building or developer pods.
   { kind: 'cooler', x: 9.3, z: -9.25, w: .7, d: .7 },
   { kind: 'bench', x: 10.5, z: 7.8, w: 1.8, d: .62, low: true },
-  // §11.7 [2026-10-21] — the CTO's bath (`DUCK_BATH`): the turned bath's square (1.8 m), and a hand more for the brass
-  // stand by its near end and the printouts on the mat in front (`duckOffice.ts`).
-  { kind: 'bath', x: DUCK_BATH.x, z: DUCK_BATH.z, w: 2.0, d: 2.0 },
+  // §11.7 [amended 2026-10-22] — the CTO (`DUCK_SPOT`): he and everything round him, turned, fit 2.6 m square
+  // (`duckOffice.ts`).
+  { kind: 'duck', x: DUCK_SPOT.x, z: DUCK_SPOT.z, w: 2.6, d: 2.6 },
 ]
 
 /**
