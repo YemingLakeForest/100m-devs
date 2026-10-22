@@ -1,0 +1,242 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quackington's Seat</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one column of STUDIO_OS windows: the duck (spinnable bodies, then faces), then the icon (a card per
+     composition with its real-size renders and a silhouette test), then a home screen. Single dark look, the game's own. */
+  :root {
+    color-scheme: dark;
+    --ground: #101416;
+    --panel: #171d20;
+    --rule: #2a5a62;
+    --phosphor: #35c9d9;
+    --phosphor-dim: #1a6b78;
+    --text: #d8e6e8;
+    --muted: #8aa3a7;
+    --duck: #ffd23f;
+    --warn: #e0a24a;
+    --paper: #e9eef0;
+    --display: "VT323", "Courier New", monospace;
+    --body: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  body { background: var(--ground); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+  .page {
+    max-width: 1180px; margin: 0 auto; padding-block: 28px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 28px;
+  }
+  header { display: grid; gap: 10px; }
+  .os { font-family: var(--display); font-size: 20px; letter-spacing: 3px; color: var(--phosphor-dim); }
+  .os b { color: var(--phosphor); font-weight: normal; }
+  h1 { margin: 0; font-family: var(--display); font-weight: normal; font-size: clamp(44px, 7vw, 76px); line-height: 0.95; color: var(--duck); text-wrap: balance; }
+  .lede { margin: 0; max-width: 72ch; }
+  .lede em { color: var(--duck); font-style: normal; }
+
+  .window { border: 1px solid var(--rule); background: var(--panel); min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 6px 12px; border-bottom: 1px solid var(--rule); font-family: var(--display); font-size: 20px; letter-spacing: 2px; color: var(--phosphor-dim); }
+  .bar b { color: var(--phosphor); font-weight: normal; }
+  .tag { padding: 0 8px; background: var(--duck); color: var(--ground); letter-spacing: 2px; }
+  .intro { margin: 0; padding: 14px 16px 0; max-width: 78ch; }
+
+  .rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 16px; }
+  h3 { margin: 0 0 4px; font-family: var(--display); font-weight: normal; font-size: 22px; letter-spacing: 2px; color: var(--phosphor); }
+  .rules p { margin: 0; }
+  .history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
+  .history figure { margin: 0; background: var(--ground); }
+  .history img { display: block; width: 100%; aspect-ratio: 13 / 10; object-fit: cover; }
+  figcaption { padding: 4px 10px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+
+  .spins { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); margin-top: 14px; border-top: 1px solid var(--rule); }
+  .spin { background: var(--ground); display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+  .spin canvas { display: block; width: 100%; aspect-ratio: 1; cursor: grab; touch-action: pan-y; background: #2f7d8a; }
+  .spin canvas:focus-visible { outline: 2px solid var(--duck); outline-offset: -2px; }
+  .spin .cap { padding: 8px 12px 12px; display: grid; gap: 2px; align-content: start; }
+  .spin .cap b { font-family: var(--display); font-weight: normal; font-size: 22px; letter-spacing: 1px; color: var(--duck); }
+  .spin .cap span { font-size: 13px; color: var(--muted); }
+  .hint { margin: 0; padding: 8px 16px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--rule); }
+
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1px; background: var(--rule); margin-top: 14px; border-top: 1px solid var(--rule); }
+  .icon { background: var(--panel); display: grid; gap: 10px; padding: 14px; align-content: start; min-width: 0; }
+  .icon.rec { box-shadow: inset 0 0 0 2px var(--duck); }
+  .icon .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .icon .head b { font-family: var(--display); font-weight: normal; font-size: 26px; letter-spacing: 1px; color: var(--duck); line-height: 1; }
+  .icon .head i { font-style: normal; font-family: var(--display); font-size: 18px; color: var(--phosphor-dim); }
+  .icon .show { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+  .icon .big { width: 100%; max-width: 220px; aspect-ratio: 1; display: block; }
+  .sizes { display: grid; gap: 8px; justify-items: center; font-size: 11px; color: var(--muted); }
+  .sizes div { display: grid; justify-items: center; gap: 2px; }
+  .sil { background: var(--paper); padding: 4px; }
+  .icon p { margin: 0; font-size: 14px; }
+  .icon ul { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 2px; }
+  .pro li::marker { color: var(--phosphor); }
+  .con li::marker { color: var(--warn); }
+
+  .home { padding: 20px 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 22px 18px; background: #23303a; border-top: 1px solid var(--rule); }
+  .home div { display: grid; justify-items: center; gap: 4px; width: 72px; font-size: 11px; color: #e8eef0; text-align: center; line-height: 1.2; }
+
+  .ideas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 16px; }
+  .ideas p { margin: 0; }
+  .ideas .pick { color: var(--duck); }
+  .close { display: grid; gap: 8px; padding: 16px; }
+  .close p { margin: 0; max-width: 78ch; }
+  .err { color: var(--warn); padding: 16px; }
+
+  @media (max-width: 860px) {
+    .spins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rules, .ideas { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) { .history { grid-template-columns: 1fr; } }
+</style>
+
+<div class="page">
+  <header>
+    <div class="os">STUDIO_OS // <b>BRAND</b> // B. QUACKINGTON III // ROUND 3</div>
+    <h1>The duck is the logo</h1>
+    <p class="lede">No podium. This round is about <em>him</em>: one voxel duck good enough to be the game's motif and its app icon. Every picture on this page is drawn live from the same voxel models, so what you pick here is the model that goes into the game, the icon and his window.</p>
+  </header>
+
+  <section class="window" aria-labelledby="brief-h">
+    <div class="bar"><span id="brief-h"><b>THE BRIEF</b> · WHAT AN ICON DUCK HAS TO DO</span></div>
+    <div class="rules">
+      <div><h3>Hold at 32 px</h3><p>On a phone he is 60 px, in a browser tab 32. The shape has to read as a duck when it's a black blob, so each icon below has a silhouette test.</p></div>
+      <div><h3>Real voxels</h3><p>Unit cubes only, built from blocks with their edges cut back one step at a time. Flat faces, no curves. That's the room's own look and the reason the last three ducks felt off.</p></div>
+      <div><h3>One idea each</h3><p>A plain rubber duck could be anybody's. Each icon adds one thing that makes it this game: a bug, the monitor, a hundred million ducks, a job title.</p></div>
+    </div>
+    <div class="history">
+      <figure><figcaption>Round 0 · the bath</figcaption><img src="bath.png" alt="The first duck: a cube facing the camera in a white bath."></figure>
+      <figure><figcaption>Round 1 · stacked slabs</figcaption><img src="before.png" alt="The second duck: striped slabs on a tall dark plinth."></figure>
+      <figure><figcaption>Round 2 · smooth spheres</figcaption><img src="round-plain.png" alt="The third duck: smooth low-poly spheres on a white podium."></figure>
+    </div>
+  </section>
+
+  <section class="window" aria-labelledby="duck-h">
+    <div class="bar"><span id="duck-h"><b>A · THE DUCK</b> · FOUR BODIES</span></div>
+    <p class="intro">Same yellow, same beak, four sets of proportions. Drag any of them to turn him round.</p>
+    <div class="spins" id="bodies"></div>
+    <p class="intro">And four faces on the big-head body. The face carries the character, so it's worth choosing on purpose.</p>
+    <div class="spins" id="faces"></div>
+    <p class="hint">Drag or use the arrow keys to turn · the icons below use the big-head body</p>
+  </section>
+
+  <section class="window" aria-labelledby="icon-h">
+    <div class="bar"><span id="icon-h"><b>B · THE ICON</b> · TWELVE IDEAS</span></div>
+    <p class="intro">Each card shows the icon at 512 px, then at its real sizes (phone 60, Android launcher 48, browser tab 32) and a 48 px silhouette. Check the small ones: that's where an icon wins or loses.</p>
+    <div class="icons" id="icons"></div>
+  </section>
+
+  <section class="window" aria-labelledby="home-h">
+    <div class="bar"><span id="home-h"><b>ON A PHONE</b> · ALL TWELVE AT 60 PX</span></div>
+    <div class="home" id="home"></div>
+  </section>
+
+  <section class="window" aria-labelledby="seat-h">
+    <div class="bar"><span id="seat-h"><b>AND WHERE HE LIVES</b> · NOT BUILT YET</span></div>
+    <div class="ideas">
+      <div><h3>On the founder's monitor</h3><p>Where real rubber ducks sit. If you pick the monitor icon, the game and the icon tell the same joke. It's small at room zoom, which is fine for a CTO who does nothing.</p></div>
+      <div><h3>Wherever the work is</h3><p>He sits on the desk of whoever is fixing the worst bug and waddles to the next one. He becomes the thing you watch, which a motif should be.</p></div>
+      <div class="pick"><h3>He grows with the game</h3><p>A desk duck in the garage, a giant inflatable duck in the courtyard by the office, a duck on the roof of the building, a duck-shaped moon at the galaxy. One motif from the garage to the stars. My pick.</p></div>
+    </div>
+  </section>
+
+  <section class="window" aria-labelledby="pick-h">
+    <div class="bar"><span id="pick-h"><b>TO PICK</b></span></div>
+    <div class="close">
+      <p>Reply with a body (A), a face, and an icon (B), or a mix, for example "big head, glint eyes, bug hunter icon with the coral close-up as the store banner".</p>
+      <p>Nothing in the game has changed yet. Once you pick, that model goes into the room, his window's portrait and the app icon files, and the old ducks and seats are deleted.</p>
+    </div>
+  </section>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import { render, outlined, silhouette } from './vox.js'
+import { SPECS, blockDuck } from './blockduck.js'
+import { COMPS } from './comps.js'
+
+const dpr = Math.min(2, window.devicePixelRatio || 1)
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e }
+
+/** A spinnable duck: drag or arrow keys change the yaw and redraw. */
+function spinner(host, make, title, note, yaw0 = 0.7) {
+  const card = el('div', 'spin'), cv = el('canvas'), cap = el('div', 'cap')
+  cv.tabIndex = 0; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', title + ', drag to turn')
+  cap.append(el('b', null, title), el('span', null, note))
+  card.append(cv, cap); host.append(card)
+  const v = make(); let yaw = yaw0
+  const draw = () => {
+    const w = Math.round((cv.clientWidth || 280) * dpr)
+    const img = outlined(render(v, { w, yaw, fill: 0.76 }), Math.max(2, Math.round(w / 110)))
+    cv.width = w; cv.height = w
+    const g = cv.getContext('2d'); g.fillStyle = '#2f7d8a'; g.fillRect(0, 0, w, w); g.drawImage(img, 0, 0)
+  }
+  let down = null, pending = false
+  const queue = () => { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; draw() }) } }
+  cv.addEventListener('pointerdown', (e) => { down = e.clientX; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing' })
+  cv.addEventListener('pointermove', (e) => { if (down === null) return; yaw += (e.clientX - down) * 0.012; down = e.clientX; queue() })
+  const up = () => { down = null; cv.style.cursor = '' }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up)
+  cv.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { yaw += e.key === 'ArrowLeft' ? -0.2 : 0.2; queue(); e.preventDefault() } })
+  draw()
+}
+
+/** Shrink in halves, the way an OS does, so the small sizes are honest. */
+function shrink(src, size) {
+  let c = src
+  while (c.width / 2 >= size) { const n = el('canvas'); n.width = c.width / 2; n.height = c.height / 2; const g = n.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, n.width, n.height); c = n }
+  const out = el('canvas'); out.width = size; out.height = size
+  const g = out.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, size, size)
+  return out
+}
+function rounded(src, bg) {
+  const S = src.width, t = el('canvas'); t.width = S; t.height = S
+  const g = t.getContext('2d'), r = S * 0.22
+  g.beginPath(); g.roundRect(0, 0, S, S, r); g.clip()
+  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, S, S) }
+  g.drawImage(src, 0, 0)
+  return t
+}
+function sized(src, css) { const c = shrink(src, Math.round(css * dpr)); c.style.width = css + 'px'; c.style.height = css + 'px'; return c }
+
+try {
+  const bodies = document.getElementById('bodies')
+  spinner(bodies, () => blockDuck(SPECS.classic).v, 'Classic', 'The bath-shelf duck, head on a long body.')
+  spinner(bodies, () => blockDuck(SPECS.big).v, 'Big head', 'Head two-thirds of him. The cutest, and the one the icons use.')
+  spinner(bodies, () => blockDuck(SPECS.soft).v, 'Soft', 'Wider, with deeper cuts at every edge, so he reads rounder.')
+  spinner(bodies, () => blockDuck(SPECS.chunk).v, 'Eight-bit', 'Half the voxels. Every block shows, like the room\'s people.')
+  const faces = document.getElementById('faces')
+  spinner(faces, () => blockDuck(SPECS.big, { eyes: 'glint' }).v, 'Glint', 'A square eye with a white catchlight. Friendly, reads at any size.')
+  spinner(faces, () => blockDuck(SPECS.big, { eyes: 'lid' }).v, 'Unimpressed', 'Half-lidded. The CTO who has seen your stack trace before.')
+  spinner(faces, () => blockDuck(SPECS.big, { eyes: 'happy' }).v, 'Content', 'Eyes closed in an arch. A duck in a warm bath.')
+  spinner(faces, () => blockDuck(SPECS.big, { eyes: 'brow' }).v, 'Determined', 'A brow over the glint. He is going to find that bug.')
+
+  const icons = document.getElementById('icons'), home = document.getElementById('home')
+  for (const c of COMPS) {
+    const S = 512
+    const raw = render(c.scene(), { w: S, yaw: c.yaw, fill: c.fill, dx: c.dx ?? 0, dy: c.dy ?? 0, frame: c.frame })
+    const tile = rounded(outlined(raw, 5), c.bg)
+    const sil = rounded(silhouette(raw, '#16121d'), null)
+    const card = el('article', 'icon' + (c.id === 'bug' ? ' rec' : ''))
+    const head = el('div', 'head'); head.append(el('b', null, c.name)); if (c.id === 'bug') head.append(el('span', 'tag', 'MY PICK')); else head.append(el('i', null, ''))
+    const show = el('div', 'show'), big = sized(tile, 220); big.className = 'big'
+    big.setAttribute('role', 'img'); big.setAttribute('aria-label', c.name + ' icon at 512 pixels')
+    const sizes = el('div', 'sizes')
+    for (const px of [60, 48, 32]) { const d = el('div'); d.append(sized(tile, px), px + ' px'); sizes.append(d) }
+    const sd = el('div'), sc = sized(sil, 48); sc.className = 'sil'; sd.append(sc, 'shape'); sizes.append(sd)
+    show.append(big, sizes)
+    const pro = el('ul', 'pro'), con = el('ul', 'con')
+    for (const g of c.good) pro.append(el('li', null, g))
+    for (const b of c.bad) con.append(el('li', null, b))
+    card.append(head, show, el('p', null, c.idea), pro, con)
+    icons.append(card)
+    const h = el('div'); h.append(sized(tile, 60), c.name); home.append(h)
+  }
+} catch (e) {
+  document.getElementById('icons').append(el('p', 'err', 'The 3D renderer could not start in this browser: ' + e.message))
+}
+window.done = true
+</script>

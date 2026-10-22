@@ -92,6 +92,7 @@ import {
   SCENES,
 } from '../game/scenes.ts'
 import { DUCK_SEAT, leaderSeat } from '../three/sim/floorPlan.ts'
+import { DUCK_MODELS, DUCK_SEATS, setDuckModel, setDuckSeat, type DuckModel, type DuckSeat } from '../three/render/duckOffice.ts'
 import { hqReadouts } from './hqReadouts.ts'
 
 /**
@@ -245,6 +246,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // into a roar.
   const lastLand: Record<'desk' | 'chair' | 'body', number> = { desk: -1, chair: -1, body: -1 }
   let lastLeave = -1
+  // §11.7 [2026-10-22, demo] — `?duck=pool|cooler|office|plinth` builds the CTO's seat under review.
+  // `debugSearchParams` is empty outside a loopback session, so a shipped build always gets the default.
+  const seat = params.get('duck')
+  if ((DUCK_SEATS as readonly string[]).includes(seat ?? '')) setDuckSeat(seat as DuckSeat)
+  const model = params.get('duckmodel')
+  if ((DUCK_MODELS as readonly string[]).includes(model ?? '')) setDuckModel(model as DuckModel)
   const garage = createGarageView(w, h, undefined, {
     lite,
     onLand(piece) {
