@@ -424,7 +424,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const bp = getPermanent().layer1.bp
   const urged = hasPrestiged() && shiftPaysNow(state)
   const apps: TaskApp[] = [
-    ...(roster.length > 1
+    // [2026-10-28] From the first person through the door, James alone included:
+    // the door was gated on a second hero, so with only James in the building
+    // there was no way to his card, and so none to his upgrades.
+    ...(roster.length >= 1
       ? [{
           id: 'personnel',
           label: 'PERSONNEL',

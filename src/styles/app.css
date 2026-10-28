@@ -1184,6 +1184,10 @@ body {
  */
 .hud__actions .ui-btn {
   min-width: 0;
+  /* [2026-10-28] The skew's ~3px left overhang, kept clear of the rail's clip like
+     the offer's and LAY OFF's: flush, the slab's bottom-left corner was cut off in
+     a straight vertical line ("button still cropped, when not clicked"). */
+  margin-left: 4px;
 }
 
 /*
@@ -2717,6 +2721,20 @@ body {
 
 .ui-dialogue__hit {
   max-width: 100%;
+}
+
+/*
+ * [2026-10-28] The box is centred and 404 px wide, and below about 1100 px that
+ * is far enough right to sit on the hire button, hiding its left edge ("Hire
+ * Developer button left side is cropped"). The frame gate measures the HUD's own
+ * boxes against each other and the dialogue is not one of them. Centre it in what
+ * the right rail leaves instead, rail and overhang both, since the button grows
+ * leftward over the picture.
+ */
+@container frame (max-width: 1100px) {
+  .ui-panel.ui-dialogue {
+    right: calc(var(--edge-x) + var(--hud-rail) + var(--hud-overhang));
+  }
 }
 
 /*

@@ -35,8 +35,15 @@ import { DUCK_SPOT } from '../sim/floorPlan.ts'
  */
 export const VOXEL = 0.1
 
-/** Three-quarters to the lens: the yaw round 3's icon was drawn at, so the room and the icon show the same side. */
-const TURN = 0.7
+/**
+ * Facing west, square to the room's walls. His beak is +x in his own grid, so a half turn points it at -x: along
+ * the floor, into the studio he is the CTO of. Round 3's icon was drawn at 0.7 rad, which put the beak at an odd
+ * angle (east-north-east, out at the east wall), and *"put it to face one of standard direction"* is the answer:
+ * a cardinal, because the room is built on a grid and a duck at 0.7 rad is the only thing in it that is not.
+ * The lens looks along the room's diagonal, so a cardinal still shows him in profile.
+ * [2026-10-28, at the user's instruction]
+ */
+const TURN = Math.PI
 
 /** The middle of his body in grid cells, which sits on the spot. */
 const CENTRE_X = 4.5

@@ -55,12 +55,18 @@ import {
   type TreeRefusal,
 } from '../sim/upgradeTrees.ts'
 import { ERAS } from '../sim/eras.ts'
-import { Raster, iso, pack, paintBoard, pickNode, treeBounds, P, type BoardNode, type Ink } from './isoBoard.ts'
+import { REVEAL_MS, Raster, iso, pack, paintBoard, pickNode, revealedIds, treeBounds, P, type BoardNode, type Ink } from './isoBoard.ts'
 
 import '../styles/trees.css'
 
 const ZOOM_MIN = 1
 const ZOOM_MAX = 8
+/**
+ * The most the board is framed at. The whole tree used to set the zoom; with
+ * only the next step showing, a root and two children would otherwise be framed
+ * at the screen's full height.
+ */
+const FRAME_ZOOM_MAX = 3
 /** How far a press may travel and still be a tap rather than a pan, in CSS px. */
 const TAP_SLOP = 5
 /** The pulse on a tile you can buy: two phosphor steps, flipped this often. */
@@ -274,7 +280,22 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     const v = treeView(state)
     return TREES[hero].map((node) => ({ node, state: treeTileState(hero, node.id, state), level: levelOf(v, hero, node) }))
   }, [hero, state])
-  const pulsing = nodes.some((b) => b.state === 'live' || b.state === 'partial+')
+  // [2026-10-28] Only the next step is on the board (`revealedIds`). Keyed by its
+  // contents, because `nodes` is rebuilt on every state change and the set is not
+  // news until it differs.
+  const visible = useMemo(() => revealedIds(nodes), [nodes])
+  const visibleKey = useMemo(() => [...visible].sort().join(','), [visible])
+  const visibleRef = useRef(visible)
+  // Read by handlers and the paint, so it is set in a layout effect, before any of them runs.
+  useLayoutEffect(() => {
+    visibleRef.current = visible
+  }, [visible])
+  const shown = useMemo(() => nodes.filter((b) => visible.has(b.node.id)), [nodes, visible])
+  const pulsing = shown.some((b) => b.state === 'live' || b.state === 'partial+')
+  /** Nodes that arrived while the board was open, and when: their entrance is painted from this. */
+  const entering = useRef(new Map<string, number>())
+  const lastShown = useRef<{ hero: TreeHero; ids: ReadonlySet<string> } | null>(null)
+  const raf = useRef(0)
 
   // The stage's size, in CSS and device px.
   useLayoutEffect(() => {
@@ -291,11 +312,11 @@ function Board({ hero, state, selected, onSelect, onKey }: {
   /** Frame the whole tree at the largest whole zoom that holds it. The camera is a ref: this paints nothing. */
   const frame = useCallback(() => {
     if (!size) return
-    const b = treeBounds(hero)
+    const b = treeBounds(hero, visibleRef.current)
     const devW = size.w * size.dpr
     const devH = size.h * size.dpr
     const z = Math.floor(Math.min(devW / (b.maxX - b.minX), devH / (b.maxY - b.minY)))
-    cam.current = { z: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z || 1)), x: -(b.minX + b.maxX) / 2, y: -(b.minY + b.maxY) / 2 }
+    cam.current = { z: Math.max(ZOOM_MIN, Math.min(FRAME_ZOOM_MAX, ZOOM_MAX, z || 1)), x: -(b.minX + b.maxX) / 2, y: -(b.minY + b.maxY) / 2 }
   }, [hero, size])
   // Which tree on which stage the camera was last framed for: a new tree, or a
   // new stage (a turned phone), is framed whole before it is painted.
@@ -345,6 +366,33 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     return () => window.clearInterval(t)
   }, [pulsing])
 
+  // A node that appears while the board is open arrives with smoke and a shake
+  // (`paintBoard`'s `fx`), and the board pans to it if it has landed off-screen.
+  // The first set a tree shows, and a different person's tree, are not arrivals.
+  useEffect(() => {
+    const prev = lastShown.current
+    lastShown.current = { hero, ids: visibleRef.current }
+    if (!prev || prev.hero !== hero) {
+      entering.current.clear()
+      return
+    }
+    const fresh = [...visibleRef.current].filter((id) => !prev.ids.has(id))
+    if (fresh.length === 0 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const start = performance.now()
+    for (const id of fresh) entering.current.set(id, start)
+    keepClear(fresh[0])
+    if (raf.current) return
+    const loop = () => {
+      setView((n) => n + 1)
+      raf.current = entering.current.size > 0 ? requestAnimationFrame(loop) : 0
+    }
+    raf.current = requestAnimationFrame(loop)
+  }, [hero, visibleKey, keepClear])
+  useEffect(() => () => {
+    if (raf.current) cancelAnimationFrame(raf.current)
+    raf.current = 0
+  }, [])
+
   // Paint.
   useEffect(() => {
     const el = canvas.current
@@ -370,9 +418,18 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     if (!ctx) return
     const image = ctx.createImageData(W, H)
     const r = new Raster(W, H, new Uint32Array(image.data.buffer))
+    // Entrances: ages in ms, and the finished ones forgotten.
+    const now = performance.now()
+    const fx = new Map<string, number>()
+    for (const [id, t0] of entering.current) {
+      const age = now - t0
+      if (age >= REVEAL_MS) entering.current.delete(id)
+      else fx.set(id, age)
+    }
     paintBoard(r, {
       hero,
-      nodes,
+      nodes: shown,
+      fx,
       selected,
       hover,
       blink,
@@ -381,7 +438,7 @@ function Board({ hero, state, selected, onSelect, onKey }: {
       oy: Math.round(H / 2 + cam.current.y),
     })
     ctx.putImageData(image, 0, 0)
-  }, [hero, nodes, selected, hover, blink, size, view, frame, keepClear])
+  }, [hero, shown, selected, hover, blink, size, view, frame, keepClear])
 
   /** A client point, as board px from the tree's origin. */
   const toBoard = (clientX: number, clientY: number): [number, number] | null => {
@@ -469,7 +526,7 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     }
     if (e.pointerType === 'mouse' && !d) {
       const at = toBoard(e.clientX, e.clientY)
-      const node = at ? pickNode(hero, at[0], at[1]) : null
+      const node = at ? pickNode(hero, at[0], at[1], visibleRef.current) : null
       setHover(node?.id ?? null)
       showTip(node)
     }
@@ -481,21 +538,21 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     const d = drag.current
     if (d && d.id === e.pointerId && d.moved <= TAP_SLOP && e.type === 'pointerup') {
       const at = toBoard(e.clientX, e.clientY)
-      const node = at ? pickNode(hero, at[0], at[1]) : null
+      const node = at ? pickNode(hero, at[0], at[1], visibleRef.current) : null
       onSelect(node?.id ?? null)
     }
     if (pointers.current.size === 0) drag.current = null
   }
 
-  // The wheel has to be a native listener: React's is passive, and a passive
-  // wheel cannot stop the page scrolling under the board.
+  // [2026-10-28] The wheel does nothing to the board: *"upgrade trees should not
+  // scroll, it can move"*. It used to zoom, which on a trackpad is a scroll with
+  // a side effect; the board is moved by dragging it and zoomed by the buttons
+  // and the pinch. It still has to be a native listener, because React's is
+  // passive and a passive wheel cannot stop the page scrolling under the board.
   useEffect(() => {
     const el = canvas.current
     if (!el) return
-    const wheel = (e: WheelEvent) => {
-      e.preventDefault()
-      zoomAt(cam.current.z + (e.deltaY < 0 ? 1 : -1), e.clientX, e.clientY)
-    }
+    const wheel = (e: WheelEvent) => e.preventDefault()
     el.addEventListener('wheel', wheel, { passive: false })
     return () => el.removeEventListener('wheel', wheel)
   })
@@ -512,7 +569,7 @@ function Board({ hero, state, selected, onSelect, onKey }: {
       let best: TreeNode | null = null
       let score = Infinity
       for (const n of tree) {
-        if (n === cur) continue
+        if (n === cur || !visibleRef.current.has(n.id)) continue
         const [x, y] = iso(n.x, n.y)
         const vx = x - sx
         const vy = (y - sy) * 2

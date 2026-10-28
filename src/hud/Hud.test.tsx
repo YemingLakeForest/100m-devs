@@ -13,6 +13,7 @@ import {
 } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import {
+  SCENE_JAMES_ARRIVES,
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from '../game/scenes.ts'
@@ -687,5 +688,24 @@ describe('§10.1’s velocity split after R14 — the "you" half is the whole of
     // the thumb's residue, so something outlasting the tap is holding it up.
     // Stronger than "> 0", which the residue alone would have satisfied.
     expect(splitFrom(container)!.you).toBeGreaterThan(getState().pokeRate)
+  })
+})
+
+/**
+ * §10.1 [2026-10-28] — *"where's team button? I need to access team upgrades,
+ * for james at least"*. The door was gated on a second hero, so with James alone
+ * in the building there was no way to his card.
+ */
+describe('the PERSONNEL door, from the first person through the door', () => {
+  it('is on the taskbar with only James in the building', () => {
+    withHeroes(SCENE_JAMES_ARRIVES)
+    render(<Hud stage={null} />)
+    expect(screen.getByRole('button', { name: /PERSONNEL/ })).toBeInTheDocument()
+  })
+
+  it('is not there before anybody has arrived', () => {
+    prestiged()
+    render(<Hud stage={null} />)
+    expect(screen.queryByRole('button', { name: /PERSONNEL/ })).toBeNull()
   })
 })

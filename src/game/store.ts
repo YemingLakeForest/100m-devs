@@ -979,6 +979,17 @@ export interface GameState {
    * restored separately.
    */
   projectFlowSeconds: number
+  /**
+   * [2026-10-28] The highest smoothed {@link catalogueRate} this run has seen, in
+   * dollars a second. The price floor reads it instead of the live rate, so a node's
+   * price moves only when the studio earns more than it ever has, never as a
+   * release's tail decays or an incident freezes one. Ephemeral (§24.2): a
+   * a
+   * reload restarts the climb from the live rate.
+   */
+  incomeHigh: number
+  /** [2026-10-28] {@link catalogueRate} smoothed over `INCOME_SMOOTHING_SECONDS`: what `incomeHigh` climbs on. */
+  incomeAvg: number
 }
 
 /**
@@ -1148,6 +1159,8 @@ function freshRun(): GameState {
     projectSeconds: 0,
     projectLabourSeconds: 0,
     projectFlowSeconds: 0,
+    incomeHigh: 0,
+    incomeAvg: 0,
     defects: 0,
     incidents: [],
     incidentPending: 0,
@@ -2834,12 +2847,21 @@ export function pipelineRank(id: string, s: GameState = state): number {
  * than a choice, and Org Chart (`REPEAT_BASE`) now takes the money a careful
  * player has left over — it is exempt from this floor and outruns income on its
  * own curve. Every one-off node, pipeline or tree, reads this.
+ *
+ * [amended 2026-10-28, at the user's instruction: "keep it stable"] It read the
+ * live back-catalogue rate, which falls as each tail decays and jumps at each
+ * ship, so every price on screen shimmered by the second. It reads the highest
+ * *smoothed* rate the run has reached (`incomeHigh`) instead: a price rises when the studio
+ * earns a new best and otherwise holds still.
  */
 export const PRICE_FLOOR_SECONDS = 90
 
+/** Long enough to flatten a release's spike and tail (`revenue.ts`'s `SPIKE_TAU`), short enough to follow a hire. */
+export const INCOME_SMOOTHING_SECONDS = 120
+
 export function pipelinePriceFloor(s: GameState = state): number {
   if (eraIndex(s.peakDevs) === 0) return 0
-  return PRICE_FLOOR_SECONDS * catalogueRate(s)
+  return PRICE_FLOOR_SECONDS * s.incomeHigh
 }
 
 export function pipelinePrice(id: string, s: GameState = state): number | null {
@@ -3302,6 +3324,14 @@ export function tick(dtSeconds: number): void {
       ? state.handShipSeconds + dtSeconds
       : state.handShipSeconds
 
+  // The floor's ratchet climbs on a smoothed rate, not the live one: a release
+  // pays a spike the moment it ships, and the high-water mark of *that* was
+  // 34 minutes of income per node at minute 20 of Run 2 (moneyHasAJob.test).
+  const liveIncome = catalogueRate(state)
+  const incomeAvg = state.incomeAvg === 0
+    ? liveIncome
+    : state.incomeAvg + (liveIncome - state.incomeAvg) * (1 - Math.exp(-dtSeconds / INCOME_SMOOTHING_SECONDS))
+
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
@@ -3332,6 +3362,10 @@ export function tick(dtSeconds: number): void {
     // flattering one.
     projectFlowSeconds:
       state.projectFlowSeconds + devEfficiency(1 - e, localEntropy) * dtSeconds,
+    // The price floor's ratchet: it climbs with the studio's best income and
+    // never falls back with a tail.
+    incomeAvg,
+    incomeHigh: Math.max(state.incomeHigh, incomeAvg),
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
     // settles on the player's true taps-per-second rather than spiking on each
     // one — a readout that jumped to a huge number and back on every tap would

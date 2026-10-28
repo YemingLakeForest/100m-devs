@@ -188,9 +188,10 @@ export function octagon(cx: number, cy: number, s: number, c = CHAMFER): Pt[] {
 }
 
 /** The board px a tree occupies, with room for the icons standing on its tiles. */
-export function treeBounds(hero: TreeHero) {
+export function treeBounds(hero: TreeHero, ids?: ReadonlySet<string>) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
   for (const n of TREES[hero]) {
+    if (ids && !ids.has(n.id)) continue
     const [x, y] = iso(n.x, n.y)
     minX = Math.min(minX, x - P * 0.8)
     maxX = Math.max(maxX, x + P * 0.8)
@@ -201,7 +202,7 @@ export function treeBounds(hero: TreeHero) {
 }
 
 /** Which node a board point is over, or null. Tried at the tile, then up where its icon stands. */
-export function pickNode(hero: TreeHero, bx: number, by: number): TreeNode | null {
+export function pickNode(hero: TreeHero, bx: number, by: number, ids?: ReadonlySet<string>): TreeNode | null {
   for (const lift of [0, P * 0.3]) {
     const X = bx / P
     const Y = (by + lift) / (P / 2)
@@ -210,6 +211,7 @@ export function pickNode(hero: TreeHero, bx: number, by: number): TreeNode | nul
     let best: TreeNode | null = null
     let bd = Infinity
     for (const n of TREES[hero]) {
+      if (ids && !ids.has(n.id)) continue
       const d = Math.max(Math.abs(gx - n.x), Math.abs(gy - n.y))
       const r = isBreakthrough(n) || n.kind === 'root' ? 0.46 : 0.42
       if (d < r && d < bd) { bd = d; best = n }
@@ -333,7 +335,39 @@ export interface BoardScene {
   /** Where the tree's origin sits in the buffer. */
   ox: number
   oy: number
+  /** Nodes that have just appeared, by id: milliseconds since they did. Absent once the entrance is over. */
+  fx?: ReadonlyMap<string, number>
 }
+
+/**
+ * The tree is shown a step at a time [2026-10-28]: *"I want only the immediate
+ * unlockable appear, not the entire tree"*. A node is on the board when it is the
+ * root, when it is owned, or when a node it hangs from is owned — which is every
+ * node the player could buy next, plus the ones waiting on cash or an era, so the
+ * board always shows the next step and never the whole map. A pick-one pair
+ * appears together, because a choice with one side hidden is not a choice.
+ */
+export function revealedIds(nodes: readonly BoardNode[]): Set<string> {
+  const byId = new Map(nodes.map((b) => [b.node.id, b]))
+  const has = (id: string) => {
+    const b = byId.get(id)
+    return !!b && (OWNED.has(b.state) || (b.state === 'link' && b.level > 0))
+  }
+  const out = new Set<string>()
+  for (const b of nodes) {
+    if (b.node.kind === 'root' || has(b.node.id) || b.node.parents.some(has)) out.add(b.node.id)
+  }
+  for (const b of nodes) {
+    const f = b.node.fork
+    if (f && out.has(b.node.id)) for (const o of nodes) if (o.node.fork === f) out.add(o.node.id)
+  }
+  return out
+}
+
+/** How long a new node's entrance lasts, in ms: the smoke, then the drop and the shake. */
+export const REVEAL_MS = 900
+/** The smoke has this long to itself before the tile lands in it. */
+const REVEAL_SMOKE_MS = 160
 
 const OWNED: ReadonlySet<TileState> = new Set(['owned', 'partial', 'partial+', 'root'])
 const OUT_OF_REACH: ReadonlySet<TileState> = new Set(['locked', 'era', 'closed'])
@@ -376,6 +410,8 @@ export function paintBoard(r: Raster, scene: BoardScene) {
   // Connectors, parent to child, drawn under the tiles.
   for (const b of scene.nodes) {
     for (const pid of b.node.parents) {
+      // A parent that is not on the board (the tree is shown a step at a time) has no end to run to.
+      if (!byId.has(pid)) continue
       const cells = connectorRoute(hero, b.node, pid)
       if (cells.length < 2) continue
       const po = owned(pid)
@@ -401,17 +437,61 @@ export function paintBoard(r: Raster, scene: BoardScene) {
 
   // Tiles, back to front.
   const order = scene.nodes.slice().sort((a, b) => a.node.x + a.node.y - (b.node.x + b.node.y))
-  for (const b of order) paintTile(r, scene, b, at)
+  for (const b of order) {
+    const age = scene.fx?.get(b.node.id)
+    if (age === undefined || age >= REVEAL_MS) { paintTile(r, scene, b, at); continue }
+    // An entrance: the smoke goes up first, then the tile drops into it and
+    // shakes itself still. Nothing is drawn under the smoke until the tile lands.
+    if (age < REVEAL_SMOKE_MS) continue
+    const t = (age - REVEAL_SMOKE_MS) / (REVEAL_MS - REVEAL_SMOKE_MS)
+    paintTile(r, scene, b, at, Math.round(Math.sin(t * Math.PI * 7) * 4 * (1 - t)), -Math.round((1 - t) * (1 - t) * 14))
+  }
+  // The smoke goes over the tiles, so it is still there when the tile lands.
+  if (scene.fx) {
+    for (const b of order) {
+      const age = scene.fx.get(b.node.id)
+      if (age !== undefined && age < REVEAL_MS) {
+        const [x, y] = at(b.node.x, b.node.y)
+        paintPuff(r, x, y, age, ink.n, hashId(b.node.id))
+      }
+    }
+  }
 }
 
-function paintTile(r: Raster, scene: BoardScene, b: BoardNode, at: (gx: number, gy: number) => [number, number]) {
+function hashId(id: string): number {
+  let h = 7
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return h
+}
+
+/**
+ * Smoke: nine grey squares thrown out of the tile and drifting up, shrinking and
+ * darkening into the glass as they go. Opaque pixels and whole-pixel steps, like
+ * everything else on this board; the neutral ramp's greys stand in for fade.
+ */
+function paintPuff(r: Raster, cx: number, cy: number, age: number, n: readonly Px[], seed: number) {
+  const t = age / REVEAL_MS
+  const ramp = [n[7], n[6], n[5], n[4], n[3]]
+  const colour = ramp[Math.min(ramp.length - 1, Math.floor(t * ramp.length))]
+  const size = Math.max(1, Math.round(5 * (1 - t * 0.8)))
+  for (let i = 0; i < 9; i++) {
+    const a = ((i + (seed % 7) / 7) / 9) * Math.PI * 2
+    const out = (1 - (1 - t) ** 2) * P * (0.55 + ((seed >> i) & 3) * 0.08)
+    const x = Math.round(cx + Math.cos(a) * out * 1.15)
+    const y = Math.round(cy - 4 + Math.sin(a) * out * 0.55 - t * P * 0.5)
+    r.rect(x - (size >> 1), y - (size >> 1), size, size, colour)
+  }
+}
+
+function paintTile(r: Raster, scene: BoardScene, b: BoardNode, at: (gx: number, gy: number) => [number, number], dx = 0, dy = 0) {
   const { ink } = scene
   const [p0, p1, p2, p3] = ink.p
   const n = ink.n
   const { node, state, level } = b
-  const [cx, cyBase] = at(node.x, node.y)
+  const [cxBase, cyBase] = at(node.x, node.y)
   const lift = scene.hover === node.id ? 1 : 0
-  const cy = cyBase - lift
+  const cx = cxBase + dx
+  const cy = cyBase - lift + dy
   const big = isBreakthrough(node) || node.kind === 'root'
   const size = big ? TILE_BIG : TILE
   const top = r.spans(octagon(cx, cy, size))
