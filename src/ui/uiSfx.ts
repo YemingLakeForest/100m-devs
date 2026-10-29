@@ -33,6 +33,11 @@ export type UiSound =
   | 'whoosh'
   /** A panel leaving. */
   | 'close'
+  /**
+   * A pointer arriving on a key (mouse only: a finger has no hover). Quiet, high and 40 ms, and throttled by
+   * `shouldHover`, because a pointer crossing a rail of six keys is six of these in a third of a second.
+   */
+  | 'hover'
   /** One revealed character — §10.7, "letters land with a tick". */
   | 'tick'
   /**
@@ -75,8 +80,12 @@ function hasClip(id: SfxId): boolean {
 /** Each interface sound has its own clip — GDD §10.7, §10.8 F2 and F3. */
 const UI_CLIP: Record<UiSound, SfxId> = {
   click: 'ui-click',
-  whoosh: 'ui-whoosh',
-  close: 'ui-close',
+  // [2026-10-28] A window is drawn in hard steps now (`.ui-panel`: four heights in, two out), and its sound is the
+  // same steps - four falling clacks, then two rising - so the ear and the eye count the same beats. These two clips
+  // are the length of `DURATION.panelIn` and `panelOut`, which is the lesson this file's header is about.
+  whoosh: 'ui-clack-open',
+  close: 'ui-clack-close',
+  hover: 'ui-hover',
   tick: 'ui-tick',
   // Not generated yet — `scripts/generate-sfx.ts` carries the spec and it needs
   // an ElevenLabs key. Until somebody has one this resolves through FALLBACK,
@@ -96,6 +105,8 @@ const FALLBACK: Record<UiSound, SfxId | null> = {
   click: 'poke-desk',
   whoosh: 'poke-desk',
   close: 'poke-desk',
+  // Nothing honest stands in for a hover: a missing clip is a silent hover, not a click that was never asked for.
+  hover: null,
   tick: 'poke-desk',
   // **Not a zoom**, which is the whole point of this entry existing. `ui-whoosh`
   // is half a second and is prompted "no pitch sweep, no whistle, no tail" —
@@ -118,6 +129,9 @@ const FALLBACK: Record<UiSound, SfxId | null> = {
  */
 export const TICK_THROTTLE_MS = 55
 
+/** A hover is at most one per 40 ms; a pointer sweeping a rail of keys is a flutter, not a buzz. */
+export const HOVER_THROTTLE_MS = 40
+
 /** Pure half of the throttle, so the rate can be pinned in a test. */
 export function shouldTick(lastAt: number | null, now: number): boolean {
   return lastAt === null || now - lastAt >= TICK_THROTTLE_MS
@@ -129,6 +143,7 @@ export function resolveUiSound(sound: UiSound): SfxId | null {
 }
 
 let lastTickAt: number | null = null
+let lastHoverAt: number | null = null
 let enabled = true
 
 /**
@@ -141,6 +156,11 @@ export function playUi(sound: UiSound, now: number = performance.now()): void {
   if (sound === 'tick') {
     if (!shouldTick(lastTickAt, now)) return
     lastTickAt = now
+  }
+
+  if (sound === 'hover') {
+    if (lastHoverAt !== null && now - lastHoverAt < HOVER_THROTTLE_MS) return
+    lastHoverAt = now
   }
 
   const id = resolveUiSound(sound)
@@ -172,5 +192,6 @@ export function playPurchase(now: number = performance.now()): void {
 
 export function __resetUiSfx(): void {
   lastTickAt = null
+  lastHoverAt = null
   enabled = true
 }

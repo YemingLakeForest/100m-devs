@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio OS Juice</title>
+<style>
+/*
+ * Studio OS, with materials and a voice. A playable mock: one 1280x720 game frame, three switches.
+ *
+ *   SKIN   NOW       the shipped idiom: 1px phosphor outline + [ BRACKET ] labels on everything
+ *          PROPOSED  the same OS drawn as filled plates, keycaps and inset readouts
+ *   JUICE  stepped motion only: hard cuts, steps(n), palette colours. No glow, blur, gradient, ease.
+ *   SOUND  every sound is synthesised here (square/triangle + a 6-bit crush) so the demo needs no files.
+ *          In the game they would be written as PCM by scripts/generate-juice-sfx.ts, like the blips.
+ *
+ * Palette is src/art/palette.ts, copied. Loopback demo only; nothing here ships.
+ */
+@font-face { font-family: 'Departure Mono'; src: url('assets/departure.woff2') format('woff2'); font-display: block; }
+:root {
+  color-scheme: dark;
+  --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n3:#575a56; --n4:#767970; --n5:#97988f; --n6:#b8b9b0; --n7:#d9d8cd; --n8:#f1efe6;
+  --calm0:#0a2a30; --calm1:#1a6b78; --calm2:#35c9d9; --calm3:#b8f4ff;
+  --warn1:#8a5c12; --warn2:#e0a52e; --warn3:#ffe9b0;
+  --alarm1:#8a1f1f; --alarm2:#e03c3c; --alarm3:#ffb8b8;
+  --mono:'Departure Mono', ui-monospace, Consolas, monospace;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--n0); color:var(--n7); }
+body { font-family:var(--mono); font-size:11px; line-height:1.5; -webkit-font-smoothing:none; }
+button { font:inherit; color:inherit; cursor:pointer; }
+:focus-visible { outline:1px solid var(--warn2); outline-offset:2px; }
+
+.page { max-width:1440px; margin:0 auto; padding:20px max(16px, env(safe-area-inset-left)) 56px; display:grid; gap:14px; }
+.masthead { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px 24px; border-bottom:1px solid var(--calm1); padding-bottom:10px; }
+.masthead h1 { margin:0; font-size:22px; font-weight:400; color:var(--n8); letter-spacing:.04em; }
+.masthead h1 span { color:var(--calm1); }
+.masthead p { margin:0; color:var(--n5); max-width:78ch; }
+
+/* Page switches: outline = pressable, fill = selected (the page obeys the rule it is demoing). */
+.bar { display:flex; flex-wrap:wrap; gap:10px 28px; align-items:center; }
+.sw { display:flex; align-items:center; gap:8px; }
+.sw b { color:var(--n4); font-weight:400; letter-spacing:.08em; }
+.chip { background:transparent; border:1px solid var(--calm1); color:var(--calm2); padding:5px 11px; letter-spacing:.08em; }
+.chip:hover { border-color:var(--calm2); }
+.chip[aria-pressed="true"] { background:var(--calm2); color:var(--n0); border-color:var(--calm2); }
+
+.fit { position:relative; width:100%; max-width:1280px; margin:0 auto; overflow:hidden; background:var(--n0); }
+.stage { position:absolute; left:0; top:0; width:1280px; height:720px; transform-origin:0 0; overflow:hidden; user-select:none; -webkit-user-select:none; }
+.world { position:absolute; inset:0; }
+.plate { position:absolute; inset:0; width:1280px; height:720px; image-rendering:pixelated; }
+.scrim { position:absolute; inset:0; background:var(--n0); opacity:0; pointer-events:none; }
+.scrim.on { opacity:.62; }
+.dim .scrim.on { opacity:.62; }
+/* The CRT's own scanlines, 1px rules at a 3px pitch (ART_DIRECTION §6) - flat, already in the game. */
+.crt { position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,.16) 2px 3px); }
+
+/* ---------- shared atoms ---------- */
+.abs { position:absolute; }
+.key { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.6ch; font-family:var(--mono); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.key .br { display:none; }
+.key[disabled], .key.locked { cursor:not-allowed; }
+
+/* ================= SKIN: NOW — the shipped idiom ================= */
+.skin-now .key { background:transparent; border:1px solid var(--calm1); color:var(--calm2); padding:7px 12px; font-size:11px; }
+.skin-now .key .br { display:inline; color:var(--calm1); }
+.skin-now .key:hover { border-color:var(--calm2); }
+.skin-now .key.down { background:var(--calm2); color:var(--n0); }
+.skin-now .key.locked { color:var(--n4); border-color:var(--n3); }
+.skin-now .key.k-warn { color:var(--warn2); border-color:var(--warn1); }
+.skin-now .key.k-alarm { color:var(--alarm3); border-color:var(--alarm1); }
+.skin-now .key.big { font-size:22px; padding:10px 14px; }
+
+.skin-now .sb { left:64px; top:8px; width:1152px; height:48px; border-top:1px solid var(--calm1); border-bottom:1px solid var(--calm1); display:flex; background:rgba(24,25,25,.55); }
+.skin-now .cell { padding:6px 14px; border-right:1px solid var(--calm1); display:flex; align-items:center; gap:10px; }
+.skin-now .cell .lab { color:var(--calm1); }
+.skin-now .cell .val { font-size:22px; color:var(--calm2); }
+.skin-now .cell.cash .lab, .skin-now .cell.cash .val { color:var(--warn2); }
+.skin-now .cell .tag { display:none; }
+
+.skin-now .card { left:64px; top:66px; width:200px; padding:8px; border:1px solid var(--calm1); background:rgba(24,25,25,.78); color:var(--calm2); }
+.skin-now .card h3 { margin:0; font-weight:400; color:var(--calm2); }
+.skin-now .card .hd { color:var(--calm1); }
+.skin-now .art { width:40px; height:40px; background:var(--calm0); border:1px solid var(--calm1); }
+.skin-now .meter { display:flex; gap:2px; margin:6px 0; }
+.skin-now .seg { width:14px; height:8px; border:1px solid var(--calm1); }
+.skin-now .seg.on { background:var(--calm2); border-color:var(--calm2); }
+.skin-now .bays { display:flex; gap:4px; margin:6px 0; }
+.skin-now .bay { width:22px; height:22px; border:1px solid var(--calm1); }
+.skin-now .bay.on { background:var(--calm2); }
+
+.skin-now .offer { left:996px; top:520px; width:268px; padding:12px; background:rgba(24,25,25,.82); border:2px solid var(--warn2); text-align:center; }
+.skin-now .offer .t { font-size:22px; color:var(--n7); }
+.skin-now .offer .c { color:var(--warn2); margin-top:4px; }
+.skin-now .offer .key { margin-top:8px; }
+
+.skin-now .tb { left:0; top:680px; width:1280px; height:40px; border-top:1px solid var(--calm1); display:flex; align-items:center; gap:10px; padding:0 64px; background:rgba(24,25,25,.55); }
+.skin-now .tb .clock { margin-left:auto; color:var(--calm1); }
+
+.skin-now .toast { background:rgba(24,25,25,.85); border:1px solid var(--calm2); color:var(--calm2); padding:8px 12px; }
+.skin-now .toast .tg { display:none; }
+.skin-now .toast.warn { border-color:var(--warn2); color:var(--warn2); }
+.skin-now .toast.alarm { border-color:var(--alarm2); color:var(--alarm3); }
+
+.skin-now .win { border:1px solid var(--calm2); background:rgba(24,25,25,.92); color:var(--calm2); }
+.skin-now .win .bar { padding:5px 10px; border-bottom:1px solid var(--calm1); display:flex; justify-content:space-between; align-items:center; color:var(--calm1); }
+.skin-now .win .bar b { color:var(--calm3); font-weight:400; }
+.skin-now .win .x { border:1px solid var(--calm2); background:transparent; color:var(--calm3); width:20px; height:20px; padding:0; }
+.skin-now .win .body { padding:10px 12px; display:grid; gap:10px; }
+.skin-now .row { display:flex; align-items:center; gap:12px; }
+.skin-now .row .rl { width:84px; color:var(--calm1); }
+.skin-now .vol { display:flex; gap:2px; }
+.skin-now .vol i { width:8px; height:14px; border:1px solid var(--calm1); }
+.skin-now .vol i.on { background:var(--calm2); border-color:var(--calm2); }
+.skin-now .pick { display:flex; gap:6px; }
+.skin-now .pick .key.sel { background:var(--calm2); color:var(--n0); }
+.skin-now .stamp { border:2px solid var(--calm2); color:var(--calm2); background:rgba(24,25,25,.85); padding:4px 10px; font-size:22px; }
+.skin-now .chipfx { color:var(--warn2); }
+
+/* ================= SKIN: PROPOSED — plates, keycaps, inset readouts ================= */
+/* Depth is a value step plus one hard slab (--ui-slab already exists in the game). No outline carries meaning:
+   a fill says "I am a thing", a slab says "I press", a lit fill says "I am the one that matters". */
+.skin-new .key { --k:var(--n3); --ks:var(--n0); --kt:var(--n8); background:var(--k); color:var(--kt); border:0; padding:8px 14px; font-size:11px; box-shadow:0 4px 0 var(--ks); margin-bottom:4px; }
+.skin-new .key:hover:not(.locked) { background:color-mix(in srgb, var(--k) 78%, #fff); }
+.skin-new .key.down { transform:translateY(4px); box-shadow:0 0 0 var(--ks); }
+.skin-new .key.k-calm { --k:var(--calm2); --ks:var(--calm1); --kt:var(--n0); }
+.skin-new .key.k-warn { --k:var(--warn2); --ks:var(--warn1); --kt:var(--n0); }
+.skin-new .key.k-alarm { --k:var(--alarm2); --ks:var(--alarm1); --kt:var(--n0); }
+.skin-new .key.locked { --k:var(--n2); --ks:var(--n0); --kt:var(--n4); }
+.skin-new .key.big { font-size:22px; padding:11px 18px; }
+.skin-new .key .ico { display:inline-block; width:8px; height:8px; background:currentColor; }
+
+.skin-new .sb { left:0; top:0; width:1280px; height:48px; display:flex; background:var(--n1); box-shadow:0 4px 0 var(--n0); padding-left:64px; gap:2px; align-items:stretch; }
+.skin-new .cell { position:relative; padding:5px 14px 5px 18px; background:var(--n1); display:flex; flex-direction:column; justify-content:center; min-width:150px; }
+.skin-new .cell::before { content:""; position:absolute; left:0; top:6px; bottom:6px; width:4px; background:var(--tagc, var(--n4)); }
+.skin-new .cell .lab { color:var(--n5); font-size:11px; line-height:1; }
+.skin-new .cell .val { font-size:22px; line-height:1.15; color:var(--n8); background:var(--n0); padding:0 8px; margin-left:-8px; margin-top:2px; align-self:flex-start; min-width:96px; }
+.skin-new .cell.cash { --tagc:var(--warn2); } .skin-new .cell.cash .val { color:var(--warn2); }
+.skin-new .cell.devs { --tagc:var(--n7); }
+.skin-new .cell.ship { --tagc:var(--calm2); } .skin-new .cell.ship .val { color:var(--calm2); }
+.skin-new .cell.vel { --tagc:var(--calm2); } .skin-new .cell.vel .val { color:var(--calm3); }
+.skin-new .cell.sync { --tagc:var(--n4); }
+
+.skin-new .card { left:64px; top:62px; width:216px; background:var(--n1); box-shadow:5px 5px 0 var(--n0); }
+.skin-new .card .hdbar { background:var(--n2); padding:4px 10px; display:flex; justify-content:space-between; color:var(--n6); }
+.skin-new .card .in { padding:10px; display:grid; gap:10px; }
+.skin-new .card h3 { margin:0; font-weight:400; color:var(--n8); }
+.skin-new .card .hd { color:var(--n5); }
+.skin-new .art { width:40px; height:40px; background:var(--calm0); }
+.skin-new .meter { display:flex; gap:2px; padding:4px; background:var(--n0); margin:0; }
+.skin-new .seg { flex:1; height:10px; background:var(--n2); }
+.skin-new .seg.on { background:var(--calm2); }
+.skin-new .bays { display:flex; gap:4px; padding:4px; background:var(--n0); margin:0; }
+.skin-new .bay { flex:1; height:24px; background:var(--n2); }
+.skin-new .bay.on { background:var(--warn2); }
+.skin-new .btnrow { display:flex; gap:12px; }
+
+.skin-new .offer { left:1000px; top:508px; width:264px; background:var(--n1); box-shadow:5px 5px 0 var(--n0); }
+.skin-new .offer .t { background:var(--n2); padding:6px 12px; color:var(--n6); letter-spacing:.08em; }
+.skin-new .offer .in { padding:12px; display:grid; gap:8px; }
+.skin-new .offer .c { color:var(--n5); display:flex; justify-content:space-between; background:var(--n0); padding:4px 8px; }
+.skin-new .offer .c b { color:var(--warn2); font-weight:400; }
+.skin-new .offer .key { width:100%; }
+
+.skin-new .tb { left:0; top:676px; width:1280px; height:44px; display:flex; align-items:center; gap:12px; padding:0 64px; background:var(--n1); box-shadow:0 -4px 0 var(--n0); }
+.skin-new .tb .clock { margin-left:auto; color:var(--n5); background:var(--n0); padding:3px 8px; }
+
+.skin-new .toast { background:var(--n7); color:var(--n0); padding:0; display:flex; box-shadow:4px 4px 0 var(--n0); }
+.skin-new .toast .tg { width:10px; background:var(--calm2); }
+.skin-new .toast.warn .tg { background:var(--warn2); } .skin-new .toast.alarm .tg { background:var(--alarm2); }
+.skin-new .toast .tx { padding:8px 12px; }
+
+.skin-new .win { background:var(--n1); box-shadow:8px 8px 0 var(--n0); color:var(--n7); }
+.skin-new .win .bar { padding:0 0 0 12px; height:28px; background:var(--calm1); display:flex; justify-content:space-between; align-items:center; color:var(--calm3); }
+.skin-new .win.live .bar { background:var(--calm2); color:var(--n0); }
+.skin-new .win .bar b { font-weight:400; }
+.skin-new .win .x { width:28px; height:28px; background:var(--alarm2); color:var(--n0); border:0; padding:0; }
+.skin-new .win .x:hover { background:var(--alarm3); }
+.skin-new .win .x.down { background:var(--alarm1); color:var(--n8); }
+.skin-new .win .body { padding:12px; display:grid; gap:8px; }
+.skin-new .row { display:grid; grid-template-columns:96px 1fr; gap:2px; }
+.skin-new .row .rl { background:var(--n2); color:var(--n6); padding:8px 10px; display:flex; align-items:center; }
+.skin-new .row .rc { background:var(--n0); padding:6px 8px; display:flex; align-items:center; gap:10px; }
+.skin-new .vol { display:flex; gap:2px; }
+.skin-new .vol i { width:10px; height:16px; background:var(--n2); }
+.skin-new .vol i.on { background:var(--calm2); }
+.skin-new .pick { display:flex; background:var(--n2); padding:3px; gap:3px; position:relative; }
+.skin-new .pick .key { background:transparent; box-shadow:none; margin:0; color:var(--n5); padding:5px 12px; }
+.skin-new .pick .key.sel { background:var(--calm2); color:var(--n0); }
+.skin-new .stamp { background:var(--calm2); color:var(--n0); padding:6px 14px; font-size:22px; box-shadow:5px 5px 0 var(--n0); letter-spacing:.1em; }
+.skin-new .chipfx { color:var(--warn2); }
+
+/* Window and key atoms that do not change with the skin */
+.rc { display:flex; align-items:center; gap:10px; }
+.hdbar { display:flex; justify-content:space-between; }
+.skin-now .hdbar { color:var(--calm1); margin-bottom:6px; }
+.skin-now .offer .c { display:flex; justify-content:center; gap:8px; }
+.skin-now .btnrow { display:flex; gap:8px; align-items:center; }
+.win { position:absolute; left:380px; top:150px; width:520px; display:none; }
+.win.open { display:block; }
+.win .x { cursor:pointer; }
+.vol i { display:block; }
+.holdbar { position:absolute; left:0; bottom:0; height:100%; width:0; background:var(--alarm3); opacity:.9; pointer-events:none; mix-blend-mode:normal; }
+.key.hold { overflow:hidden; }
+.key.hold > span { position:relative; z-index:1; }
+.holdbar { z-index:0; }
+.skin-now .holdbar { background:var(--alarm1); }
+
+/* ================= JUICE (stepped; every frame is a palette colour) ================= */
+.fx .key.down { }
+.fx .key.rel { animation:rel 90ms steps(1,end); }
+@keyframes rel { 0% { transform:translateY(-2px); } 50% { transform:translateY(1px); } 100% { transform:translateY(0); } }
+.fx.skin-now .key.rel { animation:none; }
+.fx .pop { animation:pop 120ms steps(1,end); transform-origin:left center; }
+@keyframes pop { 0% { transform:scale(1.3); } 50% { transform:scale(1.12); } 100% { transform:scale(1); } }
+.fx .hot { animation:hot 270ms steps(1,end); }
+@keyframes hot { 0% { background:var(--n8); color:var(--n0); } 34% { background:var(--warn3); color:var(--n0); } 67% { background:var(--warn2); color:var(--n0); } 100% { } }
+.fx .hotseg { animation:hotseg 270ms steps(1,end); }
+@keyframes hotseg { 0% { background:var(--n8); } 34% { background:var(--calm3); } 67% { background:var(--calm2); } }
+.fx.skin-new .cell.flash .val { animation:cellflash 300ms steps(1,end); }
+@keyframes cellflash { 0% { background:var(--n8); color:var(--n0); } 34% { background:var(--warn3); color:var(--n0); } 67% { background:var(--warn2); color:var(--n0); } }
+.fx.skin-now .cell.flash .val { animation:cellflashnow 300ms steps(1,end); }
+@keyframes cellflashnow { 0% { color:var(--n8); } 50% { color:var(--warn3); } }
+.fx .bad { animation:bad 220ms steps(1,end); }
+@keyframes bad { 0% { transform:translateX(-4px); } 17% { transform:translateX(4px); } 34% { transform:translateX(-3px); } 51% { transform:translateX(3px); } 68% { transform:translateX(-1px); } 85% { transform:translateX(1px); } 100% { transform:none; } }
+.fx .badflash { animation:badflash 300ms steps(1,end); }
+@keyframes badflash { 0% { background:var(--alarm2); color:var(--n0); } 50% { background:var(--alarm1); color:var(--n8); } }
+.fx .beckon { animation:beckon 800ms steps(1,end) infinite; }
+@keyframes beckon { 0% { } 50% { background:var(--warn3); } }
+.fx.skin-now .beckon { animation:beckonnow 800ms steps(1,end) infinite; }
+@keyframes beckonnow { 50% { border-color:var(--n8); } }
+/* Window unroll: 4 hard heights out of the bar. Close is the same frames backwards, in 2. */
+.fx .win.opening { animation:unroll 160ms steps(1,end); }
+@keyframes unroll { 0% { clip-path:inset(0 0 calc(100% - 28px) 0); } 25% { clip-path:inset(0 0 66% 0); } 50% { clip-path:inset(0 0 33% 0); } 75% { clip-path:inset(0 0 12% 0); } 100% { clip-path:inset(0); } }
+.fx .win.closing { animation:rollup 80ms steps(1,end) forwards; }
+@keyframes rollup { 0% { clip-path:inset(0 0 40% 0); } 50% { clip-path:inset(0 0 calc(100% - 28px) 0); } 100% { clip-path:inset(0 0 100% 0); } }
+.fx .toast.in { animation:toastin 150ms steps(1,end); }
+@keyframes toastin { 0% { transform:translateX(-120%); } 34% { transform:translateX(-60%); } 67% { transform:translateX(-18%); } 100% { transform:none; } }
+.fx .toast.out { animation:toastout 100ms steps(1,end) forwards; }
+@keyframes toastout { 0% { transform:translateX(-20%); } 50% { transform:translateX(-70%); } 100% { transform:translateX(-130%); } }
+.fx .stamp.drop { animation:stampdrop 200ms steps(1,end); }
+@keyframes stampdrop { 0% { transform:scale(2.6); opacity:.0; } 25% { transform:scale(1.9); opacity:1; } 50% { transform:scale(1.35); } 75% { transform:scale(.94); } 100% { transform:none; } }
+.fx .tilt { animation:tilt 100ms steps(1,end); }
+@keyframes tilt { 0% { transform:translate(2px,2px); } 50% { transform:translate(-1px,0); } }
+
+/* Floating chips and stamps */
+.fxlayer { position:absolute; inset:0; pointer-events:none; }
+.chipfx, .stamp { position:absolute; white-space:nowrap; }
+.chipfx { font-size:22px; letter-spacing:.04em; }
+.chipfx.neg { color:var(--alarm3); }
+.skin-new .chipfx { background:var(--n0); padding:0 8px; }
+.toasts { position:absolute; left:64px; bottom:96px; display:grid; gap:8px; width:340px; }
+.skin-now .toasts { bottom:96px; }
+.toast { position:relative; }
+.toast .tx { line-height:1.4; }
+
+/* ---------- below the stage ---------- */
+.log { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:30px; border-top:1px solid var(--calm1); border-bottom:1px solid var(--calm1); padding:6px 0; }
+.log b { color:var(--n4); font-weight:400; letter-spacing:.08em; margin-right:4px; }
+.log span { background:var(--n1); color:var(--n7); padding:2px 8px; }
+.log span:first-of-type { background:var(--calm2); color:var(--n0); }
+.ideas { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:10px; }
+.idea { background:var(--n1); padding:12px 14px; display:grid; gap:4px; align-content:start; }
+.idea h4 { margin:0; font-weight:400; color:var(--n8); font-size:11px; letter-spacing:.06em; }
+.idea h4 em { font-style:normal; color:var(--calm2); margin-right:8px; }
+.idea p { margin:0; color:var(--n6); }
+.idea p b { color:var(--warn2); font-weight:400; }
+.note { color:var(--n5); max-width:100ch; }
+.note b { color:var(--n7); font-weight:400; }
+@media (max-width:700px){ .masthead h1{font-size:18px} }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <h1>STUDIO_OS <span>//</span> JUICE</h1>
+    <p>Same OS, same palette, same flat rules. The change is that things stop being one outlined rectangle: three materials, keys that move, and a sound for every step you can see. Click the frame first (browsers keep audio off until you do).</p>
+  </header>
+
+  <div class="bar">
+    <div class="sw"><b>SKIN</b>
+      <button class="chip" data-skin="now" aria-pressed="false">NOW</button>
+      <button class="chip" data-skin="new" aria-pressed="true">PROPOSED</button></div>
+    <div class="sw"><b>JUICE</b>
+      <button class="chip" data-juice="0" aria-pressed="false">OFF</button>
+      <button class="chip" data-juice="1" aria-pressed="true">ON</button></div>
+    <div class="sw"><b>SOUND</b>
+      <button class="chip" data-sound="0" aria-pressed="false">OFF</button>
+      <button class="chip" data-sound="1" aria-pressed="true">ON</button></div>
+    <div class="sw"><b>TRY</b><span class="note">mash CODE (hold it) &middot; SHIP twice &middot; HIRE &middot; MENU &middot; Esc closes</span></div>
+  </div>
+
+  <div class="fit" id="fit">
+    <div class="stage skin-new fx" id="stage">
+      <div class="world" id="world">
+        <img class="plate" src="assets/plate.jpg" alt="">
+      </div>
+      <div class="scrim" id="scrim"></div>
+      <div class="crt"></div>
+
+      <!-- status bar -->
+      <div class="abs sb" id="sb">
+        <div class="cell cash" id="cCash"><span class="lab">CASH</span><span class="val" id="vCash">$0</span></div>
+        <div class="cell devs" id="cDevs"><span class="lab">DEVS</span><span class="val" id="vDevs">0</span></div>
+        <div class="cell ship" id="cShip"><span class="lab">SHIPPED</span><span class="val" id="vShip">0</span></div>
+        <div class="cell vel" id="cVel"><span class="lab">VELOCITY</span><span class="val" id="vVel">0.0</span></div>
+        <div class="cell sync" id="cSync"><span class="lab">IN SYNC</span><span class="val" id="vSync">100%</span></div>
+      </div>
+
+      <!-- project card -->
+      <div class="abs card" id="card">
+        <div class="hdbar"><span>PROJECT</span><span id="pNo">#1</span></div>
+        <div class="in">
+          <div style="display:flex;gap:10px;align-items:center"><div class="art"></div><div><h3 id="pName">SALTY PRISM</h3><div class="hd" id="pSp">0 / 6 BUILD</div></div></div>
+          <div class="meter" id="meter"></div>
+          <div class="hd">QUEUE <span id="qTxt">0/3</span></div>
+          <div class="bays" id="bays"></div>
+          <div class="btnrow">
+            <button class="key k-calm big" id="kCode" data-role="calm"><i class="br">[</i><span>CODE</span><i class="br">]</i></button>
+            <button class="key k-warn locked" id="kShip" data-role="warn"><i class="br">[</i><span>SHIP!</span><i class="br">]</i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- offer -->
+      <div class="abs offer" id="offer">
+        <div class="t">LIMITED OFFER</div>
+        <div class="in">
+          <div class="c"><span>COST</span><b id="oCost">$5,000</b></div>
+          <button class="key k-warn big locked" id="kHire" data-role="warn"><i class="br">[</i><span>HIRE A DEV</span><i class="br">]</i></button>
+        </div>
+      </div>
+
+      <!-- taskbar -->
+      <div class="abs tb" id="tb">
+        <button class="key k-calm" id="kMenu" data-role="calm"><i class="br">[</i><span>MENU</span><i class="br">]</i></button>
+        <span class="note" id="tbHint" style="color:var(--n4)">STUDIO_OS v0.0.1</span>
+        <span class="clock">2026-10-28 14:30</span>
+      </div>
+
+      <div class="toasts" id="toasts"></div>
+      <div class="fxlayer" id="fxl"></div>
+
+      <!-- window -->
+      <div class="win" id="win">
+        <div class="bar"><span>STUDIO_OS // <b>GAME MENU</b></span><button class="key x" id="kX" data-role="alarm">X</button></div>
+        <div class="body">
+          <div class="row"><span class="rl">EFFECTS</span><span class="rc"><button class="key" id="vMinus" data-role="n">&minus;</button><span class="vol" id="vol"></span><button class="key" id="vPlus" data-role="n">+</button><span id="volTxt">60%</span></span></div>
+          <div class="row"><span class="rl">HAPTICS</span><span class="rc"><span class="pick" id="pkH"><button class="key sel" data-v="on" data-role="n"><span>ON</span></button><button class="key" data-v="off" data-role="n"><span>OFF</span></button></span></span></div>
+          <div class="row"><span class="rl">MOTION</span><span class="rc"><span class="pick" id="pkM"><button class="key sel" data-v="sys" data-role="n"><span>SYSTEM</span></button><button class="key" data-v="full" data-role="n"><span>FULL</span></button><button class="key" data-v="red" data-role="n"><span>REDUCED</span></button></span></span></div>
+          <div class="row"><span class="rl">PROGRESS</span><span class="rc"><button class="key hold k-alarm" id="kReset" data-role="alarm"><i class="holdbar" id="holdbar"></i><span>HOLD TO RESET</span></button><span class="note" style="color:var(--n5)">no confirm dialog: you hold it</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log" id="log"><b>SOUND LOG</b></div>
+
+  <div class="ideas">
+    <div class="idea"><h4><em>1</em>THREE MATERIALS, NOT ONE OUTLINE</h4><p><b>Plate</b> (filled, slab-shadowed) holds things, <b>inset</b> (darker, flush) shows readings, <b>lit</b> (solid phosphor) is the one thing that matters now. Outline stops carrying meaning, so the eye can rank the screen.</p></div>
+    <div class="idea"><h4><em>2</em>KEYCAPS, ROLE-COLOURED</h4><p>Every verb is a physical key on a hard slab: it drops 4px on press <b>down</b> (F2), snaps back with one frame of overshoot. Cyan = work, amber = money, red = danger, grey = neutral. Brackets retire.</p></div>
+    <div class="idea"><h4><em>3</em>ONE SOUND PER VISIBLE STEP</h4><p>The window unrolls in four heights, so it makes four clacks, falling in pitch; it closes in two, rising. Sound and picture share one clock, so they read as one object instead of an effect plus a noise.</p></div>
+    <div class="idea"><h4><em>4</em>THE PENTATONIC LADDER</h4><p>Mashing CODE climbs C D E G A and up an octave, then resets after 700 ms of rest. A combo you can hear, in the key of the existing blip family, with no wrong notes.</p></div>
+    <div class="idea"><h4><em>5</em>MONEY TRAVELS</h4><p>SHIP sends one aggregated chip from the key to the CASH cell in four hard hops. The cell does not change until it lands; it then counts up in steps (a tick per step, rising) and flashes white, amber, rest.</p></div>
+    <div class="idea"><h4><em>6</em>DENIAL IS A SOUND AND A SHAKE</h4><p>Press HIRE with no money: the key jolts, the COST plate flashes red, a two-note low buzz. Unlock is the opposite: a rising chord, the key beckons in two hard states. Nothing is ever silently disabled.</p></div>
+    <div class="idea"><h4><em>7</em>HOLD, DON'T CONFIRM</h4><p>Dangerous actions fill under your finger in stepped blocks with a climbing tone and drain with a falling one. It replaces a confirm dialog with a gesture, and the audio is the confirmation.</p></div>
+    <div class="idea"><h4><em>8</em>VOICE BUDGET</h4><p>Your press is always full volume; automation is quieter by 1/&radic;devs and never more than one voice per 80 ms. Hover ticks are throttled and sit an octave above the clack. It scales to 1,000,000 like the throughput bed does.</p></div>
+  </div>
+  <p class="note"><b>Held back on purpose:</b> no glow, bloom, blur, gradient light, eased fade or rounded corner (ART_DIRECTION §3, and your note on gradient light boxes). Every animation here is <code>steps()</code> between palette colours, JUICE OFF removes all of it but not the sound, and MOTION &rarr; REDUCED in the menu does the same thing in the real game.</p>
+</div>
+
+<script>
+'use strict'
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const stage = $('#stage'), fit = $('#fit')
+const S = { juice: true, sound: true, vol: 6, cash: 0, devs: 0, shipped: 0, sp: 0, queue: 0, proj: 1, unlocked: false, combo: 0, comboAt: 0, coded: [] }
+const SP_PER_BUILD = 6, QMAX = 3, BUILD_PAY = 2500, HIRE_COST = 5000
+
+/* ---------- stage scaling ---------- */
+function resize() {
+  const k = Math.min(1, fit.clientWidth / 1280)
+  stage.style.transform = `scale(${k})`
+  fit.style.height = (720 * k) + 'px'
+  S.k = k
+}
+addEventListener('resize', resize); resize()
+
+/* ---------- audio: synthesised, 6-bit crushed so it sits with the voxel art ---------- */
+const A = { ctx: null, bus: null }
+function arm() {
+  if (!A.ctx) {
+    const C = window.AudioContext || window.webkitAudioContext
+    if (!C) return
+    A.ctx = new C({ latencyHint: 'interactive' })
+    const crush = A.ctx.createWaveShaper()
+    const n = 64, curve = new Float32Array(n * 2 + 1)
+    for (let i = 0; i < curve.length; i++) { const x = (i - n) / n; curve[i] = Math.round(x * 32) / 32 }
+    crush.curve = curve
+    const g = A.ctx.createGain(); g.gain.value = 0.9
+    const comp = A.ctx.createDynamicsCompressor()
+    A.bus = A.ctx.createGain()
+    A.bus.connect(crush); crush.connect(g); g.connect(comp); comp.connect(A.ctx.destination)
+  }
+  if (A.ctx.state !== 'running') A.ctx.resume()
+}
+const master = () => (S.vol / 10) ** 1.6
+function tone(f, d, o = {}) {
+  if (!S.sound || !A.ctx) return
+  const t = A.ctx.currentTime + (o.at || 0), osc = A.ctx.createOscillator(), g = A.ctx.createGain()
+  osc.type = o.type || 'square'
+  osc.frequency.setValueAtTime(f, t)
+  if (o.to) osc.frequency.linearRampToValueAtTime(o.to, t + d)
+  const v = (o.v ?? 0.12) * master() * (o.mul ?? 1)
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.linearRampToValueAtTime(v, t + 0.002)
+  g.gain.setValueAtTime(v, t + Math.max(0.002, d * 0.5))
+  g.gain.linearRampToValueAtTime(0.0001, t + d)
+  osc.connect(g); g.connect(A.bus); osc.start(t); osc.stop(t + d + 0.02)
+}
+let noiseBuf = null
+function click(d, hp, v, at = 0) {
+  if (!S.sound || !A.ctx) return
+  if (!noiseBuf) { noiseBuf = A.ctx.createBuffer(1, A.ctx.sampleRate * 0.1, A.ctx.sampleRate); const a = noiseBuf.getChannelData(0); for (let i = 0; i < a.length; i++) a[i] = Math.random() * 2 - 1 }
+  const t = A.ctx.currentTime + at, src = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain()
+  src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = hp; f.Q.value = 1.2
+  g.gain.setValueAtTime(v * master(), t); g.gain.linearRampToValueAtTime(0.0001, t + d)
+  src.connect(f); f.connect(g); g.connect(A.bus); src.start(t); src.stop(t + d + 0.01)
+}
+const PENT = [261.63, 293.66, 329.63, 392.0, 440.0]
+const ladder = n => PENT[n % 5] * 2 ** (Math.min(Math.floor(n / 5), 2) + 1)
+
+/* The bank. Each is short on purpose (see uiSfx.ts: a borrowed sound brings its length with it). */
+const SND = {
+  hover:  () => tone(2093, .018, { type: 'triangle', v: .05 }),
+  down:   r => { click(.016, r === 'n' ? 1400 : 900, .5); tone(r === 'alarm' ? 140 : r === 'warn' ? 190 : 220, .035, { v: .16 }) },
+  up:     () => { click(.008, 3000, .18); tone(440, .02, { type: 'triangle', v: .05 }) },
+  code:   n => { tone(ladder(n), .07, { v: .13 }); tone(ladder(n) * 2, .045, { type: 'triangle', v: .06 }) },
+  auto:   n => tone(ladder(n % 5 + 5), .04, { type: 'triangle', v: .05, mul: 1 / Math.sqrt(Math.max(1, S.devs)) }),
+  seg:    () => { [0, 1, 2].forEach(i => tone(PENT[[2, 3, 4][i]] * 4, .06, { at: i * .05, v: .1 })) },
+  bay:    () => { tone(98, .08, { v: .2 }); click(.03, 500, .35); tone(PENT[2] * 2, .09, { at: .07, type: 'triangle', v: .12 }) },
+  stamp:  () => { tone(80, .12, { v: .3, to: 55 }); click(.05, 400, .6); },
+  shipup: () => { [0, 1, 2, 3].forEach(i => tone(PENT[[0, 2, 3, 4][i]] * 4, .08, { at: .06 + i * .06, v: .1 })) },
+  hop:    i => tone(PENT[i % 5] * 4, .03, { type: 'triangle', v: .06 }),
+  count:  i => tone(ladder(i + 3), .03, { type: 'triangle', v: .07 }),
+  bank:   () => { tone(1318, .06, { v: .12 }); tone(1975, .16, { at: .06, v: .12 }); tone(659, .18, { at: .06, type: 'triangle', v: .08 }) },
+  err:    () => { tone(118, .09, { v: .2, to: 96 }); tone(110, .1, { at: .11, v: .2, to: 80 }); click(.03, 300, .3) },
+  unlock: () => { [0, 2, 3, 4].forEach((p, i) => tone(PENT[p] * 2, .14, { at: i * .07, v: .1 })); tone(PENT[0] * 4, .3, { at: .3, type: 'triangle', v: .1 }) },
+  hire:   () => { tone(PENT[0] * 2, .09, { v: .13 }); tone(PENT[2] * 2, .09, { at: .08, v: .13 }); tone(PENT[3] * 2, .09, { at: .16, v: .13 }); tone(PENT[0] * 4, .3, { at: .24, type: 'triangle', v: .13 }) },
+  toast:  () => { tone(880, .05, { type: 'triangle', v: .08 }); tone(1318, .09, { at: .06, type: 'triangle', v: .08 }) },
+  open:   i => { click(.014, 2600 - i * 520, .5); tone(1400 - i * 220, .028, { v: .08 }) },
+  close:  i => { click(.014, 1100 + i * 700, .45); tone(700 + i * 400, .028, { v: .08 }) },
+  select: () => { click(.012, 2000, .4); tone(988, .04, { v: .1 }) },
+  toggle: on => { click(.012, 2200, .4); tone(on ? 784 : 523, .05, { v: .1 }); tone(on ? 1047 : 392, .06, { at: .05, v: .09 }) },
+  vol:    v => tone(ladder(v), .05, { v: .12 }),
+  holdtick: i => tone(262 * 2 ** (i / 6), .035, { v: .09 }),
+  holdfail: () => { [0, 1, 2].forEach(i => tone(392 / 2 ** (i / 3), .045, { at: i * .045, v: .09 })) },
+  reset:  () => { tone(60, .3, { v: .3, to: 40 }); click(.12, 300, .6); [0, 1, 2].forEach(i => tone(523 / 2 ** i, .1, { at: .1 + i * .09, v: .1 })) },
+}
+const logEl = $('#log')
+let lastLog = ''
+function snd(name, arg) {
+  try { SND[name](arg) } catch (e) { console.error(e) }
+  const label = name + (arg !== undefined && typeof arg === 'number' && ['code', 'auto'].includes(name) ? ' ' + 'CDEGA'[arg % 5] + (Math.floor(arg / 5) + 4) : '')
+  if (label === lastLog && ['hover', 'code', 'auto', 'count', 'hop', 'holdtick'].includes(name)) return
+  lastLog = label
+  const s = document.createElement('span'); s.textContent = label
+  const first = logEl.children[1]; logEl.insertBefore(s, first || null)
+  while (logEl.children.length > 14) logEl.lastChild.remove()
+}
+let lastHover = 0
+function hover(el) { const t = performance.now(); if (t - lastHover < 40 || el.classList.contains('locked')) return; lastHover = t; snd('hover') }
+
+/* ---------- stage-local geometry ---------- */
+function at(el) {
+  const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect(), k = S.k || 1
+  return { x: (r.left - s.left) / k, y: (r.top - s.top) / k, w: r.width / k, h: r.height / k }
+}
+const fxl = $('#fxl')
+const J = () => S.juice
+
+/* ---------- juice primitives (everything is stepped) ---------- */
+function flick(el, cls, ms) { if (!J()) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), ms) }
+function shakeStage(frames = 5, amp = 2) {
+  if (!J()) return
+  let i = 0; const w = $('#world'), id = setInterval(() => {
+    i++; if (i > frames) { clearInterval(id); w.style.transform = ''; return }
+    const a = amp * (1 - i / (frames + 1)); w.style.transform = `translate(${Math.round((i % 2 ? 1 : -1) * a)}px,${Math.round((i % 3 ? -1 : 1) * a)}px)`
+  }, 33)
+}
+function floater(text, x, y, cls = '') {
+  const e = document.createElement('div'); e.className = 'chipfx ' + cls; e.textContent = text
+  e.style.left = x + 'px'; e.style.top = y + 'px'; fxl.appendChild(e); return e
+}
+function rollNum(el, from, to, fmt, done) {
+  const cell = el.closest('.cell')
+  if (!J()) { el.textContent = fmt(to); done && done(); return }
+  const steps = 6; let i = 0
+  const id = setInterval(() => {
+    i++
+    el.textContent = fmt(Math.round(from + (to - from) * Math.min(1, i / steps)))
+    snd('count', i)
+    if (i >= steps) { clearInterval(id); cell && flick(cell, 'flash', 300); done && done() }
+  }, 45)
+}
+const money = n => '$' + n.toLocaleString('en-US')
+
+/* ---------- toasts ---------- */
+function toast(msg, kind = '') {
+  const e = document.createElement('div'); e.className = 'toast ' + kind + (J() ? ' in' : '')
+  e.innerHTML = `<i class="tg"></i><div class="tx">${msg}</div>`
+  const box = $('#toasts'); box.appendChild(e); snd('toast')
+  while (box.children.length > 3) box.firstChild.remove()
+  setTimeout(() => { if (J()) { e.classList.add('out'); setTimeout(() => e.remove(), 110) } else e.remove() }, 3600)
+}
+
+/* ---------- keys: press on DOWN (GDD 10.8 F2), release is its own small sound ---------- */
+function bindKey(el, onDown, opt = {}) {
+  let held = false, rep = null, to = null
+  const down = ev => {
+    if (el.disabled) return
+    arm(); held = true; el.classList.add('down')
+    if (!el.classList.contains('locked') || opt.lockedSound === false) snd('down', el.dataset.role)
+    onDown(ev)
+    if (opt.repeat && !el.classList.contains('locked')) to = setTimeout(() => { rep = setInterval(() => onDown(ev), opt.repeat) }, 320)
+  }
+  const up = () => {
+    if (!held) return; held = false; el.classList.remove('down'); clearTimeout(to); clearInterval(rep)
+    if (!el.classList.contains('locked')) { snd('up'); flick(el, 'rel', 90) }
+    opt.onUp && opt.onUp()
+  }
+  el.addEventListener('pointerdown', ev => { ev.preventDefault(); el.setPointerCapture?.(ev.pointerId); down(ev) })
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up)
+  el.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') hover(el) })
+  el.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && !ev.repeat) { ev.preventDefault(); down(ev) } })
+  el.addEventListener('keyup', ev => { if (ev.key === 'Enter' || ev.key === ' ') up() })
+}
+
+/* ---------- game bits ---------- */
+const meter = $('#meter'), bays = $('#bays')
+for (let i = 0; i < SP_PER_BUILD; i++) meter.insertAdjacentHTML('beforeend', '<i class="seg"></i>')
+for (let i = 0; i < QMAX; i++) bays.insertAdjacentHTML('beforeend', '<i class="bay"></i>')
+function paint() {
+  $$('.seg', meter).forEach((s, i) => s.classList.toggle('on', i < S.sp))
+  $$('.bay', bays).forEach((s, i) => s.classList.toggle('on', i < S.queue))
+  $('#pSp').textContent = `${S.sp} / ${SP_PER_BUILD} BUILD`
+  $('#qTxt').textContent = `${S.queue}/${QMAX}`
+  const ship = $('#kShip'); ship.classList.toggle('locked', S.queue === 0)
+  const hire = $('#kHire'); const can = S.cash >= HIRE_COST
+  hire.classList.toggle('locked', !can); hire.classList.toggle('beckon', can && J())
+  $('#vDevs').textContent = S.devs; $('#vShip').textContent = S.shipped
+  $('#oCost').textContent = money(HIRE_COST)
+  $('#tbHint').textContent = !S.unlocked ? 'CODE a build, queue it, SHIP it. Earn $5,000 to hire.' : 'STUDIO_OS v0.0.1'
+}
+
+function addPoint(auto) {
+  if (S.queue >= QMAX && S.sp === 0 && !auto) { }
+  if (S.queue >= QMAX) { if (!auto) deny($('#kCode'), 'QUEUE FULL: SHIP IT') ; return }
+  const now = performance.now()
+  S.coded.push(now)
+  if (!auto) { S.combo = now - S.comboAt < 700 ? S.combo + 1 : 0; S.comboAt = now; snd('code', S.combo) }
+  else { S.combo2 = (S.combo2 || 0) + 1; snd('auto', S.combo2) }
+  S.sp++
+  const segs = $$('.seg', meter)
+  if (segs[S.sp - 1]) { segs[S.sp - 1].classList.add('on'); flick(segs[S.sp - 1], 'hotseg', 270) }
+  const code = $('#kCode'), p = at(auto ? $('#meter') : code)
+  const f = floater('+1', p.x + (auto ? 20 + Math.random() * 120 : p.w - 10), p.y - 6, ''); f.style.fontSize = '11px'
+  stepUp(f, 3, 5)
+  if (S.sp >= SP_PER_BUILD) {
+    S.sp = 0; S.queue++
+    segs.forEach(s => s.classList.remove('on'))
+    snd('seg'); setTimeout(() => { snd('bay'); const b = $$('.bay', bays)[S.queue - 1]; b && flick(b, 'hot', 270) }, 140)
+    toast(`BUILD ${S.shipped + S.queue} READY IN QUEUE`)
+    if (J()) flick($('#card'), 'tilt', 100)
+  }
+  paint()
+}
+function stepUp(el, hops, px, after) {
+  if (!J()) { setTimeout(() => { el.remove(); after && after() }, 120); return }
+  let i = 0; const y0 = parseFloat(el.style.top)
+  const id = setInterval(() => { i++; el.style.top = (y0 - i * px) + 'px'; if (i >= hops) { clearInterval(id); setTimeout(() => { el.remove(); after && after() }, 70) } }, 45)
+}
+function deny(el, why) {
+  snd('err'); flick(el, 'bad', 220)
+  if (why) toast(why, 'alarm')
+}
+
+function ship() {
+  if (S.queue === 0) return deny($('#kShip'), 'NOTHING IN THE QUEUE')
+  const n = S.queue; S.queue = 0; S.shipped += n
+  const gain = n * BUILD_PAY, from = S.cash
+  paint()
+  snd('stamp'); shakeStage(5, 2)
+  const card = at($('#card')), st = document.createElement('div')
+  st.className = 'stamp drop'; st.textContent = n > 1 ? `SHIPPED x${n}` : 'SHIPPED'
+  st.style.left = (card.x + 18) + 'px'; st.style.top = (card.y + 60) + 'px'; fxl.appendChild(st)
+  setTimeout(() => snd('shipup'), 0)
+  setTimeout(() => st.remove(), 1000)
+  const k = at($('#kShip')), cell = at($('#vCash'))
+  const chip = floater('+' + money(gain), k.x + k.w / 2, k.y - 12)
+  const tx = cell.x + 4, ty = cell.y - 2, sx = k.x + k.w / 2, sy = k.y - 12
+  const hops = J() ? 4 : 1; let i = 0
+  setTimeout(() => {
+    const id = setInterval(() => {
+      i++; const t = i / hops
+      chip.style.left = Math.round((sx + (tx - sx) * t) / 4) * 4 + 'px'; chip.style.top = Math.round((sy + (ty - sy) * t) / 4) * 4 + 'px'
+      snd('hop', i)
+      if (i >= hops) {
+        clearInterval(id); chip.remove()
+        S.cash = from + gain; snd('bank')
+        rollNum($('#vCash'), from, S.cash, money, () => { paint(); checkUnlock() })
+      }
+    }, J() ? 70 : 10)
+  }, J() ? 240 : 0)
+  if (n > 1) toast(`SHIPPED ${n} BUILDS: ${money(gain)}`, 'warn')
+  else toast(`SHIPPED: ${money(gain)}`, 'warn')
+}
+function checkUnlock() {
+  if (!S.unlocked && S.cash >= HIRE_COST) {
+    S.unlocked = true; snd('unlock'); toast('YOU CAN AFFORD A DEV', 'warn'); paint(); flick($('#offer'), 'tilt', 100)
+  }
+}
+function hire() {
+  if (S.cash < HIRE_COST) {
+    flick($('#oCost').parentElement, 'badflash', 300); return deny($('#kHire'), `NEED ${money(HIRE_COST - S.cash)} MORE`)
+  }
+  const from = S.cash; S.cash -= HIRE_COST; S.devs++
+  snd('hire'); shakeStage(3, 1)
+  const c = at($('#vCash')), f = floater('-' + money(HIRE_COST), c.x + 4, c.y + 36, 'neg'); stepUp(f, 3, 4)
+  rollNum($('#vCash'), from, S.cash, money, paint)
+  const d = $('#cDevs .val'); flick(d, 'pop', 120); flick($('#cDevs'), 'flash', 300)
+  toast(`HIRED DEV ${S.devs}: AUTOMATION ONLINE`, 'warn'); paint()
+}
+setInterval(() => {
+  if (S.devs > 0) for (let i = 0; i < Math.min(S.devs, 4); i++) setTimeout(() => addPoint(true), i * 80)
+}, 1500)
+setInterval(() => {
+  const now = performance.now(); S.coded = S.coded.filter(t => now - t < 3000)
+  const v = (S.coded.length / 3).toFixed(1); const el = $('#vVel'); if (el.textContent !== v) el.textContent = v
+}, 300)
+
+bindKey($('#kCode'), () => addPoint(false), { repeat: 130 })
+bindKey($('#kShip'), ship, { lockedSound: false })
+bindKey($('#kHire'), hire, { lockedSound: false })
+bindKey($('#kMenu'), () => toggleWin())
+bindKey($('#kX'), () => closeWin())
+
+/* ---------- window ---------- */
+const win = $('#win'), scrim = $('#scrim')
+function openWin() {
+  if (win.classList.contains('open')) return
+  win.classList.add('open', 'live'); scrim.classList.add('on')
+  if (J()) { win.classList.add('opening'); setTimeout(() => win.classList.remove('opening'), 170) }
+  ;[0, 1, 2, 3].forEach(i => setTimeout(() => snd('open', i), J() ? i * 40 : 0 * i))
+  $('#kMenu').classList.add('active')
+}
+function closeWin() {
+  if (!win.classList.contains('open')) return
+  const done = () => { win.classList.remove('open', 'closing', 'live'); scrim.classList.remove('on') }
+  if (J()) { win.classList.add('closing'); setTimeout(done, 85) } else done()
+  ;[0, 1].forEach(i => setTimeout(() => snd('close', i), J() ? i * 40 : 0))
+}
+function toggleWin() { win.classList.contains('open') ? closeWin() : openWin() }
+addEventListener('keydown', e => { if (e.key === 'Escape') closeWin() })
+scrim.addEventListener('pointerdown', () => {})
+
+/* window controls */
+const vol = $('#vol')
+for (let i = 0; i < 10; i++) vol.insertAdjacentHTML('beforeend', '<i></i>')
+function paintVol() { $$('i', vol).forEach((b, i) => b.classList.toggle('on', i < S.vol)); $('#volTxt').textContent = (S.vol * 10) + '%' }
+paintVol()
+bindKey($('#vMinus'), () => { if (S.vol > 0) { S.vol--; paintVol(); snd('vol', S.vol); flickSeg(S.vol) } else deny($('#vMinus')) }, { repeat: 120 })
+bindKey($('#vPlus'), () => { if (S.vol < 10) { S.vol++; paintVol(); snd('vol', S.vol); flickSeg(S.vol - 1) } else deny($('#vPlus')) }, { repeat: 120 })
+function flickSeg(i) { const b = $$('i', vol)[i]; b && flick(b, 'hotseg', 270) }
+$$('.pick').forEach(p => $$('.key', p).forEach(k => bindKey(k, () => {
+  if (k.classList.contains('sel')) return
+  $$('.key', p).forEach(o => o.classList.remove('sel')); k.classList.add('sel')
+  snd('select'); if (J()) flick(k, 'pop', 120)
+})))
+
+/* hold-to-confirm: one block per 100 ms, pitch climbs; let go and it falls */
+const reset = $('#kReset'), hb = $('#holdbar'), HOLD = 1000, STEPS = 10
+let holdT = null
+bindKey(reset, () => {
+  let i = 0; clearInterval(holdT)
+  holdT = setInterval(() => {
+    i++; hb.style.width = (i / STEPS * 100) + '%'; snd('holdtick', i)
+    if (i >= STEPS) { clearInterval(holdT); holdT = null; doReset() }
+  }, HOLD / STEPS)
+}, { onUp: () => { if (holdT) { clearInterval(holdT); holdT = null; snd('holdfail') } hb.style.width = '0' }, lockedSound: false })
+function doReset() {
+  snd('reset'); shakeStage(8, 3); hb.style.width = '0'
+  Object.assign(S, { cash: 0, devs: 0, shipped: 0, sp: 0, queue: 0, unlocked: false, combo: 0 })
+  $('#vCash').textContent = '$0'; paint(); toast('DEMO RESET', 'alarm')
+}
+
+/* page switches */
+$$('[data-skin]').forEach(b => b.addEventListener('click', () => {
+  arm(); stage.classList.toggle('skin-now', b.dataset.skin === 'now'); stage.classList.toggle('skin-new', b.dataset.skin === 'new')
+  $$('[data-skin]').forEach(o => o.setAttribute('aria-pressed', o === b)); paint()
+}))
+$$('[data-juice]').forEach(b => b.addEventListener('click', () => {
+  S.juice = b.dataset.juice === '1'; stage.classList.toggle('fx', S.juice)
+  $$('[data-juice]').forEach(o => o.setAttribute('aria-pressed', o === b)); paint()
+}))
+$$('[data-sound]').forEach(b => b.addEventListener('click', () => {
+  arm(); S.sound = b.dataset.sound === '1'; $$('[data-sound]').forEach(o => o.setAttribute('aria-pressed', o === b))
+  if (S.sound) snd('select')
+}))
+stage.addEventListener('pointerdown', arm, { capture: true })
+
+/* ?skin=now&juice=0&sound=0 for stills */
+const q = new URLSearchParams(location.search)
+if (q.get('skin') === 'now') $('[data-skin="now"]').click()
+if (q.get('juice') === '0') $('[data-juice="0"]').click()
+if (q.get('sound') === '0') { S.sound = false; $$('[data-sound]').forEach(o => o.setAttribute('aria-pressed', o.dataset.sound === '0')) }
+if (q.get('menu')) openWin()
+paint()
+window.__demo = { S, addPoint, ship, hire, openWin, closeWin, snd }
+</script>
+</body>
+</html>

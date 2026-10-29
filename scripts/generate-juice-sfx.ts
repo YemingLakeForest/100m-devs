@@ -275,6 +275,47 @@ function ringLock(): Float32Array {
   return normalise(out, 0.72)
 }
 
+/**
+ * One key of a keyboard going down: a few ms of band-limited noise for the edge and a short square-ish pip under it.
+ * The window chrome is drawn in hard steps (`.ui-panel` unrolls in four heights), so its sound is four of these, one
+ * per height, spaced to the animation's own step. Sound and picture share one clock — that is the whole idea.
+ */
+function clack(out: Float32Array, at: number, hz: number, gain: number, seed: number) {
+  hiss(out, at, 0.03, gain, 190, seed)
+  const start = Math.round(at * SAMPLE_RATE)
+  for (let i = 0; start + i < out.length; i++) {
+    const t = i / SAMPLE_RATE
+    const env = Math.exp(-t * 95) * Math.min(1, t / 0.0015)
+    if (t > 0.01 && env < 1e-3) break
+    out[start + i] += Math.tanh(2.2 * Math.sin(2 * Math.PI * hz * t)) * env * gain * 0.55
+  }
+}
+
+/** A window unrolling: four clacks falling in pitch, 80 ms apart — `DURATION.panelIn` (320 ms) over `steps(4)`. */
+function clackOpen(): Float32Array {
+  const out = buffer(0.36)
+  ;[1400, 1180, 960, 780].forEach((hz, i) => clack(out, i * 0.08, hz, 1 - i * 0.08, 0xc1ac0 + i))
+  return normalise(out, 0.5)
+}
+
+/** A window rolling up: two clacks rising, 90 ms apart — `DURATION.panelOut` (180 ms) over two steps. Faster out than in. */
+function clackClose(): Float32Array {
+  const out = buffer(0.22)
+  ;[700, 1100].forEach((hz, i) => clack(out, i * 0.09, hz, 0.9, 0xc105e + i))
+  return normalise(out, 0.45)
+}
+
+/** A pointer arriving on a key: one triangle pip, high and short, quiet enough to be ignored until it is missing. */
+function hoverTick(): Float32Array {
+  const out = buffer(0.04)
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SAMPLE_RATE
+    const tri = (2 / Math.PI) * Math.asin(Math.sin(2 * Math.PI * 2093 * t))
+    out[i] = tri * Math.exp(-t * 120) * Math.min(1, t / 0.001)
+  }
+  return normalise(out, 0.2)
+}
+
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || process.argv[1]?.endsWith('generate-juice-sfx.ts')) {
   await mkdir(OUT, { recursive: true })
   for (let i = 0; i < BLIP_NOTES.length; i++) await writeFile(path.join(OUT, `work-blip-${i}.wav`), wav(blip(i)))
@@ -286,5 +327,8 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || proce
   await writeFile(path.join(OUT, 'ring-crack.wav'), wav(ringCrack()))
   await writeFile(path.join(OUT, 'ring-miss.wav'), wav(ringMiss()))
   await writeFile(path.join(OUT, 'ring-lock.wav'), wav(ringLock()))
-  console.log('generated work-blip-0..9, build-done, release-hit, verdict-stamp, ring-fix, ring-rushed, ring-crack, ring-miss, ring-lock')
+  await writeFile(path.join(OUT, 'ui-clack-open.wav'), wav(clackOpen()))
+  await writeFile(path.join(OUT, 'ui-clack-close.wav'), wav(clackClose()))
+  await writeFile(path.join(OUT, 'ui-hover.wav'), wav(hoverTick()))
+  console.log('generated ui-clack-open, ui-clack-close, ui-hover, work-blip-0..9, build-done, release-hit, verdict-stamp, ring-fix, ring-rushed, ring-crack, ring-miss, ring-lock')
 }

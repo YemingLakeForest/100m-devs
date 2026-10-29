@@ -1,4 +1,5 @@
 import { entropyLabel } from '../game/vocabulary.ts'
+import { useLumpFlash } from './lumpFlash.ts'
 import {
   arrivedHeroes,
   hasPrestiged,
@@ -74,6 +75,7 @@ export function Cash({ state }: { state: GameState }) {
   const toPayout = secondsToPayout(state)
   const payout = payoutReadout(nextPayout(state), toPayout)
   const runway = runwayReadout(secondsUntilBankrupt(state.cash, state.devs))
+  const lumps = useLumpFlash(state.cash, flow)
   return (
     <div className="hud__block hud__block--cash">
       <span className="hud__label"><Kw kind="cash">CASH</Kw></span>
@@ -81,7 +83,11 @@ export function Cash({ state }: { state: GameState }) {
           the minus wrapped onto a line of its own and the player read a positive
           $954.4K — in the one band (−$100K to −$999K) that an aggressive hirer
           lives in. It steps down one whole type size instead (§3 rule 2). */}
-      <b className={`hud__num hud__num--major${isLongNumeral(formatMoney(state.cash)) ? ' hud__num--long' : ''}`}>
+      {/* Keyed on the lump count so each payout restarts the stepped white-amber-rest flash (keys.css). */}
+      <b
+        key={lumps}
+        className={`hud__num hud__num--major${isLongNumeral(formatMoney(state.cash)) ? ' hud__num--long' : ''}${lumps > 0 ? ' is-lump' : ''}`}
+      >
         {formatMoney(state.cash)}
       </b>
       {/* One live figure combines catalogue income and payroll so the HUD never

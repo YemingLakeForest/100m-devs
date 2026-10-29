@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { playSfx } from '../audio/sfx.ts'
 import {
   PURCHASE_RESOLVE_MS,
+  HOVER_THROTTLE_MS,
   TICK_THROTTLE_MS,
   __resetUiSfx,
   playPurchase,
@@ -19,14 +20,14 @@ import { CHARS_PER_SECOND } from './typewriter.ts'
 // on disk instead, which is the stronger test anyway.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 
-const SOUNDS: UiSound[] = ['click', 'whoosh', 'close', 'tick']
+const SOUNDS: UiSound[] = ['click', 'whoosh', 'close', 'tick', 'hover']
 
 /**
  * The clips that actually ship, read off the filesystem at transform time.
  * Vite's glob rather than node:fs because src/ is typed against vite/client
  * only, and widening it so a test can stat a file is the wrong trade.
  */
-const SHIPPED = Object.keys(import.meta.glob('../../public/sfx/*.mp3'))
+const SHIPPED = Object.keys(import.meta.glob('../../public/sfx/*.{mp3,wav}'))
 
 beforeEach(() => {
   __resetUiSfx()
@@ -42,13 +43,20 @@ describe('the sound bank routes to clips that exist — §10.8 F3', () => {
     for (const sound of SOUNDS) {
       const id = resolveUiSound(sound)
       if (id === null) continue
-      expect(SHIPPED.some((file) => file.endsWith(`/${id}.mp3`))).toBe(true)
+      expect(SHIPPED.some((file) => file.endsWith(`/${id}.mp3`) || file.endsWith(`/${id}.wav`))).toBe(true)
     }
   })
 
   it('leaves no state change silent', () => {
     // F3: "a screen the player can operate in silence fails."
     for (const sound of SOUNDS) expect(resolveUiSound(sound)).not.toBeNull()
+  })
+
+  it('gives a window its own steps, not a borrowed whoosh', () => {
+    // The sound is the animation's beats (four heights in, two out). A clip that is not the window's own brings
+    // another context's length with it, which is this file's header.
+    expect(resolveUiSound('whoosh')).toBe('ui-clack-open')
+    expect(resolveUiSound('close')).toBe('ui-clack-close')
   })
 })
 
@@ -82,6 +90,22 @@ describe('the §10.7 letter tick is throttled', () => {
     // §21 Act I is four minutes of presses arriving 200 ms apart.
     playUi('click', 0)
     playUi('click', 1)
+    expect(playSfx).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('a hover is a flutter, not a buzz', () => {
+  it('drops the hovers inside the window and keeps the ones outside it', () => {
+    playUi('hover', 0)
+    playUi('hover', HOVER_THROTTLE_MS - 1)
+    playUi('hover', HOVER_THROTTLE_MS)
+    expect(playSfx).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not share a clock with the letter tick', () => {
+    // Text typing under a pointer must not eat the hover, nor the reverse.
+    playUi('tick', 0)
+    playUi('hover', 1)
     expect(playSfx).toHaveBeenCalledTimes(2)
   })
 })

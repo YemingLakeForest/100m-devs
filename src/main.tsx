@@ -7,6 +7,10 @@ import { loadSettings } from './settings/settings.ts'
 import './styles/fonts.css'
 import './styles/tokens.css'
 import './styles/app.css'
+// After app.css, on purpose: the Studio OS materials (plates, keys, windows) override the per-surface paint that
+// every other sheet laid down, and a tie on specificity goes to whichever sheet is evaluated last. `App` is imported
+// above, so the sheets of every component it pulls in are already in by here. See the header of the file.
+import './styles/keys.css'
 
 // Publish the master palette to CSS before the first paint, so no element ever
 // renders against an unset custom property.

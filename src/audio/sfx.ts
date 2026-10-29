@@ -69,6 +69,11 @@ export const SFX = [
   'ring-crack',
   'ring-miss',
   'ring-lock',
+  // The Studio OS chrome's own sounds (docs/demos/ui-juice-2026-10-28): a window's four-step unroll and two-step roll-up,
+  // and a pointer arriving on a key. Written as PCM by `scripts/generate-juice-sfx.ts`, like the rest of the juice.
+  'ui-clack-open',
+  'ui-clack-close',
+  'ui-hover',
 ] as const
 
 export type SfxId = (typeof SFX)[number]
@@ -76,7 +81,7 @@ export type SfxId = (typeof SFX)[number]
 /** The blip family in pitch order (C D E G A), for the things that choose a note. */
 export const BLIP_SFX = ['work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9'] as const satisfies readonly SfxId[]
 
-const WAV_SFX = new Set<SfxId>(['ui-click', 'work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9', 'build-done', 'release-hit', 'verdict-stamp', 'ring-fix', 'ring-rushed', 'ring-crack', 'ring-miss', 'ring-lock'])
+const WAV_SFX = new Set<SfxId>(['ui-click', 'work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9', 'build-done', 'release-hit', 'verdict-stamp', 'ring-fix', 'ring-rushed', 'ring-crack', 'ring-miss', 'ring-lock', 'ui-clack-open', 'ui-clack-close', 'ui-hover'])
 
 function assetPath(id: SfxId): string {
   return `/sfx/${id}.${WAV_SFX.has(id) ? 'wav' : 'mp3'}`

@@ -1,4 +1,4 @@
-import { Children, useCallback, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { Children, useCallback, useState, type ButtonHTMLAttributes, type PointerEvent, type ReactNode } from 'react'
 import { playUi } from './uiSfx.ts'
 import { ConceptText } from './ConceptText.tsx'
 import { conceptsIn, type Concept } from './concepts.ts'
@@ -65,6 +65,16 @@ export function Button({ variant = 'default', concept, sound = true, className, 
     // to the press and not to the click event that may never arrive.
   }, [sound])
 
+  // A key you are about to press says so: one quiet pip as a *mouse* arrives (a finger has no hover, and a touch that
+  // synthesises `pointerenter` before `pointerdown` would sound the key twice). A dead key says nothing - it is not
+  // a thing you are about to press.
+  const onPointerEnter = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      if (sound && event.pointerType === 'mouse' && !event.currentTarget.disabled) playUi('hover')
+    },
+    [sound],
+  )
+
   const onRelease = useCallback(() => {
     setPressed((was) => {
       // Only spring back if the press actually landed here — a pointer that
@@ -121,6 +131,7 @@ export function Button({ variant = 'default', concept, sound = true, className, 
       {...rest}
       className={classes}
       onPointerDown={onPointerDown}
+      onPointerEnter={onPointerEnter}
       onPointerUp={onRelease}
       onPointerCancel={onRelease}
       onPointerLeave={onRelease}
