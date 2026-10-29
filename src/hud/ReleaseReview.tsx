@@ -76,7 +76,13 @@ const REVIEW_BEATS = {
 } as const
 
 /** How many sparks the verdict throws, on bands 2 and 3 only. */
-const SPARKS = 8
+const SPARKS = 20
+
+/**
+ * The meter's cells: one per five rating points, so a cell is a unit a player can count (47 is nine lit and a dark
+ * tenth), and the fill arrives one cell at a time on the score beat instead of as a smooth bar.
+ */
+const METER_CELLS = 20
 
 export function ReleaseReview({ state }: { state: GameState }) {
   const reduced = useReducedMotion()
@@ -180,7 +186,14 @@ export function ReleaseReview({ state }: { state: GameState }) {
           <i />
         </div>
       )}
-      <div key={`reel-${held.id}`} className="review" data-open={open ? 'true' : 'false'} aria-live="polite">
+      <div
+        key={`reel-${held.id}`}
+        className="review"
+        data-open={open ? 'true' : 'false'}
+        aria-live="polite"
+        // The card slams when the verdict lands (keys.css), so it needs to know when that is.
+        style={{ '--slam': `${ms(REVIEW_BEATS.verdict)}ms` } as React.CSSProperties}
+      >
         {/*
           A plate, not floating text. The reel sits over the middle of the frame
           and §4.15's rails own the sides, so at 640 px the two meet — and eleven
@@ -188,7 +201,7 @@ export function ReleaseReview({ state }: { state: GameState }) {
           instead of one. The card is what lets the beat keep the centre of the
           screen without taking the interface with it.
         */}
-        <div className="review__card">
+        <div className="review__card" data-band={band}>
         {cover && <Cover spec={cover} title={held.name} />}
         <p className="review__name">{held.name}</p>
         {/* [2026-10-16] A LAUNCH ×N is one reel: the head is named, the rest counted. */}
@@ -227,6 +240,7 @@ export function ReleaseReview({ state }: { state: GameState }) {
             <li
               key={r.outlet}
               className="review__quote"
+              data-tier={r.score >= 7 ? 'good' : r.score >= 5 ? 'mixed' : 'poor'}
               style={{ '--in': `${ms(REVIEW_BEATS.quotes + i * REVIEW_BEATS.quoteStagger)}ms` } as React.CSSProperties}
             >
               {/* Two rows, always. Left to wrap, a short quote sat on one line
@@ -252,15 +266,14 @@ export function ReleaseReview({ state }: { state: GameState }) {
             format={(n) => `${Math.round(n)}/100`}
             bounce
           />
-          <div className="review__bar">
-            <span
-              style={
-                {
-                  '--fill': `${Math.max(0, Math.min(100, held.rating))}%`,
-                  '--in': `${ms(REVIEW_BEATS.score)}ms`,
-                } as React.CSSProperties
-              }
-            />
+          <div className="review__bar" aria-hidden="true">
+            {Array.from({ length: METER_CELLS }, (_, i) => (
+              <i
+                key={i}
+                data-on={(i + 1) * (100 / METER_CELLS) <= held.rating ? 'true' : 'false'}
+                style={{ '--in': `${ms(REVIEW_BEATS.score) + i * 28}ms` } as React.CSSProperties}
+              />
+            ))}
           </div>
         </div>
 
@@ -281,8 +294,8 @@ export function ReleaseReview({ state }: { state: GameState }) {
                     className="review__spark"
                     style={
                       {
-                        '--dx': `${Math.cos(angle) * 54}px`,
-                        '--dy': `${Math.sin(angle) * 34}px`,
+                        '--dx': `${Math.cos(angle) * 150}px`,
+                        '--dy': `${Math.sin(angle) * 64}px`,
                         '--in': `${ms(REVIEW_BEATS.verdict + i * 18)}ms`,
                       } as React.CSSProperties
                     }

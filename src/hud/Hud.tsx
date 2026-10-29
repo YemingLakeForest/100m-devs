@@ -26,7 +26,6 @@ import {
   massHire,
   selectHero,
   setHireMultiplier,
-  shiftPaysNow,
   takeSeedRound,
   treeRefusalOf,
   triggerParadigmShift,
@@ -422,7 +421,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setQueueOpen(false)
   }
   const bp = getPermanent().layer1.bp
-  const urged = hasPrestiged() && shiftPaysNow(state)
   const apps: TaskApp[] = [
     // [2026-10-28] From the first person through the door, James alone included:
     // the door was gated on a second hero, so with only James in the building
@@ -454,9 +452,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           id: 'paradigm',
           label: 'PARADIGM',
           open: treeOpen,
-          urged,
-          // §13.12.4 — what the shift buys, on the door, when the shift is the move.
-          badge: urged ? '×10 SEATS' : bp > 0 ? `${bp} BP` : null,
+          // [2026-10-29] No pulse and no ×10 SEATS: *"the blinking paradigm x10 seats, why? it asking for click but
+          // its a big undertake"*. A blinking door asked the player to start over; the shift is offered inside
+          // the window, where its price is shown, and the door only says what is in the wallet.
+          badge: bp > 0 ? `${bp} BP` : null,
           onToggle: () => {
             const was = treeOpen
             closeAll()

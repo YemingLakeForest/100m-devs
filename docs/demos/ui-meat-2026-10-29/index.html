@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI With Meat</title>
+<style>
+@font-face { font-family: 'Departure Mono'; src: url('assets/departure.woff2') format('woff2'); font-display: block; }
+:root {
+  color-scheme: dark;
+  --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n3:#575a56; --n4:#767970; --n5:#97988f; --n6:#b8b9b0; --n7:#d9d8cd; --n8:#f1efe6;
+  --p0:#0a2a30; --p1:#1a6b78; --p2:#35c9d9; --p3:#b8f4ff;
+  --w1:#8a5c12; --w2:#e0a52e; --w3:#ffe9b0;
+  --a1:#8a1f1f; --a2:#e03c3c;
+  --slab:3px;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; background:var(--n0); color:var(--n7); font:12px/1.4 'Departure Mono', monospace; }
+h1,h2,p { margin:0; }
+.page { max-width:1180px; margin:0 auto; padding:24px 16px 64px; display:grid; gap:28px; }
+.lede { color:var(--n6); max-width:70ch; }
+.lede b { color:var(--p3); font-weight:400; }
+.board { display:grid; gap:10px; }
+.board > h2 { font-size:14px; letter-spacing:3px; color:var(--p3); font-weight:400; }
+.board > p { color:var(--n5); max-width:90ch; }
+.pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.6fr); gap:14px; align-items:start; }
+.pair.even { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+@media (max-width:860px) { .pair, .pair.even { grid-template-columns:1fr; } }
+.tag { display:inline-block; padding:2px 8px; background:var(--n2); color:var(--n6); letter-spacing:2px; margin-bottom:6px; }
+.tag.new { background:var(--p2); color:var(--n0); }
+.notes { display:grid; gap:4px; color:var(--n5); }
+.notes li { list-style:none; padding-left:12px; position:relative; }
+.notes li::before { content:''; position:absolute; left:0; top:6px; width:5px; height:5px; background:var(--p2); }
+ul.notes { margin:0; padding:0; }
+
+/* ---------- NOW: what the game was before keys.css, one pixel of outline around everything ---------- */
+.now { padding:12px; border:1px solid var(--p1); color:var(--p2); background:transparent; display:grid; gap:8px; }
+.now .row { border:1px solid var(--p1); padding:6px 8px; }
+.now .btn { border:1px solid var(--p2); padding:6px 14px; text-align:center; background:transparent; color:var(--p2); }
+
+/* ============================================================================================
+   PROPOSED. Everything below is flat, hard-edged, stepped. Three new ideas over keys.css:
+   1. GROUND: the screen has a texture (a blueprint grid) so panels sit *on* something.
+   2. CUTS: panels and keys have chamfered corners (clip-path polygon, straight cuts, no radius).
+   3. TIERS: every surface has a header strip, a body, and a foot strip; the strips are different
+      materials, so the card reads as a made object with layers instead of one box.
+   ============================================================================================ */
+.ground {
+  background-color:var(--n0);
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(53,201,217,.07) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(53,201,217,.07) 23px 24px);
+  padding:14px;
+}
+/* hazard band: hard-stop diagonal hatch, two palette colours, no blend */
+.hazard { height:12px; background:repeating-linear-gradient(135deg, var(--n1) 0 6px, var(--n0) 6px 12px); }
+.hazard.amber { background:repeating-linear-gradient(135deg, var(--w1) 0 6px, var(--n0) 6px 12px); }
+
+.cut { clip-path:polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+.cut-tr { clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+.cut-bl { clip-path:polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+
+/* a title with rules running out either side, and a chevron back key */
+.titlebar { display:grid; grid-template-columns:auto 1fr auto 1fr auto; align-items:center; gap:10px; margin-bottom:12px; }
+.titlebar .rule { height:3px; background:var(--p1); }
+.titlebar .rule.r { background:var(--p1); }
+.titlebar h2 { font-size:15px; letter-spacing:3px; color:var(--n8); font-weight:400; }
+.assoc { text-align:right; color:var(--p2); letter-spacing:1px; line-height:1.2; }
+.assoc b { display:block; color:var(--n7); font-weight:400; }
+
+/* numbered step header: a filled badge, the label, and a tab that tapers to a cut */
+.step { display:flex; align-items:center; gap:8px; margin:6px 0 10px; }
+.step .num { width:22px; height:22px; display:grid; place-items:center; background:var(--p2); color:var(--n0); font-size:13px; }
+.step .lab { flex:1; padding:3px 10px; background:var(--p0); color:var(--p3); letter-spacing:2px; font-size:13px; clip-path:polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+
+/* ---- the card: header strip / body / foot, cut corners, slab ---- */
+.cards { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+@media (max-width:1000px) { .cards { grid-template-columns:1fr; } }
+.card { display:grid; grid-template-rows:auto auto auto auto; background:var(--n1); filter:none; box-shadow:none; }
+.cardwrap { filter:drop-shadow(4px 4px 0 var(--n0)); } /* hard 0-blur shadow: the clip-path would otherwise clip a box-shadow */
+.card .head { display:grid; grid-template-columns:auto 1fr; gap:10px; padding:8px; background:var(--p0); }
+.portrait { width:64px; height:64px; background:var(--n0); padding:3px; border-right:3px solid var(--p1); border-bottom:3px solid var(--p1); }
+.portrait img { display:block; width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
+.who { text-align:right; display:grid; align-content:center; gap:2px; }
+.who .role { color:var(--n7); }
+.who .name { color:var(--n8); font-size:15px; letter-spacing:1px; }
+.who .kind { color:var(--p2); }
+.card .blurb { padding:8px 10px; background:var(--n0); color:var(--n6); font-size:11px; }
+.sec { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:6px 10px 2px; color:var(--w2); letter-spacing:2px; font-size:11px; }
+.sec::before, .sec::after { content:''; height:3px; background:currentColor; opacity:1; }
+.sec.cool { color:var(--p2); }
+.rows { display:grid; gap:6px; padding:6px 10px 10px; }
+/* an earned thing is a lit amber plate with an icon tile; a locked thing is a dark inset with its requirement as a slot */
+.talent { display:grid; grid-template-columns:auto 1fr; gap:8px; padding:7px 8px; background:var(--w1); color:var(--w3); box-shadow:inset 3px 0 0 0 var(--w2); }
+.talent .ico { margin-top:1px; }
+.talent b { display:block; font-weight:400; color:var(--n8); letter-spacing:1px; }
+.talent span { color:var(--w3); font-size:11px; }
+.locked { display:grid; gap:6px; padding:7px 8px; background:var(--n0); color:var(--n5); }
+.locked .l1 { display:flex; align-items:center; gap:8px; color:var(--p2); }
+.slot { display:flex; align-items:center; gap:6px; padding:3px 8px; background:var(--n2); color:var(--n5); font-size:11px; }
+.ico { width:12px; height:12px; flex:none; background:currentColor; }
+.ico.diamond { clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); color:var(--w2); }
+.ico.cog { clip-path:polygon(35% 0,65% 0,65% 20%,80% 20%,80% 35%,100% 35%,100% 65%,80% 65%,80% 80%,65% 80%,65% 100%,35% 100%,35% 80%,20% 80%,20% 65%,0 65%,0 35%,20% 35%,20% 20%,35% 20%); color:var(--p2); }
+.ico.lock { width:10px; height:8px; margin-top:3px; background:var(--n5); position:relative; }
+.ico.lock::before { content:''; position:absolute; left:2px; top:-5px; width:6px; height:5px; border:2px solid var(--n5); border-bottom:0; }
+.ico.tile { width:22px; height:22px; background:var(--w2); display:grid; place-items:center; }
+.ico.tile::after { content:''; width:10px; height:10px; background:var(--w1); clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
+
+/* ---- SELECT key: dark plate, corner brackets that are part of the key (not hover glow), cut corners ---- */
+.sel { position:relative; display:block; width:max-content; margin:0 auto 10px; padding:8px 40px; border:0; font:inherit; letter-spacing:2px; color:var(--p3); background:var(--p0); cursor:pointer; }
+.sel::before, .sel::after { content:''; position:absolute; top:0; bottom:0; width:6px; background:var(--p2); }
+.sel::before { left:0; } .sel::after { right:0; }
+.sel:hover { background:var(--p1); color:var(--n8); }
+.sel:active { background:var(--n0); color:var(--p3); transform:translate(3px,3px); }
+.sel.cutk { clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
+
+/* ---- the frame: hazard bands, ground, corner crop marks ---- */
+.frame { position:relative; background:var(--n0); }
+.frame .crop { position:absolute; width:18px; height:18px; border:0 solid var(--n8); }
+.frame .crop.br { right:8px; bottom:22px; border-right-width:3px; border-bottom-width:3px; }
+.frame .crop.tl { left:8px; top:22px; border-left-width:3px; border-top-width:3px; }
+
+/* ---- the status bar with icon tabs ---- */
+.statusbar { display:flex; gap:6px; flex-wrap:wrap; padding:6px; background:var(--n1); box-shadow:0 3px 0 0 var(--n0); }
+.tab { display:grid; grid-template-columns:auto auto; align-items:center; gap:2px 8px; padding:4px 10px 4px 6px; background:var(--n2); clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+.tab .ico { width:14px; height:14px; grid-row:1 / span 2; }
+.tab small { color:var(--n6); letter-spacing:1px; font-size:10px; }
+.tab b { color:var(--n8); font-weight:400; font-size:15px; }
+.tab.cash { box-shadow:inset 0 -3px 0 0 var(--w2); } .tab.cash .ico { color:var(--w2); }
+.tab.dev  { box-shadow:inset 0 -3px 0 0 var(--p2); } .tab.dev .ico { color:var(--p2); }
+.tab.ship { box-shadow:inset 0 -3px 0 0 var(--p2); }
+.tab.vel  { box-shadow:inset 0 -3px 0 0 var(--p3); }
+.ico.coin { clip-path:polygon(25% 0,75% 0,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%); }
+.ico.person { clip-path:polygon(30% 0,70% 0,70% 40%,100% 60%,100% 100%,0 100%,0 60%,30% 40%); }
+.ico.box { clip-path:polygon(0 25%,50% 0,100% 25%,100% 75%,50% 100%,0 75%); }
+.ico.bolt { clip-path:polygon(55% 0,15% 55%,45% 55%,35% 100%,85% 40%,55% 40%); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="board">
+    <h2>UI WITH MEAT</h2>
+    <p class="lede">The reference game is not richer because it has more lines. It has <b>more layers</b>: a textured ground, panels with a header, a body and a foot that are different materials, cut corners, icons that carry the category, and two hues with jobs (cool structure, warm reward). Each board below is the game's own palette and type, flat and stepped, set against what the game looks like now.</p>
+  </header>
+
+  <!-- ============ BOARD 1: the card ============ -->
+  <section class="board">
+    <h2>1 · THE CARD — a made object, not a box</h2>
+    <p>The hero card, the offer letter, the upgrade inspector and the staff directory are all "a box with text in it". The reference's card has four tiers: a tinted <b style="color:var(--p3);font-weight:400">header strip</b> with portrait and a right-aligned name block, a dark <b style="color:var(--p3);font-weight:400">blurb well</b>, a centred <b style="color:var(--p3);font-weight:400">section label with rules running out both sides</b>, and rows that are either <b style="color:var(--w2);font-weight:400">lit amber plates</b> (earned) or <b style="color:var(--n6);font-weight:400">dark insets with a requirement slot</b> (locked). The bottom is a key, not more card.</p>
+    <div class="pair">
+      <div>
+        <span class="tag">NOW</span>
+        <div class="now">
+          <div class="row">JAMES · THE GENERALIST</div>
+          <div class="row">“No speciality. Point him at anything; he does it properly.”</div>
+          <div class="row">ALWAYS: FEWER COMMITMENTS<br>Daily Standups never pause James’s output.</div>
+          <div class="row">LOCKED · LV 5</div>
+          <div class="row">LOCKED · LV 10</div>
+          <div class="btn">SELECT</div>
+        </div>
+      </div>
+      <div>
+        <span class="tag new">PROPOSED</span>
+        <div class="cards">
+          <div class="cardwrap"><div class="card cut">
+            <div class="head"><div class="portrait"><img src="assets/james.png" alt=""></div><div class="who"><span class="role">ENGINEERING</span><span class="name">James</span><span class="kind">THE GENERALIST</span></div></div>
+            <div class="blurb">No speciality. Point him at anything; he does it properly.</div>
+            <div><div class="sec">INHERENT</div><div class="rows"><div class="talent"><i class="ico tile"></i><div><b>FEWER COMMITMENTS</b><span>Daily Standups never pause James’s own developer output.</span></div></div></div></div>
+            <div><div class="sec cool">BREAKTHROUGHS</div><div class="rows"><div class="locked"><div class="l1"><i class="ico cog"></i>SOMEONE ALREADY WROTE THAT</div><div class="slot"><i class="ico lock"></i>1M DEVS</div></div><div class="locked"><div class="l1"><i class="ico cog"></i>ANSIBLE</div><div class="slot"><i class="ico lock"></i>THE STARS</div></div></div></div>
+          </div></div>
+          <div class="cardwrap"><div class="card cut">
+            <div class="head"><div class="portrait"><img src="assets/serena.png" alt=""></div><div class="who"><span class="role">OPERATIONS</span><span class="name">Serena</span><span class="kind">THE PIPELINE</span></div></div>
+            <div class="blurb">Builds wait on a shelf; she makes the shelf bigger and the wait shorter.</div>
+            <div><div class="sec">INHERENT</div><div class="rows"><div class="talent"><i class="ico tile"></i><div><b>DEGRADED, NOT DOWN</b><span>The shelf holds two more builds before the floor stops.</span></div></div></div></div>
+            <div><div class="sec cool">BREAKTHROUGHS</div><div class="rows"><div class="locked"><div class="l1"><i class="ico cog"></i>AUTO-SHIP</div><div class="slot"><i class="ico lock"></i>LV 5</div></div><div class="locked"><div class="l1"><i class="ico cog"></i>BLUE-GREEN</div><div class="slot"><i class="ico lock"></i>LV 10</div></div></div></div>
+          </div></div>
+          <div class="cardwrap"><div class="card cut">
+            <div class="head"><div class="portrait"><img src="assets/matt.png" alt=""></div><div class="who"><span class="role">SUPPORT</span><span class="name">Matt</span><span class="kind">THE ON-CALL</span></div></div>
+            <div class="blurb">Answers the tickets and the pages so nobody else has to look up.</div>
+            <div><div class="sec">INHERENT</div><div class="rows"><div class="talent"><i class="ico tile"></i><div><b>HELP DESK</b><span>Eight heads answer tickets, flat, until his tree grows them.</span></div></div></div></div>
+            <div><div class="sec cool">BREAKTHROUGHS</div><div class="rows"><div class="locked"><div class="l1"><i class="ico cog"></i>SECOND HEADSET</div><div class="slot"><i class="ico lock"></i>LV 5</div></div><div class="locked"><div class="l1"><i class="ico cog"></i>CALL CENTRE</div><div class="slot"><i class="ico lock"></i>LV 10</div></div></div></div>
+          </div></div>
+        </div>
+        <div style="height:14px"></div>
+        <button class="sel cutk">SELECT</button>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b style="color:var(--n8);font-weight:400">Cut corners</b> are straight 8px chamfers via clip-path: no radius, still hard-edged. The slab is a zero-blur <code>drop-shadow</code> because clip-path would clip a box-shadow.</li>
+      <li><b style="color:var(--n8);font-weight:400">Two hues, two jobs.</b> Cool is structure and the not-yet; amber is earned, in your hand. Today amber only means "warning", so the game never gets to say "this is yours".</li>
+      <li><b style="color:var(--n8);font-weight:400">The requirement is a slot</b> (a lock and "LV 10" in its own grey chip), not a sentence the player has to parse inside a dashed outline.</li>
+    </ul>
+  </section>
+
+  <!-- ============ BOARD 2: the frame ============ -->
+  <section class="board">
+    <h2>2 · THE FRAME — a ground to sit on, and chrome with weight</h2>
+    <p>Every window in the game floats on the room. The reference puts its screens on a textured ground (a blueprint grid), closes them with hazard-hatch bands top and bottom, flanks the title with rules that run to the edges, and numbers its steps with filled badges. The same screen below is the game menu.</p>
+    <div class="pair even">
+      <div>
+        <span class="tag">NOW (keys.css)</span>
+        <div class="now" style="background:var(--n1);border:0;color:var(--p2);gap:10px">
+          <div style="background:var(--p1);color:var(--n8);padding:5px 10px;letter-spacing:3px">STUDIO_OS // GAME MENU</div>
+          <div style="color:var(--n7)">Your studio keeps working while this menu is open.</div>
+          <div style="background:var(--n0);padding:8px;display:grid;gap:6px">
+            <div>MUSIC <span style="color:var(--n7)">[ − ] ▒▒▒▒▒ [ + ]</span></div><div>HAPTICS <span style="color:var(--n7)">[ ON ] [ OFF ]</span></div>
+          </div>
+          <div style="display:flex;justify-content:space-between"><span style="background:var(--p2);color:var(--n0);padding:6px 14px">RESUME</span><span style="background:var(--n2);color:var(--n7);padding:6px 14px">MAIN SCREEN</span></div>
+        </div>
+      </div>
+      <div>
+        <span class="tag new">PROPOSED</span>
+        <div class="frame">
+          <div class="hazard"></div>
+          <div class="ground">
+            <div class="crop tl"></div>
+            <div class="titlebar"><span class="chev" style="color:var(--p2);letter-spacing:2px">‹ BACK</span><span class="rule"></span><h2>GAME MENU</h2><span class="rule r"></span><span class="assoc">STUDIO<b>LEVEL 4</b></span></div>
+            <div class="step"><span class="num">1</span><span class="lab">SOUND</span></div>
+            <div class="cardwrap" style="margin-bottom:12px"><div class="card cut"><div class="rows" style="padding-top:10px">
+              <div class="locked" style="grid-template-columns:90px 1fr auto;align-items:center"><span class="l1" style="color:var(--n6)">MUSIC</span><span style="display:flex;gap:2px">
+                <i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--n2)"></i><i style="width:10px;height:14px;background:var(--n2)"></i><i style="width:10px;height:14px;background:var(--n2)"></i></span><span style="color:var(--p3)">60%</span></div>
+              <div class="locked" style="grid-template-columns:90px 1fr auto;align-items:center"><span class="l1" style="color:var(--n6)">EFFECTS</span><span style="display:flex;gap:2px"><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--p2)"></i><i style="width:10px;height:14px;background:var(--n2)"></i></span><span style="color:var(--p3)">90%</span></div>
+            </div></div></div>
+            <div class="step"><span class="num">2</span><span class="lab">MOTION</span></div>
+            <div style="display:flex;gap:10px;margin-bottom:12px"><button class="sel cutk" style="margin:0;background:var(--p2);color:var(--n0)">SYSTEM</button><button class="sel cutk" style="margin:0">FULL</button><button class="sel cutk" style="margin:0">REDUCED</button></div>
+            <div style="display:flex;justify-content:space-between"><button class="sel cutk" style="margin:0">RESUME</button><button class="sel cutk" style="margin:0;color:var(--n7);background:var(--n2)">MAIN SCREEN</button></div>
+          </div>
+          <div class="hazard"></div>
+          <div class="crop br"></div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b style="color:var(--n8);font-weight:400">The ground is one background.</b> A 24px grid at 7% cyan on the dark floor; panels sitting on it read as <i>placed</i>. Today a window on the iso room has nothing under it but the swarm.</li>
+      <li><b style="color:var(--n8);font-weight:400">Hazard bands</b> are a hard-stop two-colour hatch (no blend). They are the cheapest way to tell the player "this is a different room of the OS", and they could change colour by purpose: grey for menus, amber for the release reception, red for bankruptcy.</li>
+      <li><b style="color:var(--n8);font-weight:400">Volume is a row of cells</b>, not a hatched bar: the same 20-cell language the reception meter already uses.</li>
+    </ul>
+  </section>
+
+  <!-- ============ BOARD 3: status ============ -->
+  <section class="board">
+    <h2>3 · THE READINGS — an icon carries the category</h2>
+    <p>The status bar's four-pixel coloured tag is the right instinct (colour groups label and number) but the player still reads words. The reference never makes you read a word to know what a thing is: an icon tile leads, the number follows, the label is secondary. Tabs are cut at the corner, the way folder tabs are, and a 3px foot in the category's colour replaces the side tag.</p>
+    <div class="pair even">
+      <div><span class="tag">NOW</span>
+        <div class="now" style="padding:6px;background:var(--n1);border:0;display:flex;gap:10px;flex-wrap:wrap"><span style="border-left:3px solid var(--w2);padding-left:6px">CASH <b style="font-weight:400;color:var(--p3)">$77.0K</b></span><span style="border-left:3px solid var(--p2);padding-left:6px">DEVS 0</span><span style="border-left:3px solid var(--p2);padding-left:6px">SHIPPED 5</span><span style="border-left:3px solid var(--p2);padding-left:6px">VELOCITY 1.10</span></div></div>
+      <div><span class="tag new">PROPOSED</span>
+        <div class="statusbar">
+          <div class="tab cash"><i class="ico coin"></i><small>CASH</small><b>$77.0K</b></div>
+          <div class="tab dev"><i class="ico person"></i><small>DEVS</small><b>0</b></div>
+          <div class="tab ship"><i class="ico box"></i><small>SHIPPED</small><b>5</b></div>
+          <div class="tab vel"><i class="ico bolt"></i><small>VELOCITY</small><b>1.10</b></div>
+        </div></div>
+    </div>
+  </section>
+
+  <!-- ============ BOARD 4: keys ============ -->
+  <section class="board">
+    <h2>4 · THE KEYS — brackets that belong to the key</h2>
+    <p>The game used to draw <code>[ BRACKETS ]</code> as text around a label to say "button", and keys.css removed them. The reference's SELECT has a different answer: a bright bar at each end of the key that is part of its silhouette. It says "button" with no characters, scales to any label length, and is how a primary key can look primary without being a bigger rectangle. Press sinks into its slab as now.</p>
+    <div class="pair even">
+      <div><span class="tag">NOW</span><div class="now" style="display:flex;gap:10px;border:0;background:var(--n1)"><span style="background:var(--n2);color:var(--n7);padding:8px 16px;box-shadow:3px 3px 0 var(--n0)">SELECT</span><span style="background:var(--p2);color:var(--n0);padding:8px 16px;box-shadow:3px 3px 0 var(--p1)">RESUME</span></div></div>
+      <div><span class="tag new">PROPOSED</span><div style="display:flex;gap:14px;padding:14px;background:var(--n1);flex-wrap:wrap"><button class="sel" style="margin:0">SELECT</button><button class="sel cutk" style="margin:0;color:var(--n0);background:var(--p2)">RESUME</button><button class="sel" style="margin:0;color:var(--n5);background:var(--n0)" disabled>LOCKED</button></div></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

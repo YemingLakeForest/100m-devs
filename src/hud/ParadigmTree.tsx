@@ -75,7 +75,7 @@ function Node({
   const step = nextStep(node, level)
 
   return (
-    <div className="paradigm__node" data-owned={level > 0 ? 'true' : 'false'} data-after-shift={afterShift ? 'true' : undefined}>
+    <div className="paradigm__node" data-branch={node.branch} data-owned={level > 0 ? 'true' : 'false'} data-after-shift={afterShift ? 'true' : undefined}>
       <div className="paradigm__node-head">
         <span className="paradigm__node-name">{node.name}</span>
         <span className="paradigm__node-level">
@@ -94,15 +94,20 @@ function Node({
         */}
         {!EFFECTIVE.has(node.id) && <em className="paradigm__soon"> — not wired up yet</em>}
       </p>
-      {step && (
-        <p className="paradigm__step">
-          <span>{step.from}</span> → <b>{step.to}</b>
-        </p>
-      )}
       {afterShift && <p className="paradigm__after">YOU CAN AFFORD THIS AFTER THE SHIFT</p>}
-      <Button onClick={onBuy} disabled={!affordable}>
-        {maxed ? 'MAXED' : `${cost} BP`}
-      </Button>
+      {/* The step and its price on one row: the price key was the tallest thing in the window, and the window may not scroll. */}
+      <div className="paradigm__node-foot">
+        {step ? (
+          <p className="paradigm__step">
+            <span>{step.from}</span> → <b>{step.to}</b>
+          </p>
+        ) : (
+          <span />
+        )}
+        <Button className="paradigm__buy" onClick={onBuy} disabled={!affordable}>
+          {maxed ? 'MAXED' : `${cost} BP`}
+        </Button>
+      </div>
     </div>
   )
 }
@@ -142,18 +147,20 @@ export function ParadigmTree({
         </span>
       }
       onClose={onClose}
+      footer={
+        /*
+          The cap is the number the whole tree is really about — §4.2 calls it "the only defence against §4.1" —
+          and what you are saving for is its debt: both are one line in the foot, so they are always on screen and
+          take no height from the nodes.
+        */
+        <div className="paradigm__status">
+          <p className="paradigm__cap">
+            <ConceptText text="DEVELOPER CAPACITY" /> <b>{formatCount(Math.round(state.devCap))}</b>
+          </p>
+          <NearMiss levels={levels} bp={bp} />
+        </div>
+      }
     >
-      {/*
-        The cap is the number the whole tree is really about — §4.2 calls it
-        "the only defence against §4.1" — so it is stated at the top rather than
-        left to be inferred from a node description.
-      */}
-      <p className="paradigm__cap">
-        <ConceptText text="DEVELOPER CAPACITY" /> <b>{formatCount(Math.round(state.devCap))}</b>
-      </p>
-
-      <NearMiss levels={levels} bp={bp} />
-
       <div className="paradigm__branches">
         {(['async', 'protocol'] as const).map((branch) => (
           <div key={branch} className="paradigm__branch">
@@ -172,16 +179,13 @@ export function ParadigmTree({
             ))}
           </div>
         ))}
+        {/*
+          The third column [amended 2026-10-29]. This window scrolled (766px of content in a 593px body at
+          1280x720, 710 in 263 at 748x336) and *"I had a rule to not allow scrolls"*; the shift offer used to sit
+          under the nodes, which is what made it long. Beside them it costs width, which the window has.
+        */}
+        <ShiftOffer state={state} />
       </div>
-
-      {/*
-        Left in the scroll rather than pinned to the window's foot: it is four
-        readouts and an armed two-step, not a control strip, and §10.6a's foot
-        is for the one action a window is about. The way out is the close box
-        in the bar — which is the fix for the note in `ui-frame.acceptance.mjs`
-        about CLOSE sitting below the fold of this very panel at 640x360.
-      */}
-      <ShiftOffer state={state} />
     </OsWindow>
   )
 }
@@ -253,7 +257,7 @@ function ShiftOffer({ state }: { state: GameState }) {
   const buys = stillShort ? null : cheapestAffordable(levels, after)
 
   return (
-    <div className="paradigm__shift">
+    <div className="paradigm__shift" data-armed={armed ? 'true' : 'false'}>
       <p className="paradigm__shift-quote">
         NEW BP THIS SHIFT <b>{offer.bp}</b>
       </p>

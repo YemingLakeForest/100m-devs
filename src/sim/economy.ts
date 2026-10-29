@@ -475,23 +475,28 @@ export const SP_PER_DEV_PER_SEC = 1
  * Developers a run opens with — §21.6, "James survives; everybody else is
  * liquidated."
  *
- * **One, and it is James** [amended 2026-08-27]. This was 2, and the second
- * body had no name: §21.6's liquidation leaves exactly one developer standing,
- * the founder is not counted in `devs` (Act I opens at zero and James takes it
- * to one), so a run opening at two put a stranger at a desk beside him with
- * nothing in the fiction to explain them. Reported as "there are 2 developers
- * staying, should be just james", and the roster agreed with the count rather
- * than with the story.
+ * **None** [amended 2026-10-29]. James is not in the count: §21.0b makes him a
+ * leadership head (`jamesHead`), drawn in the corner beside the founder and
+ * counted by the arithmetic without being one of the twenty seats. This was 1 on
+ * the reading that the single survivor *was* that count, and the room then drew
+ * the founder, James at his station, and a nameless developer at a desk beside
+ * him — the same stranger [amended 2026-08-27] had already removed once, when it
+ * was 2 (*"there are 2 developers staying, should be just james"*), and which the
+ * user reported again as *"after paradigm shift, only us and james should remain,
+ * why is there another dev? … this has been a bug for so long"*. Fixing the
+ * count by one the first time moved the stranger rather than asking whether he
+ * was James; the readout had been saying so all along (`+ YOU AND JAMES`, which
+ * only shows at zero).
  *
  * Mirrored from `triggerParadigmShift`'s `devs:` and asserted against it. The
  * mirror was load-bearing while `openingRung` sized the opening game from this
  * number — the two silently disagreeing is how run 8 ended up unable to hire its
  * third employee against a cap of two hundred thousand — and it stays asserted
  * now that §4.10f opens every run at rung 0, because `payrollPerSecond` and
- * `UNPAID_FOUNDERS` still read it and a fresh run that is one head out is a
+ * `UNPAID_FOUNDERS` still read it and a fresh run that is a head out is a
  * fresh run that starts paying a salary it was never meant to owe.
  */
-export const STARTING_DEVS = 1
+export const STARTING_DEVS = 0
 
 export function hireCost(devs: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.max(1, Math.floor(devs))

@@ -148,6 +148,7 @@ import {
   hireCost,
   massHireCost,
   STARTING_DEVS,
+  UNPAID_FOUNDERS,
   capAdjustedGrowth,
   isBankrupt,
   nextRung,
@@ -4763,11 +4764,10 @@ export function triggerParadigmShift(): void {
     devCap: devCapFor(getPermanent().layer1.paradigmLevels),
     // "So. Same time tomorrow?"
     //
-    // §21.6 leaves **one** person standing and his name is James
-    // ({@link STARTING_DEVS}). It was two, and the second one was nobody: the
-    // count said two, the roster drew two desks, and there is no line anywhere
-    // in the game that says who the other survivor is. Reported as "there are 2
-    // developers staying, should be just james".
+    // §21.6 leaves **one** person standing and his name is James, and he is not
+    // a seat: `STARTING_DEVS` is none, and he is in the room through
+    // `jamesHead` and his own station. Counting him here as well drew a second
+    // body at a desk beside him ([amended 2026-10-29]; see `STARTING_DEVS`).
     devs: STARTING_DEVS,
     /**
      * **Run 2 opens on the loop, not on the trap.**
@@ -5459,7 +5459,9 @@ export function jumpToPhase(phase: Phase): void {
       set({
         ...run,
         phase,
-        devs: STARTING_DEVS + MASS_HIRE_COUNT,
+        // The thousand and the one free head the payroll arithmetic leaves out (`UNPAID_FOUNDERS`): what Act V's
+        // $50,000/sec is the figure for (`economy.test.ts`).
+        devs: UNPAID_FOUNDERS + MASS_HIRE_COUNT,
         projectsShipped: TERM_SHEET_AFTER_SHIPS,
         cash: 50,
         ...onProject(FIRST_PAID_RUNG, run.runSeed),
@@ -5471,7 +5473,9 @@ export function jumpToPhase(phase: Phase): void {
       set({
         ...run,
         phase,
-        devs: STARTING_DEVS + MASS_HIRE_COUNT,
+        // The thousand and the one free head the payroll arithmetic leaves out (`UNPAID_FOUNDERS`): what Act V's
+        // $50,000/sec is the figure for (`economy.test.ts`).
+        devs: UNPAID_FOUNDERS + MASS_HIRE_COUNT,
         cash: BANKRUPTCY_THRESHOLD,
         seedTaken: true,
         massHired: true,

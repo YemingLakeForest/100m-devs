@@ -139,17 +139,7 @@
   color: var(--p1);
 }
 
-/* Bottom left: the inspector sheet stands on the right and would cover them. */
-.trees__zoom {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  display: flex;
-  gap: 8px;
-}
-
 /* Every button in the window is the small one: the board is the big thing here. */
-.ui-btn.trees__zoom-btn,
 .ui-btn.trees__buy,
 .ui-btn.trees__deselect,
 .trees__act .ui-btn {
@@ -157,10 +147,6 @@
   font-size: var(--type-1x);
   line-height: 1.25;
   white-space: normal;
-}
-
-.ui-btn.trees__zoom-btn {
-  min-width: 34px;
 }
 
 /* --- the inspector ------------------------------------------------------- */
@@ -321,54 +307,6 @@
   margin: 0;
   color: var(--p3);
   letter-spacing: 1px;
-}
-
-.trees__key {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
-  padding: 0;
-  list-style: none;
-  color: var(--p2);
-  letter-spacing: 1px;
-}
-
-.trees__key li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/*
- * A tile, flattened to its iso diamond, in the board's own two parts: the
- * diamond is the edge and the inset diamond is the top, so a tile you can buy
- * reads here as it does on the board — dark, with a bright rim.
- */
-.trees__key i {
-  position: relative;
-  flex: none;
-  width: 22px;
-  height: 12px;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-  background: var(--tile-edge, var(--n1));
-}
-
-.trees__key i::after {
-  content: '';
-  position: absolute;
-  inset: 2px 4px;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-  background: var(--tile-top, var(--n1));
-}
-
-.trees__key i[data-tile='owned'] { --tile-edge: var(--p2); --tile-top: var(--p1); }
-.trees__key i[data-tile='live'] { --tile-edge: var(--p3); --tile-top: var(--n2); }
-.trees__key i[data-tile='short'] { --tile-edge: var(--p1); --tile-top: var(--n2); }
-.trees__key i[data-tile='locked'] { --tile-edge: var(--n1); --tile-top: var(--n1); }
-.trees__key i[data-tile='key'] { --tile-edge: var(--p3); --tile-top: var(--p2); }
-.trees__key i[data-tile='link'] {
-  --tile-top: var(--n1);
-  background: repeating-linear-gradient(90deg, var(--p1) 0 2px, transparent 2px 4px);
 }
 
 .trees__note {

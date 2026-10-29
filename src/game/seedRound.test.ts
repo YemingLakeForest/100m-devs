@@ -91,8 +91,9 @@ describe('Run 2 opens on the loop, not on the trap — §21.6', () => {
     expect(getState().phase).not.toBe('act3_bait')
     expect(offerFor(getState().phase, getState().massHired)).toBeNull()
     expect(actionFor(getState().phase)?.action).toBe('hire')
-    // §21.6 — and one person survives it, not two.
-    expect(getState().devs).toBe(1)
+    // §21.6 — and one person survives it, and he is James, who is not a seat: nobody is at a desk beside him
+    // (*"after paradigm shift, only us and james should remain, why is there another dev?"*, 2026-10-29).
+    expect(getState().devs).toBe(0)
   })
 
   it('does not re-teach the funnel', () => {

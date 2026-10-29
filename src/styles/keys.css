@@ -334,17 +334,24 @@
 /* --- the reception ------------------------------------------------------------ */
 
 /*
- * GDD §10.8b's reel was a 1px phosphor box with centred text, a glowing word and a thin bar: the outline theme's
- * summary screen. It is a window now, in the same three materials. The title is a lit bar; each critic is an inset row
- * (outlet and score on one line, the quote under it, left-aligned, because a column of centred pull quotes has no edge
- * to read down); the aggregate and its bar sit in one inset; and the verdict is a **stamp whose fill is the band** —
- * lit phosphor for a hit, amber for underwhelming, alarm red for a flop — so the word and the colour say the same
- * thing and the colour alone says it from across the room. No glow on the best band: bright white on a lit slab is
- * as loud as that word needs to be.
+ * GDD §10.8b [amended 2026-10-29]. The reel was a small centred modal: three lines of review copy and a bar, which is
+ * the least a launch can be. *"it's just same small little modal, can you design something funner?"* It is a launch-day
+ * broadcast now, wide and in the three materials:
  *
- * Motion is held frames, as everywhere else: the rows come in on three steps, the stamp lands in two (a size, then
- * rest), and the open/close is a drop of one slab rather than an overshooting curve. The beats and their sounds
- * (`REVIEW_BEATS`) are unchanged: only the way each one is drawn.
+ *   title bar   lit strip with the project's name
+ *   cover       96px, stamped in, at the left
+ *   critics     three score tiles side by side, each headed by how it went (lit / amber / red): the colour is read
+ *               before the number is, which is what a tile is for
+ *   score       the aggregate large, beside a 20-cell meter that lights one cell at a time, white then its colour
+ *   verdict     a full-width stamp whose fill is the band, slammed down in four held heights
+ *
+ * The slam is the joke: when the verdict lands the whole card takes the hit (a stepped shake on the good bands, a
+ * sag on the bad ones: a flop does not bounce), and the sparks are square confetti in three palette colours thrown
+ * well past the card. All of it is held frames, no easing, no glow (ART_DIRECTION §1, §3). The beats and their
+ * sounds (REVIEW_BEATS) are untouched: the verdict's stamp sound still lands on the same millisecond as the slam
+ * because --slam is the same number.
+ *
+ * `translate` (not `transform`) carries the shake so it composes with the card's drop-in and the cover's stamp.
  */
 .review {
   transition: none;
@@ -354,34 +361,44 @@
   transform: none;
 }
 
+.review[data-open='true'] .review__card {
+  animation:
+    card-drop 160ms steps(1, end),
+    card-slam 240ms steps(1, end) var(--slam, 1560ms) both;
+}
+
+.review[data-open='true'] .review__card[data-band='1'],
+.review[data-open='true'] .review__card[data-band='0'] {
+  animation:
+    card-drop 160ms steps(1, end),
+    card-sag 360ms steps(1, end) var(--slam, 1560ms) both;
+}
+
 .review__card {
-  gap: 4px;
-  width: min(30em, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  justify-items: stretch;
+  gap: 6px 10px;
+  width: min(560px, 100%);
   padding: 0 0 10px;
   border: 0;
   background: var(--n1);
   box-shadow: 6px 6px 0 0 var(--n0);
-  justify-items: stretch;
   text-align: left;
 }
 
 .review__card > * {
-  margin-left: 10px;
-  margin-right: 10px;
-}
-
-.review .cover {
-  justify-self: center;
-  animation-timing-function: steps(2, end);
-}
-
-/* The title bar: the project's name, on the same lit strip a window's title sits on. */
-.review__name {
-  order: -1;
-  margin: 0 0 4px;
-  padding: 5px 10px;
   margin-left: 0;
   margin-right: 0;
+}
+
+/* The title bar spans the card and is lit. */
+.review__name {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: 0 0 4px;
+  padding: 6px 12px;
   background: var(--p1);
   color: var(--n8);
   font-size: var(--type-1x);
@@ -389,10 +406,29 @@
   text-transform: uppercase;
 }
 
-.review__timing {
-  color: var(--n6);
-  text-align: center;
+.review .cover {
+  grid-column: 1;
+  grid-row: 2 / span 2;
+  align-self: start;
+  width: 96px;
+  height: 96px;
+  margin-left: 12px;
   animation-timing-function: steps(3, end);
+}
+
+.review__timing {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  margin-right: 12px;
+  color: var(--n6);
+  text-align: left;
+  animation-timing-function: steps(3, end);
+}
+
+/* The heroes' line is a second timing line and has nowhere of its own: it shares the row. */
+.review__timing + .review__timing {
+  align-self: start;
 }
 
 .review__timing[data-good='true'] {
@@ -400,75 +436,164 @@
 }
 
 .review__quotes {
-  gap: 3px;
-  margin-top: 4px;
+  grid-column: 2;
+  grid-row: 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 12px 0 0;
+}
+
+/* With no cover (a save from before history) the tiles take the whole width. */
+.review__card:not(:has(.cover)) .review__quotes,
+.review__card:not(:has(.cover)) .review__timing {
+  grid-column: 1 / -1;
+  margin-left: 12px;
 }
 
 .review__quote {
+  grid-template-rows: auto 1fr;
   justify-items: stretch;
-  padding: 4px 8px;
+  gap: 4px;
+  padding: 0;
   background: var(--n0);
+  text-align: left;
   animation-timing-function: steps(3, end);
 }
 
+/* A tile is its outlet and its score on a coloured head, and the quote on the dark below. */
 .review__by {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: var(--p1);
 }
 
 .review__outlet {
-  color: var(--n6);
+  color: var(--n8);
+  letter-spacing: 1px;
+  overflow-wrap: anywhere;
 }
 
 .review__score {
-  padding: 0 4px;
-  background: var(--p1);
+  padding: 0;
+  background: none;
   color: var(--n8);
+  font-size: var(--type-2x);
+  line-height: 1;
+}
+
+.review__quote[data-tier='good'] .review__by {
+  background: var(--p2);
+}
+
+.review__quote[data-tier='mixed'] .review__by {
+  background: var(--warn-2);
+}
+
+.review__quote[data-tier='poor'] .review__by {
+  background: var(--alarm-2);
+}
+
+.review__quote[data-tier] .review__outlet,
+.review__quote[data-tier] .review__score {
+  color: var(--n0);
 }
 
 .review__line {
+  padding: 2px 6px 6px;
   color: var(--n8);
 }
 
+/* The aggregate and its meter: one inset, the number large, the cells to its right. */
 .review__score-block {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   justify-items: stretch;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 6px 8px;
+  gap: 12px;
+  margin: 2px 12px 0;
+  padding: 8px 12px;
   background: var(--n0);
   animation-timing-function: steps(3, end);
 }
 
 .review .review__aggregate {
-  text-align: center;
-  color: var(--p3);
+  font-size: var(--type-3x);
+  text-align: left;
+  color: var(--n8);
 }
 
 .review__bar {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  gap: 2px;
   width: auto;
-  height: 8px;
-  border-color: transparent;
+  height: 18px;
+  border: 0;
+  background: none;
+  overflow: visible;
+}
+
+.review__bar i {
   background: var(--n2);
 }
 
-.review__bar span {
-  animation-timing-function: steps(8, end);
+/* A cell that is on flashes white for a frame, then takes the band's colour. Off cells never move. */
+.review__bar i[data-on='true'] {
+  animation: cell-on 90ms steps(1, end) both;
+  animation-delay: var(--in);
 }
 
-/* The stamp: a plate the band's colour, the word dark on it. */
+.review__card[data-band='3'] .review__bar i[data-on='true'] {
+  --cell: var(--p3);
+}
+
+.review__card[data-band='2'] .review__bar i[data-on='true'] {
+  --cell: var(--p2);
+}
+
+.review__card[data-band='1'] .review__bar i[data-on='true'] {
+  --cell: var(--warn-2);
+}
+
+.review__card[data-band='0'] .review__bar i[data-on='true'] {
+  --cell: var(--alarm-2);
+}
+
+@keyframes cell-on {
+  0% {
+    background: var(--n2);
+  }
+  34% {
+    background: var(--n8);
+  }
+  100% {
+    background: var(--cell, var(--p2));
+  }
+}
+
+/* The stamp: full width, the word large, the band as its fill. It lands in four held heights. */
 .review__stamp {
-  margin-top: 4px;
+  grid-column: 1 / -1;
+  margin: 2px 12px 0;
 }
 
 .review__verdict {
   margin: 0;
-  padding: 6px 12px;
+  padding: 10px 12px;
   width: 100%;
   box-sizing: border-box;
   text-align: center;
+  font-size: var(--type-3x);
+  letter-spacing: 6px;
   background: var(--p1);
   color: var(--n8);
-  box-shadow: 3px 3px 0 0 var(--n0);
-  animation-timing-function: steps(2, end);
+  box-shadow: 4px 4px 0 0 var(--n0);
+  animation: verdict-slam 220ms steps(1, end) both;
+  animation-delay: var(--in);
 }
 
 .review__verdict[data-band='3'] {
@@ -490,6 +615,341 @@
 .review__verdict[data-band='0'] {
   background: var(--alarm-2);
   color: var(--n0);
+}
+
+@keyframes verdict-slam {
+  0% {
+    transform: translateY(-48px);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(-24px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+  75% {
+    transform: translateY(4px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes card-drop {
+  0% {
+    transform: translateY(-60px);
+  }
+  34% {
+    transform: translateY(-24px);
+  }
+  67% {
+    transform: translateY(5px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* The hit: a shake on the good bands, a sag on the bad. */
+@keyframes card-slam {
+  0% {
+    translate: 0 0;
+  }
+  25% {
+    translate: -5px 3px;
+  }
+  50% {
+    translate: 4px -3px;
+  }
+  75% {
+    translate: -2px 1px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes card-sag {
+  0% {
+    translate: 0 0;
+  }
+  34% {
+    translate: 0 4px;
+  }
+  100% {
+    translate: 0 4px;
+  }
+}
+
+/* Confetti: squares, three colours, held frames out and gone. Only ever rendered on the good bands. */
+.review__spark {
+  width: 6px;
+  height: 6px;
+  background: var(--p3);
+  animation-timing-function: steps(6, end);
+}
+
+.review__spark:nth-child(3n) {
+  background: var(--n8);
+}
+
+.review__spark:nth-child(3n + 1) {
+  background: var(--warn-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review[data-open='true'] .review__card,
+  .review__bar i[data-on='true'],
+  .review__verdict {
+    animation: none;
+  }
+}
+
+/* --- one edge, one size: the rails and the taskbar ---------------------------- */
+
+/*
+ * *"in the phone size, the bottom hud button, text, and frame alignments are bad, why not consistent?"* They were
+ * not, and for reasons that were each right when written: the right rail kept 6px past its keys for a skew that no
+ * longer exists (so CODE and the offer stopped 6px short of the bar above and below them), the offer kept 4px on its
+ * left for the same skew, MENU sat flush on the taskbar's edge while every other key had air, and the three kinds of
+ * key on a phone frame had three paddings (3/8, 4/8, 5/10). The skew is gone (`--btn-skew: 0`), so what is left to
+ * reserve is the 3px slab, and every right edge on the frame is the status bar's.
+ */
+.hud__bottom {
+  padding-right: var(--ui-slab);
+}
+
+.hud__offer .ui-btn {
+  margin-left: 0;
+}
+
+/* The taskbar is a slab like the status bar: the keys sit inside it with the same air on every side (the slab
+   below a key is the key's own, so the fill carries on 3px under the bar, in a shadow, to give the bottom what the
+   top has; a shadow because the bar's box may not grow, see the status bar's note on width). */
+.hud__taskbar {
+  padding-left: 4px;
+  padding-right: 4px;
+  box-shadow: 0 -3px 0 0 var(--n0), 0 3px 0 0 var(--n1);
+}
+
+@media (max-height: 470px) {
+  /* Every key a phone frame has but the lit CODE: one padding, so the row of them reads as one size of thing. */
+  .ui-btn.hud__task-btn,
+  .hud__controls .ui-btn:not(.hud__code):not(.hud__gallery-door) {
+    padding: 4px 8px;
+  }
+}
+
+/* The terminal's rule down its left edge was the outline theme's way of saying "this is a quote". A plate says it:
+   darker ground, a 3px lit tag in the padding the border already costs (an inset shadow, no layout), and no rule. */
+.hud__terminal {
+  border-left-color: transparent;
+  background: var(--n0);
+  box-shadow: inset 3px 0 0 0 var(--p2);
+}
+
+/* The speech bubble: a flat plate with a slab, and the glow off its text (ART_DIRECTION §1). */
+.hud__bubble {
+  border-color: transparent;
+  background: var(--n1);
+  box-shadow: 3px 3px 0 0 var(--n0);
+  text-shadow: none;
+}
+
+/* --- the paradigm window: no scroll, no empty strip ---------------------------- */
+
+/*
+ * *"the paradigm screen has so long scroll, I said I had a rule to not allow scrolls."* It had 766px of content in a
+ * 593px body at 1280x720 and 710 in 263 at 748x336, and what made it long was the shift offer under the nodes and a price
+ * key at the second rung of the type scale on every node. Now:
+ *
+ *   - five node plates in a 3x2 grid, each captioned with its branch (two columns by branch left the Protocol column
+ *     two tall under an Async column three tall: a bare strip, which is the other rule);
+ *   - the price is a small key on the same row as the step it buys;
+ *   - capacity and the shortfall are the window's foot, always on screen, taking no height from the nodes;
+ *   - the shift offer is a band across the bottom of the grid on a tall frame, and the sixth cell of it on a short one.
+ *
+ * Nodes are plates in the same three materials as everything else: the rule that said "owned" is a fill.
+ */
+.paradigm {
+  width: min(64em, 96vw);
+  max-height: 94vh;
+}
+
+.paradigm__body {
+  gap: 0;
+}
+
+.paradigm__branches {
+  /* Six tracks so three nodes and two nodes both fill their row: Async spans two tracks each, Protocol three. */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.paradigm__node[data-branch='async'] {
+  grid-column: span 2;
+}
+
+.paradigm__node[data-branch='protocol'] {
+  grid-column: span 3;
+}
+
+.paradigm__branch {
+  display: contents;
+}
+
+.paradigm__branch-name {
+  display: none;
+}
+
+.paradigm__node {
+  width: 100%;
+  gap: 2px;
+  padding: 5px 8px 6px;
+  border-left-color: transparent;
+  background: var(--n0);
+  box-shadow: inset 3px 0 0 0 var(--p1);
+}
+
+.paradigm__node::before {
+  content: attr(data-branch);
+  justify-self: start;
+  padding: 0 4px;
+  background: var(--p0);
+  color: var(--p3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+
+.paradigm__node[data-owned='true'] {
+  box-shadow: inset 3px 0 0 0 var(--p3);
+}
+
+.paradigm__node[data-after-shift='true'] {
+  box-shadow: inset 3px 0 0 0 var(--warn-2);
+}
+
+.paradigm__node-effect {
+  margin: 0;
+}
+
+/* The price sits at the foot of its plate whatever the plate's height, so a row of three reads as one line of keys. */
+.paradigm__node-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.ui-btn.paradigm__buy {
+  padding: 3px 8px;
+  font-size: var(--type-1x);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.paradigm__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 16px;
+}
+
+/* The offer, as a band: the argument in the first column, what it keeps and loses in the second, the key in the third. */
+.paradigm__shift {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.8fr) minmax(0, 0.9fr);
+  gap: 4px 12px;
+  align-items: start;
+  padding: 6px 8px 8px;
+  border-top-color: transparent;
+  background: var(--n0);
+  box-shadow: inset 3px 0 0 0 var(--warn-2);
+}
+
+.paradigm__shift > p {
+  grid-column: 1;
+}
+
+.paradigm__keep {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border: 0;
+}
+
+.paradigm__keep > div {
+  padding: 4px 6px;
+  background: var(--n1);
+}
+
+.paradigm__keep > div + div {
+  border-left: 0;
+}
+
+.paradigm__shift > .ui-btn {
+  grid-column: 3;
+  width: 100%;
+}
+
+.paradigm__shift > .paradigm__shift-warning {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  max-width: none;
+}
+
+/* Confirming: the numbers have done their job, and what is left is what the press costs, which the warning says. */
+.paradigm__shift[data-armed='true'] .paradigm__keep,
+.paradigm__shift[data-armed='true'] .paradigm__shift-quote,
+.paradigm__shift[data-armed='true'] .paradigm__shift-reach {
+  display: none;
+}
+
+/* A short frame: the offer is the sixth cell, one column, and the two lists stand down (the confirmation says the
+   same in a sentence) rather than the window scrolling. */
+@media (max-height: 560px) {
+  .paradigm__shift {
+    grid-column: span 2;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+
+  .paradigm__node[data-branch='protocol'] {
+    grid-column: span 2;
+  }
+
+  .paradigm__shift > p,
+  .paradigm__shift > .ui-btn,
+  .paradigm__shift > .paradigm__shift-warning {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .paradigm__keep {
+    display: none;
+  }
+
+  .paradigm__node {
+    padding: 3px 6px 4px;
+    gap: 1px;
+  }
+
+  .paradigm__node-effect {
+    line-height: 1.25;
+  }
+
+  .paradigm__body {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
 }
 
 /* --- the status bar --------------------------------------------------------- */

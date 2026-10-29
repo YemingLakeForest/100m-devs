@@ -171,7 +171,6 @@ export interface TreePaneProps {
  */
 export function TreePane({ open, state, hero, intro = null }: TreePaneProps) {
   const [selected, setSelected] = useState<string | null>(null)
-  const [showKey, setShowKey] = useState(false)
   const [openedOn, setOpenedOn] = useState<TreeHero | null>(null)
 
   // Adjusting state to a prop, during render (React's own pattern): a fresh
@@ -185,15 +184,10 @@ export function TreePane({ open, state, hero, intro = null }: TreePaneProps) {
       // the one thing worth reading is already being read (Lonestar's tooltip
       // is always up on the thing under your hand).
       setSelected(intro ?? TREES[hero].find((n) => n.kind !== 'root' && n.kind !== 'link' && treeRefusalOf(hero, n.id, state) === null)?.id ?? null)
-      setShowKey(false)
     }
   }
 
-  // The sheet holds one thing: a selection, or the key.
-  const select = useCallback((id: string | null) => {
-    setSelected(id)
-    if (id) setShowKey(false)
-  }, [])
+  const select = useCallback((id: string | null) => setSelected(id), [])
 
   const def = TREE_HERO_DEFS[hero]
   const c = useMemo(() => {
@@ -226,22 +220,14 @@ export function TreePane({ open, state, hero, intro = null }: TreePaneProps) {
             state={state}
             selected={selected}
             onSelect={select}
-            onKey={() => {
-              setSelected(null)
-              setShowKey((was) => !was)
-            }}
           />
         )}
       </div>
       <Inspector
         hero={hero}
         id={selected}
-        showKey={showKey}
         state={state}
-        onClear={() => {
-          setSelected(null)
-          setShowKey(false)
-        }}
+        onClear={() => setSelected(null)}
       />
     </div>
   )
@@ -257,12 +243,11 @@ interface Camera {
   y: number
 }
 
-function Board({ hero, state, selected, onSelect, onKey }: {
+function Board({ hero, state, selected, onSelect }: {
   hero: TreeHero
   state: GameState
   selected: string | null
   onSelect: (id: string | null) => void
-  onKey: () => void
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -353,12 +338,6 @@ function Board({ hero, state, selected, onSelect, onKey }: {
       y: cam.current.y + ((bottom / 2 - y) * size.dpr) / z,
     }
   }, [hero, size])
-
-  const fit = () => {
-    frame()
-    setTip(null)
-    setView((n) => n + 1)
-  }
 
   useEffect(() => {
     if (!pulsing || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
@@ -616,50 +595,23 @@ function Board({ hero, state, selected, onSelect, onKey }: {
           {tipPrice !== null && tipNode.kind !== 'link' && <small> · {formatMoney(tipPrice)}</small>}
         </span>
       )}
-      <div className="trees__zoom">
-        <Button className="trees__zoom-btn" aria-label="How to read the tree" onClick={onKey}>KEY</Button>
-        <Button className="trees__zoom-btn" aria-label="Zoom out" onClick={() => zoomAt(cam.current.z - 1)}>-</Button>
-        <Button className="trees__zoom-btn" aria-label="Fit the tree" onClick={fit}>FIT</Button>
-        <Button className="trees__zoom-btn" aria-label="Zoom in" onClick={() => zoomAt(cam.current.z + 1)}>+</Button>
-      </div>
     </div>
   )
 }
 
 // --- the inspector --------------------------------------------------------------
 
-function Inspector({ hero, id, showKey, state, onClear }: {
+function Inspector({ hero, id, state, onClear }: {
   hero: TreeHero
   id: string | null
-  showKey: boolean
   state: GameState
   onClear: () => void
 }) {
   const node = id ? treeNode(hero, id) : undefined
-  if (!node) {
-    return (
-      <aside className="trees__inspector" data-empty={!showKey}>
-        <p className="trees__eyebrow">HOW TO READ IT</p>
-        <ul className="trees__key">
-          <li><i data-tile="owned" />OWNED</li>
-          <li><i data-tile="live" />CAN BUY NOW</li>
-          <li><i data-tile="short" />OPEN, NOT ENOUGH CASH</li>
-          <li><i data-tile="locked" />NEEDS THE NODE BEFORE IT</li>
-          <li><i data-tile="key" />BREAKTHROUGH</li>
-          <li><i data-tile="link" />A NODE IN SOMEONE ELSE’S TREE</li>
-        </ul>
-        <p className="trees__note">
-          Dots where links arrive: needs every one. A dashed rule with a diamond: pick one, and the other closes. Pips are levels.
-        </p>
-        <p className="trees__note trees__note--warn">
-          Only Serena’s pipeline is in the game yet. The other nodes can be bought and do nothing; the economy they belong to is being reworked.
-        </p>
-        <div className="trees__act">
-          <Button className="trees__deselect" onClick={onClear}>BACK</Button>
-        </div>
-      </aside>
-    )
-  }
+  // Nothing selected: the sheet is hidden (trees.css) and the board has the whole window. The key that used to
+  // fill it (HOW TO READ IT) and the KEY / FIT / zoom buttons are gone [2026-10-29]: the tiles are read on the board,
+  // and the wheel, a pinch and the +/- keys still zoom it.
+  if (!node) return <aside className="trees__inspector" data-empty="true" />
 
   if (node.kind === 'link' && node.to) {
     const target = treeNode(node.to.hero, node.to.id)!

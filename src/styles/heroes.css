@@ -468,14 +468,7 @@
   }
 }
 
-/* Narrow frames: the zoom buttons wrap rather than overlap in what is left. */
 @container frame (max-width: 760px) {
-  .herocard .trees__zoom {
-    flex-wrap: wrap;
-    max-width: calc(100% - 20px);
-    gap: 4px;
-  }
-
   .herocard__facts,
   .herocard__flavour {
     display: none;

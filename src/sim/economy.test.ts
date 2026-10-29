@@ -55,10 +55,10 @@ describe('the two figures the GDD actually states (§21)', () => {
 
   it('Act V: ~1,000 developers burn $50,000/sec', () => {
     expect(payrollPerSecond(1000 + UNPAID_FOUNDERS)).toBe(50_000)
-    // And that is the headcount the run actually reaches, exactly: James plus
-    // the thousand. The old off-by-one landed on $49,950 — close enough to pass
-    // unnoticed, and not the number §21 Act V prints on the screen.
-    expect(payrollPerSecond(STARTING_DEVS + 1000)).toBe(50_000)
+    // The old off-by-one landed on $49,950 — close enough to pass unnoticed, and not the number §21 Act V
+    // prints on the screen. A run opens with nobody in `devs` (James is a leadership head, not a seat), so the
+    // thousand are the whole of it and the figure is the payroll of the free head plus the thousand.
+    expect(payrollPerSecond(STARTING_DEVS + UNPAID_FOUNDERS + 1000)).toBe(50_000)
   })
 })
 
