@@ -640,7 +640,7 @@ function Inspector({ hero, id, state, onClear }: {
   const others = node.fork ? TREES[hero].filter((o) => o !== node && o.fork === node.fork) : []
 
   return (
-    <aside className="trees__inspector">
+    <aside className="trees__inspector" data-kind={node.kind}>
       {/* Two groups so a short frame can set them side by side (keys.css); on a tall one they are `display: contents`. */}
       <div className="trees__what">
       <p className="trees__eyebrow">

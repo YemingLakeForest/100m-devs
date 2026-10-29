@@ -1297,3 +1297,120 @@
     animation: none;
   }
 }
+
+/* --- spacing audit [2026-10-29] --------------------------------------------------------------------------------------
+ * *"the demo page has all spacing and centering of text, buttons and elements so crisp and balanced, vet the current
+ * game"*. Each rule below is a place the game was measured against the demo and was off; the numbers in the comments
+ * are the gaps between the text and its plate, read from the rendered page.
+ */
+
+/* Status tabs: the label sat 1px under the tab's top and 0px over its foot (the foot is inside the bottom padding),
+   while the single-line tabs floated mid-plate. Every tab now has 3px of air over the foot and 5px under the top, and
+   the value follows its label instead of being thrown to the far end by a wide sub-line ("+ YOU AND JAMES"). The
+   paint is vertical only: the bar's width, which decides where it wraps at 748x336, is untouched. */
+.hud__status .hud__block {
+  justify-content: start;
+  padding: 5px 10px 6px;
+}
+
+/* The people tabs: STAFF and YOU have no face, and a 4px left pad (made for a face) left their word hugging the
+   left end bar, 4px against 10px. A faceless key is centred; a face key keeps its pad because the face's own
+   transparent margin is the other 4px. */
+.ui-btn.herocard__tab:not(:has(.herocard__tab-face)) {
+  padding: 2px 10px;
+}
+
+/* The pass: three columns ended at three heights (209, 196, 172px), so the card looked ragged at its foot. The
+   columns stretch, the amber plate keeps its facts on its own floor and the breakthrough rows share what is left. */
+.herocard__pass--hero {
+  align-items: stretch;
+}
+
+.herocard__pass--hero .pass-always {
+  display: flex;
+  flex-direction: column;
+}
+
+.herocard__pass--hero .pass-always .herocard__facts {
+  margin-top: auto;
+}
+
+.herocard__pass--hero .herocard__side .herocard__flavour {
+  margin-top: auto;
+}
+
+.herocard__pass--hero .pass-coming {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.herocard__pass--hero .pass-coming__slots {
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.herocard__pass--hero .pass-coming__slots > li {
+  align-content: center;
+}
+
+/* The offer: the argument hugged the top of its cell with 80px of floor under it, and the key sat 57px under the top of
+   its cell and 32px over the bottom. Both are centred on the band now. */
+.paradigm__shift {
+  align-items: center;
+}
+
+.paradigm__shift > p {
+  align-self: center;
+}
+
+/* The tree's progress line ran under the inspector at phone width ("... 0/2 BREA"): the line wraps in what the
+   inspector leaves instead. Titles are never cut. */
+@container frame (max-height: 470px) {
+  .trees-pane:has(.trees__inspector:not([data-empty='true'])) .trees__who {
+    padding-right: calc(min(470px, 76%) + 8px);
+    flex-wrap: wrap;
+  }
+}
+
+/* A phone frame has no height to spare for equal breakthrough rows (the wrapped one would set them all), so the rows
+   keep their own height and the amber plate centres its name and facts between its head and its floor. */
+@container frame (max-height: 470px) {
+  .herocard__pass--hero .pass-coming__slots {
+    grid-auto-rows: auto;
+  }
+
+  .herocard__pass--hero .pass-always .pass-always__name {
+    margin-top: auto;
+  }
+
+  .herocard__pass--hero .pass-always .herocard__facts {
+    margin-top: 0;
+    margin-bottom: auto;
+  }
+}
+
+/* The start tile has little to do (one effect chip) and a long sentence to be (four lines), so its BACK row goes under
+   the chip rather than under the sentence: the second column had the room, and the first was 20px too tall. */
+@container frame (max-height: 470px) {
+  .trees__inspector[data-kind='root'] .trees__what {
+    grid-row: 1 / span 2;
+  }
+
+  .trees__inspector[data-kind='root'] .trees__does {
+    grid-row: 1;
+  }
+
+  .trees__inspector[data-kind='root'] > .trees__act {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* Short frames keep the tabs' old height: the bar wraps to two rows at 640x360 and every pixel it gains is one the
+   taskbar loses off the bottom (the gate found it 22px under). The sub-line is hidden here, so the single line is
+   already centred in its plate. */
+@media (max-height: 470px) {
+  .hud__status .hud__block {
+    padding: 1px 8px 2px;
+  }
+}
