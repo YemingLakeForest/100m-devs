@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Icon drafts, round 7</title>
+<style>
+:root{--bg:#0e1514;--pl:#292a29;--tx:#d9d8cd;--dim:#97988f;--cy:#35c9d9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 ui-monospace,Consolas,monospace;padding:24px 16px 48px}
+h1{font-size:20px;margin:0 0 4px}p.s{color:var(--dim);margin:0 0 24px;max-width:70ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--pl);padding:14px;box-shadow:inset 3px 0 0 var(--cy)}
+.card h2{font-size:15px;margin:0 0 2px;color:var(--cy)}.card p{margin:0 0 10px;color:var(--dim);font-size:13px}
+canvas{image-rendering:pixelated;display:block}
+.big{margin:0 auto 12px}
+.row{display:flex;gap:14px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.row figure{margin:0;text-align:center;color:var(--dim);font-size:11px}
+.home{display:flex;gap:10px;justify-content:center;margin-top:12px;padding:10px;background:#1b2a3a}
+.home .ic{width:56px;height:56px;border-radius:14px;overflow:hidden}
+.home i{display:block;width:56px;height:56px;border-radius:14px;background:#33475b}
+</style></head><body>
+<h1>Icon drafts, round 7</h1>
+<p class="s">The voxel duck improved, side-on: a bigger eye, a tail flick, and something on his head that is not yellow. Shown at 256, 96, 48 and 32 px, then on a mock home screen.</p>
+<div class="grid" id="g"></div>
+<script type="module">
+import { duckVoxels } from '/src/art/duckVoxels.ts'
+import { DUCK_TURN, duckBoxes, voxelBoxes } from '/src/art/voxelIcons.ts'
+import { Raster as GR, paintTurned, turnedBounds } from '/src/hud/isoBoard.ts'
+const G=64
+const K={ink:'#181919',Y:'#ffcf3a',Yl:'#ffe27a',Yd:'#e8a92a',O:'#f5892a',Od:'#cf6a1c',W:'#f1efe6',gold:'#f2a91c',
+  c0:'#0a2a30',c1:'#1a6b78',c2:'#35c9d9',c3:'#b8f4ff',n1:'#292a29',n2:'#3c3e3c',n3:'#575a56',n6:'#b8b9b0',pur:'#6b3a8a',a2:'#e0a52e'}
+const hex=h=>{const n=parseInt(h.slice(1),16);return((255<<24)|((n&255)<<16)|(((n>>8)&255)<<8)|(n>>16))>>>0}
+class R{constructor(){this.px=new Uint32Array(G*G)}
+  dot(x,y,c){if(x>=0&&y>=0&&x<G&&y<G)this.px[y*G+x]=c}
+  rect(x,y,w,h,c){for(let j=0;j<h;j++)for(let i=0;i<w;i++)this.dot(x+i,y+j,hex(c))}
+  disc(cx,cy,rx,ry,c,clip){for(let y=0;y<G;y++)for(let x=0;x<G;x++){const a=(x+.5-cx)/rx,b=(y+.5-cy)/ry;if(a*a+b*b<=1&&(!clip||clip(x,y)))this.dot(x,y,hex(c))}}}
+function rim(src,c){const o=new R();for(let y=0;y<G;y++)for(let x=0;x<G;x++){if(src.px[y*G+x])continue
+  if([[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>{const X=x+a,Y=y+b;return X>=0&&Y>=0&&X<G&&Y<G&&src.px[Y*G+X]}))o.dot(x,y,hex(c))}
+  return o}
+function compose(r,s,inkc=K.ink){const o=rim(s,inkc);for(let i=0;i<r.px.length;i++){if(o.px[i])r.px[i]=o.px[i];if(s.px[i])r.px[i]=s.px[i]}}
+function field(c){const r=new R();r.rect(0,0,G,G,c);return r}
+// shaded head: a darker disc, the lit disc nudged up-left over it, one highlight tick
+function head(s,cx,cy,rx,ry){s.disc(cx,cy,rx,ry,K.Yd);s.disc(cx-1,cy-1,rx-1,ry-1,K.Y);s.rect(cx-rx+5,cy-ry+5,7,2,K.Yl)}
+function beak(s,cx,cy,rx,ry){s.disc(cx,cy,rx,ry,K.O);s.disc(cx,cy,rx,ry,K.Od,(x,y)=>y>=cy+1);s.rect(cx-4,cy-2,2,2,K.Od);s.rect(cx+2,cy-2,2,2,K.Od)}
+const drafts=[]
+const RED='#e03c3c'
+// The duck over an edge: head, eyes, beak. `look` is where the pupils go ([0,0] = dots straight at you).
+function duckAt(s,cx,top,look){
+  head(s,cx,top+17,20,17)
+  if(look){const[dx,dy]=look;s.rect(cx-9,top+11,7,9,K.W);s.rect(cx+2,top+11,7,9,K.W);s.rect(cx-7+dx,top+13+dy,4,4,K.ink);s.rect(cx+4+dx,top+13+dy,4,4,K.ink)}
+  else{s.rect(cx-8,top+11,5,8,K.ink);s.rect(cx+3,top+11,5,8,K.ink)}
+  beak(s,cx,top+23,10,5)
+}
+function win(s,x,y,w,h,bar,body=K.n1){s.rect(x,y,w,h,body);s.rect(x,y,w,7,bar)}
+function wings(s,y,x1,x2){for(const x of[x1,x2]){s.rect(x,y,10,6,K.Y);s.rect(x,y,10,2,K.Yl)}}
+const GLYPH={
+ '1':['..#..','.##..','..#..','..#..','..#..','..#..','.###.'],
+ '0':['.###.','#...#','#..##','#.#.#','##..#','#...#','.###.'],
+ 'M':['#...#','##.##','#.#.#','#.#.#','#...#','#...#','#...#']}
+function text(s,str,x,y,u,c){for(const ch of str){GLYPH[ch].forEach((row,j)=>[...row].forEach((v,i)=>{if(v==='#')s.rect(x+i*u,y+j*u,u,u,c)}));x+=6*u}}
+
+// The game's own duck (voxel grid, profile), painted by the room's painter, then the 100M window laid over his lower half.
+// `u` is pixels per voxel; (cx, top) is where his silhouette's middle and top land.
+function voxDuck(s,cx,top,u,outfit={},turn=DUCK_TURN,mk=null){
+  const boxes=mk?voxelBoxes(mk()):duckBoxes(outfit),b=turnedBounds(boxes,turn),g=new GR(G,G)
+  paintTurned(g,Math.round(cx-((b.x0+b.x1)/2)*u),Math.round(top-b.y0*u),boxes,u,turn,null)
+  for(let i=0;i<g.px.length;i++)if(g.px[i]>>>24)s.px[i]=g.px[i]
+}
+function sign(s,y,bar){
+  s.rect(4,y-1,56,1,K.ink)
+  s.rect(4,y,56,60-y,K.n1);s.rect(4,y,56,7,bar)
+  s.rect(8,y+2,3,3,K.c2);s.rect(13,y+2,3,3,K.a2);s.rect(18,y+2,3,3,K.n6)
+  text(s,'100',7,y+9,2,K.a2);text(s,'M',43,y+9,2,K.c2)
+}
+function one(o){const r=field(o.field),s=new R();voxDuck(s,o.cx,o.top,o.u,o.outfit,o.turn,o.mk);sign(s,o.y,o.bar);compose(r,s);return r}
+
+// The icon's own duck: the room's grid with three changes the room does not need. A taller eye (a single voxel is a dot
+// at 32 px), a tail that flicks up (the lump gets a back end), and a head piece that is not yellow-on-yellow.
+function iconDuck(outfit,{eye=true,tail=true,purple=false}={}){
+  const v=duckVoxels(outfit).map(([x,y,z,ink])=>[x,y,z,purple?(ink==='gold'?'purple':ink==='ruby'?'gold':ink):ink])
+  const put=(x,y,z,ink)=>{const i=v.findIndex(a=>a[0]===x&&a[1]===y&&a[2]===z);if(i>=0)v.splice(i,1);v.push([x,y,z,ink])}
+  if(eye)for(const z of[2,-3]){put(7,6,z,'eye');put(7,7,z,'eye')}
+  if(tail){for(const z of[-1,0]){put(-1,6,z,'yellow');put(0,6,z,'yellow')}for(const z of[-1,0])put(-1,7,z,'yellow')}
+  return v}
+const sideUp=(o,mkopts)=>one({field:K.c2,cx:30,top:3,u:4,y:38,bar:K.n3,...o,mk:()=>iconDuck(o.outfit||{},mkopts)})
+drafts.push({name:'Q1 · Headphones',line:'Side-on again, as the version that reads as a duck. Headphones from his own wardrobe: black band and teal cups are the two things on the icon that are not yellow, so he gets a head, and "dev" says itself.',draw:()=>sideUp({outfit:{head:'headphones'}},{eye:false,tail:false})})
+drafts.push({name:'Q2 · Headphones, fixed',line:'Q1 plus the model changes: a two-voxel eye you can see at 32 px, and a tail flicked up so the back of him has a shape. The beak and the eye are now the two things you read.',draw:()=>sideUp({outfit:{head:'headphones'}})})
+drafts.push({name:'Q3 · Purple Crown',line:'His crown recoloured: purple band, gold gem. Gold on yellow vanished; purple is the complement of yellow and is the Distinguished tier colour in the palette, which is what a CTO duck is.',draw:()=>sideUp({outfit:{head:'crown'}},{purple:true})})
+drafts.push({name:'Q4 · Shades and Cans',line:'Pixel shades and headphones together, side-on. The shades are one black block across the eye, the headphones the cups. The attitude draft, on the violet field.',draw:()=>sideUp({field:K.pur,outfit:{head:'headphones',face:'shades'}})})
+
+const grid=document.getElementById('g')
+for(const d of drafts){
+  const r=d.draw()
+  const mk=(px,cls)=>{const c=document.createElement('canvas');c.width=G;c.height=G;c.style.width=c.style.height=px+'px';if(cls)c.className=cls
+    const x=c.getContext('2d'),im=x.createImageData(G,G);new Uint32Array(im.data.buffer).set(r.px);x.putImageData(im,0,0);return c}
+  const card=document.createElement('div');card.className='card'
+  card.innerHTML=`<h2>${d.name}</h2><p>${d.line}</p>`
+  card.append(mk(256,'big'))
+  const row=document.createElement('div');row.className='row'
+  for(const px of[96,48,32]){const f=document.createElement('figure');f.append(mk(px));f.append(px+' px');row.append(f)}
+  card.append(row)
+  const home=document.createElement('div');home.className='home'
+  const b=document.createElement('div');b.className='ic';b.append(mk(56))
+  home.append(document.createElement('i'),b,document.createElement('i'));card.append(home);grid.append(card)
+}
+</script></body></html>
