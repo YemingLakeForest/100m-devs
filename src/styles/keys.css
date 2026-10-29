@@ -32,7 +32,10 @@
   border: 0;
   /* The 1px border is gone, so its width moves into the padding and the box a rail reserves does not change. */
   padding: 9px 15px;
-  box-shadow: 3px 3px 0 0 var(--n0);
+  /* The end bars are part of the key's silhouette, as on the reference's SELECT: they say "button" with no brackets
+     and no extra width (an inset shadow paints inside the box). The slab is the *first* shadow because the frame gate reads the first one
+     as the key's overhang. */
+  box-shadow: 3px 3px 0 0 var(--n0), inset 4px 0 0 0 var(--p1), inset -4px 0 0 0 var(--p1);
   transition: none;
 }
 
@@ -50,7 +53,7 @@
 /* Press: the key goes into its own slab. The fill steps one value, so shape and colour change together (F2). */
 .ui-btn.is-pressed {
   transform: translate(var(--ui-slab), var(--ui-slab));
-  box-shadow: 0 0 0 0 var(--n0);
+  box-shadow: 0 0 0 0 var(--n0), inset 4px 0 0 0 var(--p1), inset -4px 0 0 0 var(--p1);
   color: var(--p3);
   background: var(--n1);
 }
@@ -62,7 +65,7 @@
   color: var(--n0);
   background: var(--p2);
   border: 0;
-  box-shadow: 3px 3px 0 0 var(--p1);
+  box-shadow: 3px 3px 0 0 var(--p1), inset 4px 0 0 0 var(--p3), inset -4px 0 0 0 var(--p3);
 }
 
 .ui-btn--primary:hover:not(:disabled):not(.is-pressed),
@@ -75,14 +78,14 @@
 .ui-btn.ui-btn--primary.ui-btn--has-concept.is-pressed {
   color: var(--n0);
   background: var(--p3);
-  box-shadow: 0 0 0 0 var(--p1);
+  box-shadow: 0 0 0 0 var(--p1), inset 4px 0 0 0 var(--p3), inset -4px 0 0 0 var(--p3);
 }
 
 /* CODE is the verb the whole HUD is about, on every frame of the game, so it is the one lit key on the rail. */
 .ui-btn.hud__code {
   color: var(--n0);
   background: var(--p2);
-  box-shadow: 3px 3px 0 0 var(--p1);
+  box-shadow: 3px 3px 0 0 var(--p1), inset 4px 0 0 0 var(--p3), inset -4px 0 0 0 var(--p3);
 }
 
 .ui-btn.hud__code:hover:not(:disabled):not(.is-pressed) {
@@ -92,7 +95,7 @@
 .ui-btn.hud__code.is-pressed {
   color: var(--n0);
   background: var(--p3);
-  box-shadow: 0 0 0 0 var(--p1);
+  box-shadow: 0 0 0 0 var(--p1), inset 4px 0 0 0 var(--p3), inset -4px 0 0 0 var(--p3);
 }
 
 /* The dice key laid its die out as the middle of three columns, a bracket either side. With the brackets gone the
@@ -952,6 +955,217 @@
   }
 }
 
+/* --- UI with meat: layers, cut corners, two hues with jobs --------------------- */
+
+/*
+ * [2026-10-29] *"I like the UI of this game, it's similar concept but they have more meat to the UI, not just single
+ * pixel outline box ... use this ui meat demo and implement the UI for me."* (docs/demos/ui-meat-2026-10-29.) What the
+ * reference has that this game lacked, and where it lands:
+ *
+ *   keys with end bars          above, on every key (an inset shadow: no width)
+ *   tabs with a glyph and a foot  the status bar, above
+ *   a ground under the windows  .os-window__body, below
+ *   hazard bands                the foot of every window, below
+ *   a card of layers            the hero pass and its two bands, below
+ *   warm = yours, cool = coming the trait and an owned breakthrough are amber plates, a locked one a dark inset
+ *
+ * The cut corners are straight chamfers (clip-path polygons) and the hatch is a two-colour hard-stop stripe: no
+ * radius, no blend. Both are the same drawing `pass-always` already used ("a printed object's cut corner").
+ */
+
+/* The ground: a 24px blueprint grid at 7% phosphor, under the content of every window, so a window is a plate laid
+   on something. It is behind text at a contrast the gate cannot measure, which is the point of 7%. */
+.os-window__body {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 23px, color-mix(in srgb, var(--p2) 7%, transparent) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--p2) 7%, transparent) 23px 24px);
+}
+
+/* Hazard band: the last 6px of every window is a two-colour hatch. It paints over the window's own bottom padding
+   (`pointer-events: none`), so no window grows by it. */
+.os-window {
+  position: relative;
+}
+
+.os-window::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: repeating-linear-gradient(135deg, var(--n2) 0 6px, var(--n0) 6px 12px);
+  pointer-events: none;
+}
+
+/* --- the hero pass --------------------------------------------------------- */
+
+.herocard__pass {
+  border-color: transparent;
+  border-left-color: var(--branch, var(--p2));
+  background: var(--n1);
+  /* The upper-right corner is cut, as the trait band's is: one object, one silhouette. */
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+/* The punch hole was the only round thing on the card. A card with a square notch is the same card. */
+.herocard__punch {
+  border-radius: 0;
+}
+
+/* The portrait: the branch's colour as a 3px shoulder (right and bottom) instead of a 1px outline. */
+.herocard__portrait {
+  border-color: transparent;
+  box-shadow: inset -3px -3px 0 0 var(--branch, var(--p2));
+}
+
+/* The voice line is a well: dark, set in, so the name block reads as a header over a body. */
+.herocard__flavour {
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  background: var(--n0);
+  font-style: normal;
+  color: var(--n6);
+}
+
+/* --- the two bands ----------------------------------------------------------- */
+
+/* ALWAYS is the lit amber plate: warm and filled is yours, every run. */
+.pass-always {
+  border-color: transparent;
+  background: var(--warn-1);
+  box-shadow: inset 3px 0 0 0 var(--warn-2);
+}
+
+.pass-always__name {
+  color: var(--n8);
+}
+
+.pass-always__text {
+  color: var(--warn-3);
+}
+
+.pass-always .herocard__facts > div {
+  border-color: transparent;
+  background: var(--n0);
+}
+
+/* The coming head is a band, not a box: filled, with the count at its end. */
+.pass-coming__head {
+  border-color: transparent;
+  background: var(--p0);
+  color: var(--p3);
+}
+
+/* Locked: a dark inset, its requirement a chip of its own. The dashed outline said "empty"; the inset says
+   "not yet", and the gate chip says what it takes. A name may wrap: *"never shorten titles with …"*. */
+.pass-slot {
+  border: 0;
+  padding: 4px 8px;
+  background: var(--n0);
+  box-shadow: inset 3px 0 0 0 var(--p1);
+}
+
+.pass-slot__name {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.pass-slot__gate {
+  max-width: none;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  padding: 1px 6px;
+  background: var(--n2);
+  color: var(--n6);
+}
+
+.pass-slot.is-ready {
+  border: 0;
+  box-shadow: inset 3px 0 0 0 var(--p3);
+}
+
+.pass-slot.is-ready .pass-slot__gate {
+  background: var(--p1);
+  color: var(--n8);
+}
+
+.pass-slot.is-owned {
+  border: 0;
+  background: var(--warn-1);
+  box-shadow: inset 3px 0 0 0 var(--warn-2);
+}
+
+.pass-slot.is-owned .pass-slot__gate {
+  background: var(--warn-2);
+  color: var(--n0);
+}
+
+/* The last hairlines on the personnel window. The rule under the pass and under the progress line become the ground
+   they separate; the effect chip is a plate; the punch is a solid square of the branch's colour. */
+.herocard__side {
+  border-bottom-color: transparent;
+}
+
+.trees__who {
+  border-bottom-color: transparent;
+  background: var(--p0);
+}
+
+.trees__effect {
+  border-color: transparent;
+  background: var(--n0);
+}
+
+.herocard__punch {
+  border-color: transparent;
+  background: var(--branch, var(--p2));
+}
+
+/* The staff directory's columns are narrow, and a name that may wrap no longer gets clipped by an ellipsis, so the
+   gate drops under the name rather than being drawn over it. */
+.staffdir .pass-slot {
+  grid-template-columns: 10px minmax(0, 1fr);
+}
+
+.staffdir .pass-slot__gate {
+  grid-column: 2;
+  justify-self: start;
+}
+
+/* --- the upgrade inspector: a plate beside the board, not a line down its edge --------- */
+
+.trees__inspector {
+  border-left-color: transparent;
+  background: var(--n1);
+  box-shadow: inset 3px 0 0 0 var(--p2);
+}
+
+/* The dialogue's "TAP ANYWHERE" hint hangs 10px under its box, and with the box at 8% of the frame that put the
+   hint (and on a 336px frame the box's own foot) over the taskbar. The box clears the taskbar *and* its hint:
+   at least 74px from the frame's foot, or 8% where that is more. */
+.ui-panel.ui-dialogue {
+  bottom: calc(var(--edge-y) + max(8%, 74px));
+}
+
+/* On a phone frame the inspector was a 200px sheet with 235px of content in 148px, so it scrolled (*"on phone size the
+   personnel panel right hand side is scrolling, this should not happen"*, 2026-10-29). It is two columns there: the
+   name, its tags and its text on the left, what it does and what it costs on the right. It covers more of a board that
+   is already short, which is the trade; the board pans and zooms, and a sheet that scrolls cannot be read at a glance. */
+@container frame (max-height: 470px) {
+  .trees__inspector {
+    width: min(400px, 64%);
+    column-count: 2;
+    column-gap: 12px;
+  }
+
+  .trees__inspector > * {
+    break-inside: avoid;
+  }
+}
+
 /* --- the status bar --------------------------------------------------------- */
 
 /*
@@ -976,18 +1190,29 @@
   position: relative;
 }
 
-.hud__status-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 3px;
-  bottom: 3px;
-  width: 3px;
-  background: var(--p2);
+/*
+ * A tab, not a block [2026-10-29, the "UI with meat" pass]. Each reading is a plate with its upper-right corner cut,
+ * a glyph for what it counts in the padding a block already has (so the bar's width is exactly what it was: the
+ * wrap at 640x360 and 748x336 depends on it), and a 3px foot in its category's colour. The glyph is a clip-path
+ * shape, so it is hard-edged at any scale, and it is what lets a player know which reading is which without
+ * reading a word.
+ */
+.hud__status-item {
+  background: var(--n2);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  box-shadow: inset 0 -3px 0 0 var(--p2);
 }
 
-.hud__status-item--cash::before {
-  background: var(--warn-2);
+.hud__status-item--cash {
+  box-shadow: inset 0 -3px 0 0 var(--warn-2);
+}
+
+.hud__status-item--velocity {
+  box-shadow: inset 0 -3px 0 0 var(--p3);
+}
+
+.hud__status-item:hover {
+  background: var(--n3);
 }
 
 /* The plate's extra paint must cost no width, in either direction. Too wide and the bar wrapped to two rows and
@@ -995,16 +1220,6 @@
    narrow and starbound jumped to the first row at 748x336 (above). So the 3px tag lives in the padding a block already
    has. The numerals sit straight on the bar: a darker box behind each one (tried 2026-10-28) made every reading look
    like a text field, and a reading is not a thing you can type into. The tag colour is what groups label and number. */
-
-@media (max-height: 470px) {
-  .hud__status-item::before {
-    width: 2px;
-  }
-}
-
-.hud__status-item:hover {
-  background: var(--n2);
-}
 
 /* A lump of cash arriving (a release paying out), not the drip of income: white, then amber, then rest. */
 .hud__status .hud__num.is-lump {

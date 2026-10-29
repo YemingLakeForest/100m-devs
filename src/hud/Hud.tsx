@@ -590,16 +590,16 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         <StatusItem tip={() => cashTip(state)} className="hud__status-item--cash">
           <Cash state={state} />
         </StatusItem>
-        <StatusItem tip={() => devsTip(state)}>
+        <StatusItem tip={() => devsTip(state)} className="hud__status-item--devs">
           <Devs state={state} />
         </StatusItem>
-        <StatusItem tip={() => shippedTip(state)}>
+        <StatusItem tip={() => shippedTip(state)} className="hud__status-item--shipped">
           <Shipped state={state} />
         </StatusItem>
-        <StatusItem tip={() => velocityTip(state)}>
+        <StatusItem tip={() => velocityTip(state)} className="hud__status-item--velocity">
           <Velocity state={state} />
         </StatusItem>
-        <StatusItem tip={() => syncTip(entropy, pastPeak)}>
+        <StatusItem tip={() => syncTip(entropy, pastPeak)} className="hud__status-item--sync">
           <Speedometer entropy={entropy} pastPeak={pastPeak} labelled={unlocks.entropyLabel} />
         </StatusItem>
         {/* §21.7.0 rule 5 — the clock James's gym runs on, only around the gym. */}
