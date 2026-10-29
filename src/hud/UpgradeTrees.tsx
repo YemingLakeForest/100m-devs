@@ -641,6 +641,8 @@ function Inspector({ hero, id, state, onClear }: {
 
   return (
     <aside className="trees__inspector">
+      {/* Two groups so a short frame can set them side by side (keys.css); on a tall one they are `display: contents`. */}
+      <div className="trees__what">
       <p className="trees__eyebrow">
         {TREE_HERO_DEFS[hero].name.toUpperCase()} · {node.kind === 'root' ? 'THE START' : eraName(node.era)}
       </p>
@@ -655,6 +657,8 @@ function Inspector({ hero, id, state, onClear }: {
         {node.all && <span className="trees__tag">NEEDS EVERY LINK</span>}
       </p>
       <p className="trees__text">{node.text}</p>
+      </div>
+      <div className="trees__does">
       {node.kind !== 'root' && why !== 'maxed' && (() => {
         const ba = beforeAfter(node, level)
         return ba ? (
@@ -683,6 +687,7 @@ function Inspector({ hero, id, state, onClear }: {
           {others.map((o) => <li key={o.id} className="trees__req" data-ok="false">x CLOSES {o.name.toUpperCase()}</li>)}
         </ul>
       )}
+      </div>
       <div className="trees__act">
         {node.kind !== 'root' && why !== 'maxed' ? (
           <Button

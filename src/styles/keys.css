@@ -1151,18 +1151,68 @@
 }
 
 /* On a phone frame the inspector was a 200px sheet with 235px of content in 148px, so it scrolled (*"on phone size the
-   personnel panel right hand side is scrolling, this should not happen"*, 2026-10-29). It is two columns there: the
-   name, its tags and its text on the left, what it does and what it costs on the right. It covers more of a board that
+   personnel panel right hand side is scrolling, this should not happen"*, 2026-10-29). Balanced CSS columns were the
+   first answer and were wrong: a buyable node has more in it than the root, and the browser put the BUY key in a
+   third column off the edge. So the markup says which is which: what the node IS (name, tags, text) beside what it
+   DOES (before/after, effect, requirements), with the BUY/BACK row under what it is. It covers more of a board that
    is already short, which is the trade; the board pans and zooms, and a sheet that scrolls cannot be read at a glance. */
+.trees__what,
+.trees__does {
+  display: contents;
+}
+
 @container frame (max-height: 470px) {
   .trees__inspector {
-    width: min(400px, 64%);
-    column-count: 2;
+    width: min(470px, 76%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     column-gap: 12px;
+    align-content: start;
+    padding: 6px 10px 8px;
   }
 
-  .trees__inspector > * {
-    break-inside: avoid;
+  .trees__what {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .trees__does {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .trees__inspector > .trees__act {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+  }
+
+  .trees__ba-from,
+  .trees__ba-to {
+    font-size: var(--type-1x);
+  }
+
+  .trees__ba {
+    margin: 0 0 4px;
+    padding: 3px 6px;
+  }
+
+  .trees__effect {
+    margin: 0 0 4px;
+    padding: 3px 6px;
+  }
+
+  .trees__text,
+  .trees__reqs,
+  .trees__tags {
+    margin: 0 0 4px;
+  }
+
+  .trees__title {
+    margin: 0 0 3px;
   }
 }
 
