@@ -76,6 +76,7 @@ import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 import { getViewModes, onViewModes } from '../dev/viewModes.ts'
 import { getSimSpeed } from '../dev/simSpeed.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
+import { QualityGovernor } from '../perf/qualityGovernor.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
@@ -231,11 +232,19 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * [2026-09-26] **A phone gets the lighter room** — no SSAO pass, one pixel per
    * CSS pixel, a smaller shadow map (`GarageViewOptions.lite`). *"The
    * conversation in phone is very clunky"*: a touch screen with a phone's short
-   * side. `?gpu=lite` and `?gpu=full` force either on a local build.
+   * side.
+   *
+   * [2026-10-30] **So does the browser** — *"I need the mobile game to be smooth, and
+   * the browser should be a good simulation of it"*. The desktop browser used to get
+   * the full room (SSAO, 4x MSAA, up to 2x pixels), which made it the one place the
+   * game neither looked nor ran like the phone, so a frame rate judged there said
+   * nothing about the thing shipped. `?gpu=full` is the way back to the full room on a
+   * local build.
    */
   const gpu = params.get('gpu')
-  const lite = gpu === 'lite' || (gpu !== 'full'
-    && window.matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width, window.screen.height) < 600)
+  const lite = gpu !== 'full'
+  // §23.3: past the lite room's own pixels, the governor trades resolution for frames.
+  const governor = lite ? new QualityGovernor() : null
 
   let w = Math.max(1, host.clientWidth)
   let h = Math.max(1, host.clientHeight)
@@ -635,6 +644,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     lastFrame = now
     frameMs = rawFrameMs
     frames.sample(rawFrameMs)
+    const eased = governor?.sample(rawFrameMs)
+    if (eased != null) { garage.setPixelRatio(eased); sizeNumerals() }
 
     // §26.1.8's `?speed`, a dial rather than a constant: repeated whole ticks,
     // never a bigger `dt` (`dev/simSpeed.ts`).

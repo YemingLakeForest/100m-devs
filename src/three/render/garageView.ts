@@ -127,6 +127,8 @@ export interface GarageView {
   /** The founder the player made, and the studio's name on the gable. Rebuild only on change. */
   setIdentity(founder: Look, studio: string | null): void
   resize(width: number, height: number): void
+  /** Device pixels per CSS pixel the room is drawn at: the resolution governor's one lever (`perf/qualityGovernor.ts`). */
+  setPixelRatio(ratio: number): void
   /** The resting zoom, 1 = the room framed. */
   setLens(zoom: number): void
   /** Zoom by `factor` about canvas point (x, y), in CSS pixels. */
@@ -1194,6 +1196,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       // The frame's shape decides how far out the whole studio needs.
       if (env) reframeLimits()
       dirty = true
+    },
+    setPixelRatio(ratio) {
+      renderer.setPixelRatio(ratio)
+      view.resize(w, h)
     },
     setLens(z) {
       zoom = Math.max(zoomFloor, Math.min(ZOOM_MAX, z))

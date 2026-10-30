@@ -17495,6 +17495,7 @@ container, which was hidden whenever the 3D room was on screen, and it was not p
 <p>These began as the spike's acceptance gate. They are now the standing budget: any build that
 fails one has regressed, and §7.6's Construction Ladder and §21's Act IV spectacle are the
 two features most likely to cause it.</p>
+<p><strong>[amended 2026-10-30] The browser is a simulation of the phone, so it draws the phone's room.</strong> <em>"I need the mobile game to be smooth, and the browser should be a good simulation of it."</em> The lite room (no SSAO, 2&times; MSAA, one pixel per CSS pixel, a 1024 shadow map) used to be chosen only for a coarse-pointer screen under 600&nbsp;px, so a desktop browser drew the full room and a frame rate read there said nothing about the shipped build. Lite is now the default everywhere; <code>?gpu=full</code> restores the full room on a local build. Under it, a resolution governor (<code>perf/qualityGovernor.ts</code>) walks the pixel ratio down 1 &rarr; 0.8 &rarr; 0.65 when a 90-frame window averages over 22&nbsp;ms, and never back up: a governor that also climbs oscillates on exactly the devices that need it. The glass over the room (§6) is what hides the lost pixels. Rejected: shedding frames instead of pixels, which the tap-latency criterion above cannot afford.</p>
 <table>
 <thead>
 <tr>
