@@ -4,7 +4,6 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { createCityHouse, dressCityLot } from './cityHouse.ts'
 import { box, disposeArt } from './worldArt.ts'
-import { defaultCast } from './studioPeople.ts'
 import { BLOCK_SIZE, BLOCK_PITCH } from './cityGrid.ts'
 import { OS } from '../art/skin.ts'
 
@@ -45,7 +44,7 @@ export function bakeCityImpostors(renderer: T.WebGLRenderer): CityImpostors {
   renderer.setClearColor(0,0); renderer.shadowMap.enabled=false
   try {
     for (let variant=0; variant<3; variant++) {
-      const house=createCityHouse(variant,defaultCast); house.body.position.y=-.3; root.add(house.body)
+      const house=createCityHouse(variant); house.body.position.y=-.3; root.add(house.body)
       const states: HTMLCanvasElement[]=[]
       for (let step=0; step<=4; step++) {
         house.fill(step*25); composer.render()

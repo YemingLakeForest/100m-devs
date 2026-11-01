@@ -3612,10 +3612,10 @@ the style of the how structures fall, like starcraft terran structure fall down 
 then: <em>&quot;but more importantly, how you create the scene, we should make it houses fall, let&#39;ts simplify the
 scene as the sims city 4 style grid and building each occupy each block.&quot;</em></p>
 <ul>
-<li><strong>The grid.</strong> Past the garage the world is square blocks between streets, seen from §12.1&#39;s fixed
+<li><strong>The grid.</strong> <strong>[amended 2026-11-01: tiles of one floor with no street between, see below]</strong> Past the garage the world is square blocks between streets, seen from §12.1&#39;s fixed
 camera, which is already SimCity 4&#39;s kind of view. The garage is the grid&#39;s first block, and the grid is laid out
 around it.</li>
-<li><strong>One building to a block.</strong> A building fills its block and nothing else: nothing straddles a street,
+<li><strong>One building to a block.</strong> <strong>[superseded 2026-11-01: one tile of one floor to an address, see below]</strong> A building fills its block and nothing else: nothing straddles a street,
 nothing stands between blocks, nothing is placed free-hand. The studio grows by the next empty block taking a
 building.</li>
 <li><strong>Houses fall.</strong> <strong>[superseded 2026-10-31: houses unfold, see below]</strong> The first buildings to arrive are houses. Each one falls out of the sky onto its block
@@ -3644,6 +3644,32 @@ and fires when the house lies flat. <strong>What did not move:</strong> the hire
 the lift-off on thrusters when a layoff empties a house or the first death liquidates the city (§15.1a), and the addresses.
 The ground plane under the city sits forty metres down so a house can swing up from under its block; it is flat and unlit, so
 nothing about the picture changes but the swing.</p>
+<p><strong>[amended 2026-11-01, at the user's instruction] The city is one office, grown a tile at a time; there are no houses on it.</strong>
+Contradicts &quot;One building to a block&quot; (<em>&quot;A building fills its block and nothing else: nothing straddles a street&quot;</em>) and the shape of
+the 2026-10-31 amendment (a house, with a roof and a street round it, hinged open). The user, after the office-unfold demo: <em>&quot;I don&#39;t want
+the houses unfolded one by one, I want the entire place as one big office&quot;</em>; after a first draft that opened the whole floor at once:
+<em>&quot;I actually want some more profound change, I want the entire place as one contagious [sic: contiguous] office&quot;</em>, then <em>&quot;good, but
+I want the tile by tile expansion&quot;</em>, then of the garage: <em>&quot;no need for the inner wall around the HQ&quot;</em>, then <em>&quot;ok, implement in the
+game&quot;</em> (<code>docs/demos/one-office-2026-11-01/</code>). <strong>What stands on an address is a tile of one floor</strong> (<code>officeTile.ts</code>): 33 &times; 25 m,
+the garage&#39;s own apron, laid edge to edge from the apron&#39;s centre so that the first seam is flush with it. There is no street, roof or lot
+between tiles; the carpet, the aisles and the columns run across every seam, and the only wall is a glass one round the outside of what is
+open. <strong>A side of a tile is walled only while nothing is open beyond it</strong>: the wall folds into the floor when the tile beyond starts to open, comes
+back up when that tile goes, and the garage&#39;s sides have no wall at all, because the garage is the heart of the floor and not a building standing
+in it. The two front doors, where the avenues from the garage end, are in whichever tile is last on theirs, so they walk outward with the floor.
+A tile holds the same hundred seats and the same interior the house did (the cutaway office, <code>cityInterior.ts</code>), its islands spread so that they
+fill the tile and the aisles between them are a person wide; the strips along its north and south edges carry the meeting rooms, pantries,
+lounges and phone booths that make a floor an office and not a seating chart. A tile opens the way a house did (hinged on its oldest neighbour,
+<code>cityHinge</code>) and now hangs from that neighbour&#39;s panel while it swings, so a burst of them folds open as a chain. Its furniture then rises in a wave
+that runs away from the seam, and its people arrive when the wave has passed. <em>Why:</em> a house is a unit, and a unit is a count: house seven,
+house eight, with a street between each to say so. The user&#39;s picture of a company that grows is a floor that gets bigger, and a floor has no unit the
+eye can count, only an edge, so the edge is what moves: the wall follows the open floor out and the camera fits what is open, which keeps &sect;7.8.1c&#39;s
+<em>the studio you see is the studio you have</em>. A tile cannot overlap another for the reason a house could not (each stands in its own cell of the
+lattice), so 禁止穿模 is still true by construction. <strong>What did not move:</strong> the addresses and their order (the district&#39;s diagram reads them in its
+own units), the hundred seats, the garage&#39;s twenty, a hire into a standing tile (the desk falls first, its developer a quarter-second behind), the
+landing&#39;s juice (a ring of dust round the footprint, the camera&#39;s whump, fired when the tile lies flat), and the thruster lift-off when a layoff empties a
+tile or the first death liquidates the city (&sect;15.1a), now a tile lifting out of the floor with the walls beside it standing back up. <strong>Not yet
+followed:</strong> the district&#39;s atlas still bakes the old houses (<code>cityHouse.ts</code>, <code>cityImpostors.ts</code>) and the scale bar still reads
+<code>1 HOUSE = 100 DEVS</code>; that rung has not been redrawn, and its picture still shows the blocks and streets this paragraph retires.</p>
 <p><strong>Why a grid.</strong> The storeys across the lane (§7.8.1c, built the same morning) drew a hundred furnished
 desks to a storey: building one cost the worst frame the game has (117 ms), every seat was one more place for
 furniture to clip, and past a few storeys the picture read as a tall box. A block is a unit anybody can count at a
@@ -5833,6 +5859,8 @@ expansion onto a SimCity 4 grid of blocks, one building to a block, with houses 
 replaces it, and is not the design.</p>
 <p><strong>[amended 2026-10-31] The grid's arrival is an unfold.</strong> §7.7.2's amendment of the same date replaces the
 falling house with a house hinged open on its neighbour's edge; the storeys across the lane were already not the design.</p>
+<p><strong>[amended 2026-11-01] The hinged house is a hinged tile.</strong> &sect;7.7.2's amendment of the same date makes what is hinged open a tile of one
+floor, laid edge to edge with no street and no roof: the unfold's verb is unchanged and its unit is not.</p>
 <p><strong>[amended 2026-09-03.]</strong> The unfold is unchanged in every respect except <em>when</em>. It fires after
 the <strong>twentieth</strong> ordinary hire visibly completes the garage, and what unfolds around the garage
 is <strong>one office floor of a hundred seats</strong> rather than a hundred squad plates. Every argument
@@ -9471,7 +9499,7 @@ developer gulps where they sit</strong> (a short quiver, the joke being that the
 through the roof with their desk and chair after them, a puff where each left the floor; <strong>the people nearby flinch</strong>,
 ducking where they sit in a ripple out from the seat, never a hop, because nobody cheers; the room takes a small jolt and
 a whoosh. In an open office the same, at the house's scale; a closed house that is thinned sags on its lot where a hire's
-would bounce; and a house a layoff empties lifts off on its thrusters, the liquidation's exit, one house at a time. The
+would bounce; and a house a layoff empties lifts off on its thrusters, the liquidation's exit, one house at a time <strong>[amended 2026-11-01: a tile of the office, lifting out of the floor with the walls beside it standing back up; &sect;7.7.2]</strong>. The
 bubble (<em>"This is not a layoff. This is a restructuring."</em>) still carries the line.</p>
 </blockquote>
 <h3 id="the-release-gallery-what-you-have-actually-made-canon-added-2026-08-10-r28">10.11 The Release Gallery — what you have actually made <strong>[CANON - added 2026-08-10]</strong> - R28</h3>

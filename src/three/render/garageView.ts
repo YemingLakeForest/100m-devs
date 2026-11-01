@@ -496,7 +496,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   puffWarm.frustumCulled = false
   scene.add(puffWarm)
 
-  /** §7.7.2: each house owns one block, and shares the garage's light and clock. */
+  /** §7.7.2: the office's tiles are slices of one floor round the garage, and share its light and clock. */
   let landings = 0, ignitions = 0
   const city = createCityHouses({
     landed(footprint) { dustRing(footprint); landings += 1 },
@@ -555,10 +555,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   }
   let flowRate = 0, flowProgress = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
   let flowLots: FlowLot[] = []
+  /**
+   * The garage's survey bracket marks a lot, and the lot is the garage's alone only until the office opens round it: from the first
+   * tile on, the floor runs up to its apron on every side and a bracket would be drawn across the carpet (2026-11-01).
+   */
+  let hqLot: T.LineSegments | null = null
   if (OS_NIGHT) {
     scene.add(createOsDesktop())
-    // The HQ's own lot wears the bracket every house lot wears (`cityHouses.ts`).
-    const hqLot = createLotBrackets(LOT_BRACKET); hqLot.position.set(0, -.29, 0); scene.add(hqLot)
+    hqLot = createLotBrackets(LOT_BRACKET); hqLot.position.set(0, -.29, 0); scene.add(hqLot)
   }
   /** How far out the lens may go, and how far the pan may reach: wider as the city grows. */
   let zoomFloor = .005
@@ -1113,6 +1117,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         dirty = true
       }
       city.setStaff(across, settled, laidOff && settled)
+      if (hqLot) hqLot.visible = city.count === 0
       if (city.count !== hadHouses) {
         reframeLimits()
         if (settled && city.count > hadHouses) frameStudio()

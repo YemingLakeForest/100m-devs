@@ -2,14 +2,15 @@ import * as T from 'three'
 import { RAMPS } from '../../art/palette.ts'
 import { box, cylinder, sphere, batchArt, disposeArt, sharedMaterial } from './worldArt.ts'
 import { HOUSE_CAPACITY } from './cityGrid.ts'
-import { createCityInterior } from './cityInterior.ts'
-import type { StudioCast } from './studioPeople.ts'
 
 const N = RAMPS.NEUTRAL, W = RAMPS.WOOD, F = RAMPS.FOLIAGE, G = RAMPS.GLOW
 
-/** One hundred people, three small office campuses. Shared geometry is also the
- * district's art, so a roof terrace remains a terrace at the next scale. */
-export function createCityHouse(index: number, cast: () => StudioCast, reserved = 0) {
+/**
+ * One hundred people, three small office campuses. **This is the district's art now, and only the district's** [2026-11-01]: the near
+ * scene stopped building houses when the city became one floor of tiles (`officeTile.ts`, GDD §7.7.2), but the district's atlas still
+ * bakes these (`cityImpostors.ts`), so a roof terrace remains a terrace at the next scale until that rung is redrawn.
+ */
+export function createCityHouse(index: number) {
   const body = new T.Group()
   const variant = index % 3
   const wall = [N[6], N[4], N[5]][variant], trim = N[6]
@@ -70,15 +71,12 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
   // [2026-10-18] The slab and steps were the lightest plaster, lit, and bloomed into a white sheet in front of the cutaway.
   box(body, 0, .35, 9, 6.3, .22, 3.7, N[4])
   for (const [z, y, width] of [[11.1, .08, 3.4], [10.65, .24, 2.9]]) box(body, 0, y, z, width, .15, .65, N[5])
-  // The posts go with the canopy they hold up: opened, the house left two bare white columns standing on its porch.
-  const canopyStart = body.children.length
   for (const x of [-2.7, 2.7]) {
     box(body, x, .57, 10.25, .24, 2.8, .24, trim)
     box(body, x, .57, 10.25, .5, .3, .5, N[5])
   }
   box(body,0,3.65,9.2,6.4,.18,3.8,N[5])
   box(body,0,3.83,9.2,5.8,.04,3.2,G[0])
-  const canopy = body.children.slice(canopyStart)
   box(body, 0, .9, 7.6, 2.1, 2.45, .18, N[2])
   box(body, 0, 1.1, 7.71, 1.8, 1.65, .05, G[0])
   box(body, 0, 2.6, 7.71, 1.8, .45, .05, G[0])
@@ -140,35 +138,11 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
   batchArt(body)
   const exterior = body
   const whole = new T.Group(); whole.add(exterior, porch); whole.scale.set(1.25, 1, 1.25)
-  let interior: ReturnType<typeof createCityInterior> | null = null
-  let filled = 0
   return {
     body: whole, exterior, windows,
-    get interior() { return interior },
-    /**
-     * `n` seats are taken, the first `reserved` of them by the garage, so the windows lit are the people actually in here.
-     * `arrive` (the clock) is a hire arriving into a house that is open: the interior drops them in. A closed house has no
-     * interior to fall into, and its hire is told by the city (`cityHouses.ts`).
-     */
-    /** `leave`: the clock, when the seats this empties were laid off and somebody is looking in to see them go. */
-    fill(n: number, arrive?: number, leave?: number) {
-      filled = n; windows.count = Math.max(0, n - reserved)
-      interior?.fill(n, interior.root.visible ? arrive : undefined, interior.root.visible ? leave : undefined)
-    },
-    /** Hires that have landed on a desk inside since this was last asked. */
-    takeLandings() { return interior?.takeLandings() ?? 0 },
-    /** People laid off who have been yanked out of their seats since this was last asked. */
-    takeDepartures() { return interior?.takeDepartures() ?? 0 },
-    takeDeskLandings() { return interior?.takeDeskLandings() ?? 0 },
-    cutaway(on: boolean) {
-      if (on && !interior) { interior = createCityInterior(index, cast(), reserved); interior.fill(filled); whole.add(interior.root) }
-      const changed = exterior.visible === on
-      exterior.visible = !on
-      canopy.forEach(piece => { piece.visible = !on })
-      if (interior) interior.root.visible = on
-      return changed
-    },
-    dispose() { disposeArt(exterior); disposeArt(porch); interior?.dispose(); windowGeometry.dispose(); windowMaterial.dispose() },
+    /** The district lights as many windows as it has people to show (`cityImpostors.ts`). */
+    fill(n: number) { windows.count = Math.max(0, Math.min(HOUSE_CAPACITY, n)) },
+    dispose() { disposeArt(exterior); disposeArt(porch); windowGeometry.dispose(); windowMaterial.dispose() },
   }
 }
 

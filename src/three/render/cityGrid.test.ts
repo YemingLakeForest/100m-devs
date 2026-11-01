@@ -1,19 +1,47 @@
 import { describe, expect, it } from 'vitest'
 import * as T from 'three'
-import { BLOCK_SIZE, STREET_WIDTH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, districtBlock, houseUnfold, cityHinge, UNFOLD_SECONDS } from './cityGrid.ts'
+import { TILE_W, TILE_D, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, districtBlock, officeTile, tileAt, cityParent, houseUnfold, cityHinge, UNFOLD_SECONDS } from './cityGrid.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { createThrusters } from './thrusters.ts'
-import { createCityInterior, houseSeat } from './cityInterior.ts'
+import { createCityInterior, houseSeat, INTERIOR_SCALE } from './cityInterior.ts'
 import { defaultCast } from './studioPeople.ts'
 
 describe('the city blocks (§7.7.2)', () => {
-  it('reserves the origin for the garage and fills nearest first, leaving streets between lots', () => {
+  it('reserves the origin for the garage and fills nearest first (the district\'s order)', () => {
     const blocks = Array.from({ length: CITY_CAPACITY / HOUSE_CAPACITY + 1 }, (_, i) => cityBlock(i))
     expect(blocks[0]).toEqual({ x: 0, z: 0 })
-    blocks.forEach((b, i) => {
-      if (i) expect(b.x ** 2 + b.z ** 2).toBeGreaterThanOrEqual(blocks[i - 1].x ** 2 + blocks[i - 1].z ** 2)
-      blocks.slice(0, i).forEach(a => expect(Math.max(Math.abs(a.x - b.x), Math.abs(a.z - b.z))).toBeGreaterThanOrEqual(BLOCK_SIZE + STREET_WIDTH))
+    blocks.forEach((b, i) => { if (i) expect(b.x ** 2 + b.z ** 2).toBeGreaterThanOrEqual(blocks[i - 1].x ** 2 + blocks[i - 1].z ** 2) })
+  })
+  it('lays the office in tiles that touch: no street, no gap, no overlap, and the garage\'s own apron is the first of them (2026-11-01)', () => {
+    // *"I want the entire place as one big office"* — the claim is that nothing is between one tile and the next, not the pitch.
+    const tiles = Array.from({ length: CITY_CAPACITY / HOUSE_CAPACITY + 1 }, (_, i) => officeTile(i))
+    expect(tiles[0]).toMatchObject({ x: 1.5, z: 1.1 })   // the apron `garageEnvironment` lays under the garage, so the first seam is flush with it
+    tiles.forEach((t, i) => {
+      // the same addresses as the district's, in the same order: zooming out reshuffles nothing
+      expect(tileAt(t.ix, t.iz)).toBe(i)
+      tiles.slice(0, i).forEach(a => {
+        const apartX = Math.abs(a.x - t.x), apartZ = Math.abs(a.z - t.z)
+        expect(apartX >= TILE_W - 1e-9 || apartZ >= TILE_D - 1e-9).toBe(true)    // never overlapping
+      })
+      // and each one touches an older one along a whole edge
+      if (i) expect(tiles.slice(0, i).some(a => (Math.abs(a.x - t.x) === TILE_W && a.z === t.z) || (Math.abs(a.z - t.z) === TILE_D && a.x === t.x))).toBe(true)
     })
+  })
+  it('hangs every tile from the oldest tile beside it, the garage being the oldest of all', () => {
+    for (let i = 1; i <= 18; i++) {
+      const parent = cityParent(i), { dx, dz } = cityHinge(i)
+      expect(parent).toBeLessThan(i)
+      const here = officeTile(i), there = officeTile(parent)
+      expect([there.x - here.x, there.z - here.z]).toEqual([dx * TILE_W, dz * TILE_D])
+      // nothing older is beside it on any other side
+      for (const [sx, sz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const other = tileAt(here.ix + sx, here.iz + sz)
+        if (other !== undefined) expect(other).toBeGreaterThanOrEqual(parent)
+      }
+    }
+    // the first four hang from the garage, so the office opens on every side of it
+    expect([1, 2, 3, 4].map(cityParent)).toEqual([0, 0, 0, 0])
+    expect(tileAt(40, 40)).toBeUndefined()
   })
   it('keeps neighbourhood addresses fixed when the district becomes visible', () => {
     for (let i=0;i<=18;i++) expect(districtBlock(i)).toEqual(cityBlock(i))
@@ -230,21 +258,70 @@ describe('the city blocks (§7.7.2)', () => {
     city.dispose()
   })
 
-  it('fits a hundred distinct workstations inside the house with space between desk tops', () => {
+  it('walls a side of a tile only while nothing is open beyond it, and takes the wall down as the tile beyond starts to open (2026-11-01)', () => {
+    // *"no need for the inner wall around the HQ"* and the wall that follows the floor out: the claim is where a wall stands and
+    // that it moves, not how high or how fast.
+    let now = 0
+    const city = createCityHouses({ landed() {}, ignited() {}, hired() {} })
+    city.setStaff(150, false); city.update(0)
+    // Tiles 0 and 1 are the garage's north and west neighbours (addresses (0,-1) and (-1,0)): each has the garage on its inner side,
+    // and the garage is not walled off from it. Everything else faces the outside.
+    expect(city.wallHeights(0)).toEqual({ N: 1, S: 0, W: 1, E: 1 })
+    expect(city.wallHeights(1)).toEqual({ N: 1, S: 1, W: 1, E: 0 })
+    // Two more tiles open: the fifth is the diagonal (-1,-1), beside both of them.
+    city.setStaff(450, true)
+    expect(city.count).toBe(5)
+    for (now = 0; now < 4; now += 1 / 30) city.update(now)
+    expect(city.wallHeights(0).W).toBe(0)    // tile 0's west side faces the fifth tile
+    expect(city.wallHeights(1).N).toBe(0)    // tile 1's north side faces it too
+    expect(city.wallHeights(0).N).toBe(1)    // and the outside is still walled
+    // Let the fifth go (a layoff): its place in the floor is empty, so the walls beside it stand back up.
+    city.setStaff(150, true, true)
+    for (now = 4; now < 8; now += 1 / 30) city.update(now)
+    expect(city.wallHeights(0).W).toBe(1)
+    expect(city.wallHeights(1).N).toBe(1)
+    // A city that is not the home one has no garage: the side that would face it is the outside.
+    city.setOffset(1800); city.setStaff(100, false); city.update(8)
+    expect(city.wallHeights(0).S).toBe(1)
+    city.dispose()
+  })
+  it('thumps a new tile once, when its furniture has risen, and not when it was ordered (2026-11-01)', () => {
+    // The first tile's people are told when the wave has passed their desks: a hire into a floor that has not finished rising has
+    // nothing to land on.
+    const hires: number[] = []
+    let now = 0
+    const city = createCityHouses({ landed() {}, ignited() {}, hired: () => hires.push(now) })
+    city.setStaff(30, true)
+    expect(hires).toHaveLength(0)
+    for (now = 0; now < 1.2; now += 1 / 60) city.update(now)
+    expect(hires).toHaveLength(0)
+    for (now = 1.2; now < 6; now += 1 / 60) city.update(now)
+    expect(hires).toHaveLength(1)
+    expect(hires[0]).toBeGreaterThan(1.5)
+    city.dispose()
+  })
+  it('fits a hundred distinct workstations in one tile, with an aisle between every island and the room strips clear (2026-11-01)', () => {
+    // A tile is 33 x 25 m. Its walls and columns take the outer metre and a half; the strips of meeting rooms and pantries along its
+    // north and south edges (`officeTile.ts`) start at z = ±10.2. The claim is that the hundred desks fit between them and never
+    // touch: not the pitch.
     const desks = Array.from({ length: HOUSE_CAPACITY }, (_, i) => {
       const at = houseSeat(i)
-      return { ...at, z: at.z + (Math.floor(i / 10) % 2 ? -.46 : .46) }
+      return { x: at.x * INTERIOR_SCALE, y: at.y, z: (at.z + (Math.floor(i / 10) % 2 ? -.46 : .46)) * INTERIOR_SCALE, standingZ: at.z * INTERIOR_SCALE }
     })
     expect(new Set(desks.map(d => `${d.x},${d.y},${d.z}`)).size).toBe(HOUSE_CAPACITY)
     desks.forEach((d, i) => {
-      expect(Math.abs(d.x) + .57).toBeLessThan(8.87)
-      // The centre aisle, x ±.51, stays clear of desks.
-      expect(Math.abs(d.x) - .57).toBeGreaterThan(.51)
-      expect(Math.abs(d.z) + .3).toBeLessThan(7.37)
+      expect(Math.abs(d.x) + .57 * INTERIOR_SCALE).toBeLessThan(TILE_W / 2 - 1.5)
+      // The developer stands on the outside of the island, a little further out than the desk.
+      expect(Math.abs(d.standingZ) + .4).toBeLessThan(10.2)
       desks.slice(0, i).forEach(other => {
-        if (other.y === d.y) expect(Math.abs(other.x - d.x) >= 1.14 || Math.abs(other.z - d.z) >= .6).toBe(true)
+        if (other.y === d.y) expect(Math.abs(other.x - d.x) >= 1.14 * INTERIOR_SCALE || Math.abs(other.z - d.z) >= .6 * INTERIOR_SCALE).toBe(true)
       })
     })
+    // An aisle at least a metre wide runs between neighbouring islands, across and along.
+    const islandsX = [...new Set(Array.from({ length: 10 }, (_, c) => Math.floor(c / 2)))].map(k => houseSeat(k * 2).x * INTERIOR_SCALE)
+    islandsX.slice(1).forEach((x, k) => expect(x - islandsX[k] - 2 * (.72 + .57) * INTERIOR_SCALE).toBeGreaterThan(1))
+    const pairsZ = Array.from({ length: 5 }, (_, p) => houseSeat(p * 20).z * INTERIOR_SCALE)
+    pairsZ.slice(1).forEach((z, k) => expect(z - pairsZ[k] - (1.6 + 2 * .3) * INTERIOR_SCALE).toBeGreaterThan(1))
   })
   it('exposes only hired people to picking and retains their global seat across the house boundary', () => {
     const inside = createCityInterior(1, defaultCast())

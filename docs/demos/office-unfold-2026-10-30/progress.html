@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Office Unfold Progress</title>
 <style>
-/* Progress page, 2026-11-01. What the office-unfold work has produced so far, what is in the game, and what is not.
+/* Progress page, updated 2026-11-01. What the office-unfold work has produced so far, what is in the game, and what is not.
    Palette is src/art/palette.ts, copied; the font is the juice demo's. */
 @font-face { font-family:'Departure Mono'; src:url('../ui-juice-2026-10-28/assets/departure.woff2') format('woff2'); font-display:block; }
 :root { color-scheme:dark; --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n4:#767970; --n5:#97988f; --n7:#d9d8cd; --n8:#f1efe6;
@@ -29,13 +29,26 @@ a { color:var(--calm2); }
 <body>
 <main>
 <h1>OFFICE UNFOLD: PROGRESS</h1>
-<p class="lede">2026-11-01. The ask: infinite expansion where every new office unfolds from the last, instead of one house dropping after another. Where it stands, in the demo and in the game.</p>
+<p class="lede">2026-11-01. The ask began as infinite expansion where every new office unfolds from the last, instead of one house dropping after another, and became <em>one big office, grown tile by tile</em>. Where it stands, in the demos and in the game.</p>
+
+<h2>THE ASK, IN ORDER</h2>
+<table>
+<tr><td>1</td><td>&quot;each office expansion it's a unfold and expand to a new office space&quot;; &quot;don't just unfold from one direction, the headquarter should be in the center&quot; (houses unfold, 2026-10-31).</td></tr>
+<tr><td>2</td><td>&quot;I don't want the houses unfolded one by one, I want the entire place as one big office&quot;; then &quot;I actually want some more profound change, I want the entire place as one contagious [contiguous] office&quot;.</td></tr>
+<tr><td>3</td><td>After a draft that opened the whole floor at once: &quot;good, but I want the tile by tile expansion&quot;.</td></tr>
+<tr><td>4</td><td>&quot;no need for the inner wall around the HQ&quot;, then &quot;ok, implement in the game&quot;.</td></tr>
+</table>
 
 <h2>THE IDEA</h2>
-<p>A new floor is hinged on the edge it shares with its oldest neighbour. It starts folded under that neighbour, swings up, slams flat, then fills with desks and people. Nothing falls, so there is no boundary to count; the company stays one continuous floor, and the pace can go from a slow reveal to a stampede without changing the verb.</p>
+<p>A new tile of floor is hinged on the edge it shares with its oldest neighbour. It starts folded under that neighbour, swings up, slams flat, then its furniture rises in a wave away from the seam and its people arrive. Nothing falls, and there is no unit to count: no street, no roof, no lot. The carpet, the aisles and the columns run across every seam, and the only wall is a glass one round the outside of what is open. When a tile opens beside a wall, that wall folds into the floor; when the tile goes, the wall comes back. The garage is the heart of the floor, with no wall between it and the tiles round it.</p>
 
-<h2>THE DEMO</h2>
-<p>Standalone, loopback only, no game file touched: <code>docs/demos/office-unfold-2026-10-30/index.html</code> under <code>npm run dev</code>. The real HQ is plate 0, built by the game's own builder and left untouched.</p>
+<h2>THE DEMOS</h2>
+<p><strong>One office</strong> (new): <code>docs/demos/one-office-2026-11-01/index.html</code>. Standalone, loopback only, no game file touched; the real HQ is the middle of a 5 &times; 5 lattice of 33 &times; 25 m tiles, and tiles open outward from it on every side. Keys: <code>Space</code> expand a tile, <code>H</code> hire 10, <code>B</code> burst six tiles, <code>F</code> fill, <code>A</code> auto, <code>M</code> sound, <code>1</code>-<code>3</code> frame the floor, the people or the HQ. An earlier draft of it opened the whole floor in one gesture (four flaps round the HQ and one furniture wave); it is in git history at <code>9b8ea40</code> and was rejected for tile by tile.</p>
+<div class="grid">
+<figure><img src="shots/office-demo-four-tiles.png" alt="The HQ open in the middle of a four-tile cross, walls only on the outside"><figcaption>Four tiles: the cross round the HQ, walls only on the outside, none against the HQ.</figcaption></figure>
+<figure><img src="shots/office-demo-first-ring.png" alt="Eight tiles forming the first ring, one glass wall round all of it"><figcaption>Eight tiles: the first ring closes and the wall follows it out.</figcaption></figure>
+</div>
+<p><strong>Plates</strong> (the first demo): <code>docs/demos/office-unfold-2026-10-30/index.html</code>, the same unfold with a ladder above it. It still runs.</p>
 <div class="grid">
 <figure><img src="shots/demo-swing.png" alt="A floor mid-swing beside the intact HQ"><figcaption>A floor mid-swing; the HQ is the shipped one, unchanged.</figcaption></figure>
 <figure><img src="shots/demo-floors.png" alt="Ten floors around the HQ with office furniture"><figcaption>Floors read as offices: carpet and aisle, pod dividers, glass meeting rooms, pantry, plants.</figcaption></figure>
@@ -45,31 +58,40 @@ a { color:var(--calm2); }
 <p>Keys: <code>Space</code> expand, <code>B</code> burst, <code>A</code> auto, <code>M</code> sound, <code>1</code>-<code>4</code> or the wheel climb floor, campus, city, planet, <code>J</code> flies the whole ladder. The sound was redesigned (airy swing, wooden slam, a marimba note per floor climbing a pentatonic scale) after the first siren-like sweep was rejected.</p>
 
 <h2>IN THE GAME</h2>
-<p>Houses now unfold instead of falling, on every side of the HQ. The garage is block zero and addresses sort outward from it, so the first four houses open north, west, east and south at once.</p>
+<p>The city is one office now, in tiles. A tile is the garage's own apron size (33 &times; 25 m), laid edge to edge from the apron's centre; it holds the same hundred seats and the same cutaway interior the house did, with its islands spread so they fill the tile. The first four open north, west, east and south of the garage; each hangs from its neighbour's panel while it swings, so a burst folds open as a chain. A tile's people arrive when its furniture has risen.</p>
 <div class="grid">
-<figure><img src="shots/game-swing.png" alt="Houses swinging up around the HQ"><figcaption>Mid-swing: houses rise from under their blocks; empty lots show only their outline.</figcaption></figure>
-<figure><img src="shots/game-settled.png" alt="Four houses settled around the HQ"><figcaption>Settled: the HQ in the centre, a house on each side.</figcaption></figure>
+<figure><img src="shots/office-game-floor.png" alt="A thousand developers on one floor, the HQ in the middle"><figcaption>1,000 developers: ten tiles, one carpet, one wall round the outside; the doors are at the two front corners.</figcaption></figure>
+<figure><img src="shots/office-game-close.png" alt="Close up: the game's own interior across the carpet beside the HQ"><figcaption>Close up: the game's own interior, its islands spread across the carpet.</figcaption></figure>
+<figure><img src="shots/office-game-first-tile.png" alt="The first tile opening behind the HQ on the 21st hire"><figcaption>The 21st hire opens the first tile; the furniture wave's front is the bright stripe.</figcaption></figure>
+<figure><img src="shots/game-settled.png" alt="The 2026-10-31 houses, settled"><figcaption>Before (2026-10-31): four houses with streets between. Replaced.</figcaption></figure>
 </div>
 <table>
 <tr><th>PIECE</th><th>WHAT CHANGED</th></tr>
-<tr><td><code>cityGrid.ts</code></td><td><code>cityHinge</code> picks the oldest standing neighbour; <code>houseUnfold</code> is the swing (1.6 s, 0.9 s settle). <code>houseLanding</code> is gone.</td></tr>
-<tr><td><code>cityHouses.ts</code></td><td>Each house hangs from a hinge group; its paving swings with it, then is handed back to the city.</td></tr>
-<tr><td><code>garageEnvironment.ts</code></td><td>The city's ground plane sits 40 m down so a house can swing up from under its block.</td></tr>
-<tr><td><code>GDD.html</code></td><td>§7.7.2 amended with the user's words and the argument; §7.8.1c points to it. The old "Houses fall" bullet is marked superseded.</td></tr>
+<tr><td><code>officeTile.ts</code></td><td>New. A tile: carpet, aisles, strips of rooms, columns, four sides of glass wall (each folds down when the tile beyond opens), the two front doors, a far-field of instanced desks, and the game's interior built the first time the lens is close.</td></tr>
+<tr><td><code>cityHouses.ts</code></td><td>Builds tiles instead of houses; same API. Hinge chain, wall bookkeeping, furniture wave, people arrive after it. No paving, lots or survey outlines.</td></tr>
+<tr><td><code>cityGrid.ts</code></td><td><code>officeTile</code>, <code>tileAt</code>, <code>cityParent</code>; the district's addresses and order unchanged.</td></tr>
+<tr><td><code>cityInterior.ts</code></td><td>The house shell is gone (slab, wood floor, walls, glass front, doorway, board); <code>houseSeat</code> spreads the islands.</td></tr>
+<tr><td><code>garageView.ts</code></td><td>The HQ's lot bracket shows only while the garage stands alone.</td></tr>
+<tr><td><code>cityHouse.ts</code></td><td>Pruned to the old house exterior, which only the district's atlas bake still uses.</td></tr>
+<tr><td><code>GDD.html</code></td><td>&sect;7.7.2 amended with the user's words and the argument; &sect;7.8.1c and the layoff note point to it; the old bullets are marked superseded.</td></tr>
 </table>
-<p>Unchanged: the garage's twenty, hires into a standing house, the addresses, and the thruster lift-off when a layoff or the first death empties a house (§15.1a).</p>
+<p>Unchanged: the addresses and their order, the hundred seats, the garage's twenty, hires into a standing tile (the desk falls first), the landing's juice, and the thruster lift-off when a layoff or the first death empties a tile (&sect;15.1a), now a tile lifting out of the floor with the walls beside it standing back up.</p>
 
 <h2>VERIFIED</h2>
-<p><span class="done">Passed:</span> <code>npm run check</code> (lint, tsc, 2,263 tests, art check, the 121-screen frame gate). The swing itself was looked at in headless Chrome stills with 450 developers hired live, not played by hand.</p>
+<p><span class="done">Passed:</span> <code>eslint .</code>, <code>tsc -b</code>, <code>vitest run</code> (170 files, 2,267 tests passed, 3 skipped) and <code>art:check</code>. New tests pin the claims: tiles touch with no gap and no overlap, every tile hangs from an older neighbour, a wall stands only where nothing is open beyond it and comes back when the tile goes, a new tile is thumped once when its furniture has risen, and a hundred desks fit a tile with an aisle between every island.</p>
+<p><span class="done">Looked at</span> in headless Chrome, not played by hand: the game at 1,000 and at 100 developers, close up, and live with the 21st hire opening the first tile. Headless frame rate was about 10 fps for the old houses and the new tiles alike (far, mid and close), so no regression showed.</p>
+<p><span class="open">Not finished:</span> <code>npm run test:ui-frame</code>, the real-browser frame gate, did not complete. It was started as the last step of <code>npm run check</code> and the run was killed because the machine was critically low on memory. Nothing in it failed; it has not been re-run.</p>
 
 <h2>NOT DONE</h2>
 <table>
 <tr><th>ITEM</th><th>NOTE</th></tr>
-<tr><td class="open">Layoff or liquidation mid-swing</td><td>Handled in code (the house is flattened first), not driven in a browser.</td></tr>
-<tr><td class="open">First house sits behind the HQ's back wall</td><td>The address sort puts it north. Changing that changes saved addresses.</td></tr>
-<tr><td class="open">Demo's office furniture in the game</td><td>Not ported; the game's houses already have furnished cutaway interiors.</td></tr>
-<tr><td class="open">City and planet rungs in the game</td><td>Demo only: the cube-sphere claim order for the other five faces, the monitor/phosphor handoff, the colony map, and a GDD pass on §7.4a.</td></tr>
-<tr><td class="open">Browser extension check</td><td>The extension could not reach the demo's ports, so the demo was verified headless.</td></tr>
+<tr><td class="open">The frame gate</td><td>See above. Re-run <code>npm run test:ui-frame</code> with other heavy programs closed.</td></tr>
+<tr><td class="open">The district rung</td><td>The atlas still bakes the old houses (<code>cityHouse.ts</code>, <code>cityImpostors.ts</code>) and the scale bar still reads <code>1 HOUSE = 100 DEVS</code> (<code>sim/headcount.ts</code>, pinned by tests). The picture one rung up still shows blocks and streets.</td></tr>
+<tr><td class="open">Layoff or liquidation</td><td>Tested (a layoff lifts the tile off and its neighbours' walls come back), not driven in a browser.</td></tr>
+<tr><td class="open">First tile sits behind the HQ's back wall</td><td>The game's address order puts it north; the demo opens south first. Changing it changes saved addresses.</td></tr>
+<tr><td class="open">Phone layout</td><td>Not looked at in the game; in the demo the button bar covers the bottom of the floor on a phone-size frame.</td></tr>
+<tr><td class="open">Demo's desk lattice and avenues</td><td>Not ported: the game's own islands fill the tile, with the demo's room strips, columns, wall and doors.</td></tr>
+<tr><td class="open">City and planet rungs in the game</td><td>Plates demo only: the cube-sphere claim order for the other five faces, the monitor/phosphor handoff, the colony map, and a GDD pass on &sect;7.4a.</td></tr>
 </table>
 </main>
 </body>
