@@ -2,7 +2,7 @@ import * as T from 'three'
 import { OS, OS_NIGHT } from '../art/skin.ts'
 import { createLotBrackets, LOT_BRACKET } from './osDesktop.ts'
 import { box, cylinder, batchArt, disposeArt, sharedMaterial } from './worldArt.ts'
-import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, streetAxis, houseLanding } from './cityGrid.ts'
+import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, UNFOLD_SECONDS, UNFOLD_SINK, cityBlock, cityHinge, streetAxis, houseUnfold } from './cityGrid.ts'
 import { createThrusters } from './thrusters.ts'
 import { createCityHouse, dressCityLot } from './cityHouse.ts'
 import { GARAGE_CAP } from '../../sim/capacity.ts'
@@ -44,7 +44,7 @@ function moonlit(group: T.Group) {
 /** `hired`: somebody has dropped onto a desk in a house that was already standing. */
 /** `deskLanded`: a hire's desk has hit the floor of an open house, a beat before its developer (`cityInterior.ts`, 2026-10-18). */
 /** `left`: somebody laid off has been yanked out of a house, or a house a layoff emptied has lifted off its lot (2026-10-19). */
-interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void; deskLanded?(): void; left?(): void }
+interface Events { landed(box: T.Box3): void; ignited(): void; hired(): void; deskLanded?(): void; left?(): void }
 export function createCityHouses(events: Events, cast: () => StudioCast = defaultCast) {
   const root = new T.Group()
   const ground = new T.Group(); root.add(ground)
@@ -74,7 +74,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   }
   moonlit(ground)
   tiles.forEach(tile => batchArt(tile))
-  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null; sag: number | null; shown: number }
+  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; hinge: T.Group; tile: T.Group | undefined; nx: number; nz: number; start: number | null; wait: number; landed: boolean; ignited: boolean; hop: number | null; sag: number | null; shown: number }
   const buildings: Building[] = []
   /**
    * Houses a layoff emptied, on their way up: the liquidation's lift-off (`liquidate`), one house at a time. Out of `buildings`
@@ -93,7 +93,16 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     const at = cityBlock(i + 1)
     return new T.Box3(new T.Vector3(at.x - 16, -.3, at.z - 14), new T.Vector3(at.x + 16, 9.2, at.z + 17))
   }
+  /**
+   * A house hinged open takes its block's paving with it (the street is the floor that swings), then hands it back to the
+   * city. Anything that ends a house early (a layoff, a liquidation, a reset) must hand it back too, flat.
+   */
+  function flatten(b: Building) {
+    b.hinge.rotation.set(0, 0, 0); b.hinge.visible = true
+    if (b.tile) ground.add(b.tile)
+  }
   function remove(b: Building) {
+    flatten(b); b.hinge.removeFromParent()
     b.group.removeFromParent(); b.lot.removeFromParent(); disposeArt(b.lot); b.marker.removeFromParent(); b.dispose(); b.rig.dispose()
     b.marker.geometry.dispose(); (b.marker.material as T.Material).dispose()
   }
@@ -107,7 +116,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
      * ever faster until it is out of the frame, one after another — and the lot is
      * left empty. Resolved by `update`, which removes each house when it has gone.
      */
-    liquidate() { buildings.forEach((b, i) => { if (b.leaving === null) { b.leaving = clock + i * 0.25; b.start = null; b.legs.visible = false; b.marker.visible = false } }) },
+    liquidate() { buildings.forEach((b, i) => { if (b.leaving === null) { flatten(b); b.leaving = clock + i * 0.25; b.start = null; b.legs.visible = false; b.marker.visible = false } }) },
     /** Is a house still on its way out? */
     get liquidating() { return buildings.some(b => b.leaving !== null) },
     setOffset(next: number) {
@@ -127,10 +136,18 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         b.leaving = clock + k * .25; b.legs.visible = false; b.marker.visible = false; b.cutaway(false)
         departing.push(b); events.left?.()
       }
-      let queued = buildings.reduce((delay, b) => Math.max(delay, b.start === null ? 0 : b.start + 1.5 + b.wait - clock), 0)
+      let queued = buildings.reduce((delay, b) => Math.max(delay, b.start === null ? 0 : b.start + UNFOLD_SECONDS + b.wait - clock), 0)
       while (buildings.length < count) {
         const i = buildings.length, at = cityBlock(i + 1), model = createCityHouse(offset / 100 + i, cast, i === 0 ? reserved() : 0)
-        const group = new T.Group(); group.position.set(at.x, -.3, at.z); group.add(model.body); root.add(group)
+        // The house stands in a panel that hangs from a hinge on its inner edge (`houseUnfold`): the hinge group sits
+        // UNFOLD_SINK under the floor and the panel UNFOLD_SINK over it, so at rest the two cancel and every child keeps
+        // its world coordinates; folded, the panel is mirrored under the neighbour it is hinged to.
+        const dir = cityHinge(i + 1)
+        const hx = at.x + dir.dx * BLOCK_PITCH / 2, hz = at.z + dir.dz * BLOCK_PITCH / 2
+        const hinge = new T.Group(); hinge.position.set(hx, -UNFOLD_SINK, hz); root.add(hinge)
+        const panel = new T.Group(); panel.position.set(-hx, UNFOLD_SINK, -hz); hinge.add(panel)
+        const tile = tiles.find(t => Math.abs(t.position.x - at.x) < 1 && Math.abs(t.position.z - at.z) < 1)
+        const group = new T.Group(); group.position.set(at.x, -.3, at.z); group.add(model.body); panel.add(group)
         const rig = createThrusters(19, 18); group.add(rig.root)
         const legs = new T.Group(); group.add(legs)
         for (const x of [-10, 10]) for (const z of [-9.5, 9.5]) box(legs, x, 0, z, .45, .65, .45, OS.n4)
@@ -139,15 +156,16 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
           new T.Vector3(-edge, 0, -edge), new T.Vector3(edge, 0, -edge), new T.Vector3(edge, 0, edge), new T.Vector3(-edge, 0, edge),
         ]), new T.LineBasicMaterial({ color: OS.calm2, transparent: true }))
         marker.position.set(at.x, -.29, at.z); root.add(marker)
-        const lot = dressCityLot(root, at.x, at.z)
+        const lot = dressCityLot(panel, at.x, at.z)
         // [2026-10-11] Every lot wears the survey frame's corner bracket (`osDesktop.ts`).
         if (OS_NIGHT) { const brackets = createLotBrackets(LOT_BRACKET); brackets.position.y = .01; lot.add(brackets) }
         // `interior` is a getter (the cutaway builds it lazily); a bare spread would copy
         // its value at null, once, and every seat query would answer as if no house had opened.
-        const b: Building = { ...model, get interior() { return model.interior }, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
-          landed: !animate, ignited: false, dust: false, hop: null, sag: null, shown: -1 }
+        const b: Building = { ...model, get interior() { return model.interior }, leaving: null, group, lot, rig, marker, legs, hinge, tile, nx: dir.dx, nz: dir.dz, start: animate ? clock : null, wait: queued,
+          landed: !animate, ignited: false, hop: null, sag: null, shown: -1 }
         buildings.push(b); queued += .22
-        group.position.y += animate ? 30 : 0
+        if (animate && tile) panel.add(tile)
+        hinge.visible = !animate
         marker.visible = animate; legs.visible = false; rig.update(0, false, clock)
       }
       tiles.forEach(tile => { tile.visible = (offset === 0 && tile.position.x === 0 && tile.position.z === 0) || buildings.concat(departing).some(b => Math.abs(b.group.position.x - tile.position.x) < 1 && Math.abs(b.group.position.z - tile.position.z) < 1) })
@@ -209,19 +227,14 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         }
         if (b.start !== null) {
           active = true
-          const t = now - b.start, pose = houseLanding(t, b.wait)
-          b.group.position.y = -.3 + pose.height
-          b.body.scale.y = pose.squash
-          b.rig.update(pose.height, pose.burning, now + i)
-          b.legs.visible = pose.height < 1 && !pose.landed
-          // Legs retract into the base; they never protrude through the pavement.
-          b.legs.position.y = -Math.min(.3, pose.height)
+          const t = now - b.start, pose = houseUnfold(t, b.wait)
+          b.hinge.visible = pose.started
+          b.hinge.rotation.set(b.nz * pose.phi, 0, -b.nx * pose.phi)
+          // The outline stays on the empty block until the house has opened over it.
           b.marker.visible = !pose.landed
-          b.marker.scale.setScalar(1 - .35 * Math.min(1, t / 1.5))
-          if (pose.burning && !b.ignited) { b.ignited = true; events.ignited() }
-          if (pose.burning && pose.height < 4 && !b.dust) { b.dust = true; events.exhaust(footprint(i)) }
+          if (pose.started && !b.ignited) { b.ignited = true; events.ignited() }
           if (pose.landed && !b.landed) { b.landed = true; events.landed(footprint(i)) }
-          if (t >= 1.7 + b.wait) { b.start = null; b.body.scale.y = 1 }
+          if (pose.done) { b.start = null; flatten(b) }
         } else if (b.hop !== null) {
           active = true
           const t = now - b.hop

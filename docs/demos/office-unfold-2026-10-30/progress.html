@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Unfold Progress</title>
+<style>
+/* Progress page, 2026-11-01. What the office-unfold work has produced so far, what is in the game, and what is not.
+   Palette is src/art/palette.ts, copied; the font is the juice demo's. */
+@font-face { font-family:'Departure Mono'; src:url('../ui-juice-2026-10-28/assets/departure.woff2') format('woff2'); font-display:block; }
+:root { color-scheme:dark; --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n4:#767970; --n5:#97988f; --n7:#d9d8cd; --n8:#f1efe6;
+  --calm1:#1a6b78; --calm2:#35c9d9; --calm3:#b8f4ff; --warn2:#e0a52e; --mono:'Departure Mono', ui-monospace, Consolas, monospace; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--n0); color:var(--n7); font:14px/1.6 var(--mono); }
+main { max-width:980px; margin:0 auto; padding:32px 16px 64px; }
+h1 { font-size:22px; font-weight:400; color:var(--n8); letter-spacing:.08em; margin:0 0 6px; }
+h2 { font-size:13px; font-weight:400; color:var(--calm2); letter-spacing:.18em; margin:40px 0 12px; border-top:1px solid var(--calm1); padding-top:14px; }
+p { margin:0 0 12px; max-width:72ch; } .lede { color:var(--n5); }
+code { color:var(--warn2); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr)); gap:14px; margin:14px 0; }
+figure { margin:0; background:var(--n1); border:1px solid var(--n2); } figure img { display:block; width:100%; height:auto; }
+figcaption { padding:8px 10px; color:var(--n5); font-size:12px; }
+table { border-collapse:collapse; width:100%; margin:10px 0; } th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--n2); vertical-align:top; }
+th { color:var(--calm2); font-weight:400; letter-spacing:.1em; font-size:12px; }
+.done { color:var(--calm3); } .open { color:var(--warn2); }
+a { color:var(--calm2); }
+</style>
+</head>
+<body>
+<main>
+<h1>OFFICE UNFOLD: PROGRESS</h1>
+<p class="lede">2026-11-01. The ask: infinite expansion where every new office unfolds from the last, instead of one house dropping after another. Where it stands, in the demo and in the game.</p>
+
+<h2>THE IDEA</h2>
+<p>A new floor is hinged on the edge it shares with its oldest neighbour. It starts folded under that neighbour, swings up, slams flat, then fills with desks and people. Nothing falls, so there is no boundary to count; the company stays one continuous floor, and the pace can go from a slow reveal to a stampede without changing the verb.</p>
+
+<h2>THE DEMO</h2>
+<p>Standalone, loopback only, no game file touched: <code>docs/demos/office-unfold-2026-10-30/index.html</code> under <code>npm run dev</code>. The real HQ is plate 0, built by the game's own builder and left untouched.</p>
+<div class="grid">
+<figure><img src="shots/demo-swing.png" alt="A floor mid-swing beside the intact HQ"><figcaption>A floor mid-swing; the HQ is the shipped one, unchanged.</figcaption></figure>
+<figure><img src="shots/demo-floors.png" alt="Ten floors around the HQ with office furniture"><figcaption>Floors read as offices: carpet and aisle, pod dividers, glass meeting rooms, pantry, plants.</figcaption></figure>
+<figure><img src="shots/demo-city.png" alt="The grid as lit towers at night"><figcaption>City rung: the same cells, now lit towers; the HQ is the amber one.</figcaption></figure>
+<figure><img src="shots/demo-planet.png" alt="The patch bent onto a cube-sphere face"><figcaption>Planet rung: the patch bends onto one cube-sphere face, the HQ at the corner.</figcaption></figure>
+</div>
+<p>Keys: <code>Space</code> expand, <code>B</code> burst, <code>A</code> auto, <code>M</code> sound, <code>1</code>-<code>4</code> or the wheel climb floor, campus, city, planet, <code>J</code> flies the whole ladder. The sound was redesigned (airy swing, wooden slam, a marimba note per floor climbing a pentatonic scale) after the first siren-like sweep was rejected.</p>
+
+<h2>IN THE GAME</h2>
+<p>Houses now unfold instead of falling, on every side of the HQ. The garage is block zero and addresses sort outward from it, so the first four houses open north, west, east and south at once.</p>
+<div class="grid">
+<figure><img src="shots/game-swing.png" alt="Houses swinging up around the HQ"><figcaption>Mid-swing: houses rise from under their blocks; empty lots show only their outline.</figcaption></figure>
+<figure><img src="shots/game-settled.png" alt="Four houses settled around the HQ"><figcaption>Settled: the HQ in the centre, a house on each side.</figcaption></figure>
+</div>
+<table>
+<tr><th>PIECE</th><th>WHAT CHANGED</th></tr>
+<tr><td><code>cityGrid.ts</code></td><td><code>cityHinge</code> picks the oldest standing neighbour; <code>houseUnfold</code> is the swing (1.6 s, 0.9 s settle). <code>houseLanding</code> is gone.</td></tr>
+<tr><td><code>cityHouses.ts</code></td><td>Each house hangs from a hinge group; its paving swings with it, then is handed back to the city.</td></tr>
+<tr><td><code>garageEnvironment.ts</code></td><td>The city's ground plane sits 40 m down so a house can swing up from under its block.</td></tr>
+<tr><td><code>GDD.html</code></td><td>§7.7.2 amended with the user's words and the argument; §7.8.1c points to it. The old "Houses fall" bullet is marked superseded.</td></tr>
+</table>
+<p>Unchanged: the garage's twenty, hires into a standing house, the addresses, and the thruster lift-off when a layoff or the first death empties a house (§15.1a).</p>
+
+<h2>VERIFIED</h2>
+<p><span class="done">Passed:</span> <code>npm run check</code> (lint, tsc, 2,263 tests, art check, the 121-screen frame gate). The swing itself was looked at in headless Chrome stills with 450 developers hired live, not played by hand.</p>
+
+<h2>NOT DONE</h2>
+<table>
+<tr><th>ITEM</th><th>NOTE</th></tr>
+<tr><td class="open">Layoff or liquidation mid-swing</td><td>Handled in code (the house is flattened first), not driven in a browser.</td></tr>
+<tr><td class="open">First house sits behind the HQ's back wall</td><td>The address sort puts it north. Changing that changes saved addresses.</td></tr>
+<tr><td class="open">Demo's office furniture in the game</td><td>Not ported; the game's houses already have furnished cutaway interiors.</td></tr>
+<tr><td class="open">City and planet rungs in the game</td><td>Demo only: the cube-sphere claim order for the other five faces, the monitor/phosphor handoff, the colony map, and a GDD pass on §7.4a.</td></tr>
+<tr><td class="open">Browser extension check</td><td>The extension could not reach the demo's ports, so the demo was verified headless.</td></tr>
+</table>
+</main>
+</body>
+</html>

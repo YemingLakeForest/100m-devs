@@ -241,7 +241,9 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
   // camera travel is bounded independently of the scenery's backing surface.
-  const horizon = box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
+  // In the city (the game) it sits forty metres down: it is unlit and flat, so the same colour shows at any depth, but a
+  // house that unfolds swings up from UNDER its block (`houseUnfold`) and must not be hidden by a ground at -0.6.
+  const horizon = box(g, 0, cityGrid ? -40 : -0.6, 0, 512, .1, 512, env.background, false)
   // [2026-10-11] In the OS look the horizon is the survey's own ground — flat, unlit, the interface's
   // darkest neutral — so the void under the room is the colour of the void under the monitor and the hand-off
   // at the top of the block changes nothing about what is behind the picture (`osDesktop.ts` draws on it).

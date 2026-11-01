@@ -501,7 +501,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const city = createCityHouses({
     landed(footprint) { dustRing(footprint); landings += 1 },
     ignited() { ignitions += 1 },
-    exhaust(footprint) { dustRing(footprint, true) },
     // Somebody dropped onto a desk in a house: the same thump as the garage's hire (`stage.ts` maps the piece to a clip).
     hired() { options.onLand?.('body') },
     deskLanded() { options.onLand?.('desk') },
@@ -873,7 +872,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
    * the house's footprint, bigger and quicker, pushed outwards, and the
    * camera takes the whump.
    */
-  function dustRing(footprint: T.Box3, exhaust = false) {
+  function dustRing(footprint: T.Box3) {
     const c = footprint.getCenter(new T.Vector3())
     const hw = (footprint.max.x - footprint.min.x) / 2 + .6
     const hd = (footprint.max.z - footprint.min.z) / 2 + .6
@@ -892,7 +891,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       scene.add(mesh)
       puffs.push({ mesh, start: clock, dir: dir.multiplyScalar(3.2), size: 2.6 })
     }
-    shake = Math.max(shake, exhaust ? .025 : .12)
+    shake = Math.max(shake, .12)
   }
 
   /** The room notices a hire: the lens leans in, the neighbours ripple, and the hire hops twice once settled. */

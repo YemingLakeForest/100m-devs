@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as T from 'three'
-import { BLOCK_SIZE, STREET_WIDTH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, districtBlock, houseLanding } from './cityGrid.ts'
+import { BLOCK_SIZE, STREET_WIDTH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, districtBlock, houseUnfold, cityHinge, UNFOLD_SECONDS } from './cityGrid.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { createThrusters } from './thrusters.ts'
 import { createCityInterior, houseSeat } from './cityInterior.ts'
@@ -21,17 +21,33 @@ describe('the city blocks (§7.7.2)', () => {
     expect(new Set(positions.map(p=>p.x+','+p.z)).size).toBe(418)
     for(let i=1;i<positions.length;i++) expect(positions[i].x**2+positions[i].z**2).toBeGreaterThanOrEqual(positions[i-1].x**2+positions[i-1].z**2)
   })
-  it('brakes continuously, waits above ground, then cuts its jets at contact', () => {
-    let previous = Infinity
-    for (let t = 0; t < 4; t += .005) {
-      const pose = houseLanding(t, 1)
-      expect(pose.height).toBeGreaterThanOrEqual(0)
-      expect(pose.height).toBeLessThanOrEqual(previous)
-      previous = pose.height
-      if (pose.landed) expect(pose.burning).toBe(false)
+  it('unfolds from under its neighbour, arrives flat, and settles without lifting a nine-metre wall far (2026-10-31)', () => {
+    // *"each office expansion it's a unfold and expand to a new office space"* — the claim is the order (folded, sweeping up,
+    // flat, a small rebound, still), not the timings.
+    expect(houseUnfold(0, 1).phi).toBeLessThan(-3)
+    expect(houseUnfold(0, 1).started).toBe(false)
+    let previous = -Infinity
+    for (let t = 1; t < 1 + UNFOLD_SECONDS; t += .01) {
+      const pose = houseUnfold(t, 1)
+      expect(pose.phi).toBeGreaterThanOrEqual(previous)
+      expect(pose.phi).toBeLessThanOrEqual(0)
+      previous = pose.phi
     }
-    expect(houseLanding(1.4, 1).height).toBeGreaterThan(0)
-    expect(houseLanding(2.6, 1).landed).toBe(true)
+    expect(houseUnfold(1 + UNFOLD_SECONDS, 1).landed).toBe(true)
+    for (let t = 1 + UNFOLD_SECONDS; t < 6; t += .005) expect(Math.abs(houseUnfold(t, 1).phi)).toBeLessThanOrEqual(.09)
+    expect(houseUnfold(6, 1)).toMatchObject({ phi: 0, done: true })
+  })
+  it('hinges every block on a standing neighbour nearer the garage, so the city opens in every direction', () => {
+    const seen = new Set<string>()
+    for (let i = 1; i <= 18; i++) {
+      const { dx, dz } = cityHinge(i), at = cityBlock(i)
+      expect(Math.abs(dx) + Math.abs(dz)).toBe(1)
+      seen.add(dx + ',' + dz)
+      // the neighbour exists among the older addresses
+      const near = Array.from({ length: i }, (_, k) => cityBlock(k)).some(o => Math.abs(o.x - at.x) <= 41 && Math.abs(o.z - at.z) <= 41 && (o.x === at.x || o.z === at.z))
+      expect(near).toBe(true)
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(3)
   })
   it('clamps the entire exhaust geometry above ground, even at touchdown', () => {
     const rig = createThrusters(15, 13)
@@ -46,7 +62,7 @@ describe('the city blocks (§7.7.2)', () => {
   it('loads without arrival events, staggers a mass hire, and cancels removed buildings', () => {
     const landings: number[] = [], ignitions: number[] = []
     let now = 0
-    const city = createCityHouses({ landed: () => landings.push(now), ignited: () => ignitions.push(now), exhaust() {}, hired() {} })
+    const city = createCityHouses({ landed: () => landings.push(now), ignited: () => ignitions.push(now), hired() {} })
     city.setStaff(100, false); city.update(0)
     expect(landings).toHaveLength(0)
     city.setStaff(400, true)
@@ -64,7 +80,7 @@ describe('the city blocks (§7.7.2)', () => {
   it('leaves the garage its twenty: no house stands for them, the first stands for the twenty-first (2026-10-15)', () => {
     // *"I want the garage/hq still filled and new people hired in new space."* The home city's first house holds seats 20 and on;
     // a studio of twenty is a full garage and an empty street, and every other city is houses from its first seat.
-    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {}, hired() {} })
+    const city = createCityHouses({ landed() {}, ignited() {}, hired() {} })
     city.setStaff(20, false); city.update(0)
     expect(city.count).toBe(0)
     city.setStaff(21, false); city.update(0)
@@ -87,7 +103,7 @@ describe('the city blocks (§7.7.2)', () => {
   it('tells the view of a hire into a standing house: closed, at once; open, as each one lands', () => {
     const hires: number[] = []
     let now = 0
-    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {}, hired: () => hires.push(now) })
+    const city = createCityHouses({ landed() {}, ignited() {}, hired: () => hires.push(now) })
     // A house built around a loaded save, and a person added to it: the closed house takes the thump itself.
     city.setStaff(30, false); city.update(0)
     city.setStaff(31, true)
@@ -199,7 +215,7 @@ describe('the city blocks (§7.7.2)', () => {
   it('lifts a house a layoff empties off its lot, and removes one a reset empties at once (2026-10-19)', () => {
     const left: number[] = []
     let now = 0
-    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {}, hired() {}, left: () => left.push(now) })
+    const city = createCityHouses({ landed() {}, ignited() {}, hired() {}, left: () => left.push(now) })
     city.setStaff(250, false); city.update(0)
     expect(city.count).toBe(3)
     city.setStaff(150, true, true)
@@ -244,7 +260,7 @@ describe('the city blocks (§7.7.2)', () => {
     // The cutaway builds the interior lazily, so the building's `interior` is a
     // getter; spreading the model froze it at null, and every seat query
     // (coding, hop, head, pick) behaved as if no house had ever been opened.
-    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {}, hired() {} })
+    const city = createCityHouses({ landed() {}, ignited() {}, hired() {} })
     city.setStaff(30, false); city.update(0)
     const head = city.headOf(20)!
     const lens = new T.OrthographicCamera(-40, 40, 40, -40, .1, 400)

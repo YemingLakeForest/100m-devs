@@ -3618,13 +3618,32 @@ around it.</li>
 <li><strong>One building to a block.</strong> A building fills its block and nothing else: nothing straddles a street,
 nothing stands between blocks, nothing is placed free-hand. The studio grows by the next empty block taking a
 building.</li>
-<li><strong>Houses fall.</strong> The first buildings to arrive are houses. Each one falls out of the sky onto its block
+<li><strong>Houses fall.</strong> <strong>[superseded 2026-10-31: houses unfold, see below]</strong> The first buildings to arrive are houses. Each one falls out of the sky onto its block
 and brakes the way a StarCraft Terran building comes down: a fast fall, a retro-burn that catches it, a hover,
 landing legs out, a soft clunk, the thrusters cut, dust. A mass hire is several houses hovering over their blocks on
 their jets, landing in turn.</li>
 <li><strong>The register is unchanged.</strong> Furniture put down by something enormous and bored; nobody inside
 reacts. The jets change how the thing is put down, not what the joke is.</li>
 </ul>
+<p><strong>[amended 2026-10-31, at the user's instruction] Houses unfold; they no longer fall.</strong> Contradicts the
+&quot;Houses fall&quot; bullet above (<em>&quot;falls out of the sky onto its block and brakes the way a StarCraft Terran building
+comes down&quot;</em>). The user, after the office-unfold demo (<code>docs/demos/office-unfold-2026-10-30/</code>): <em>&quot;each office
+expansion it's a unfold and expand to a new office space&quot;</em> and <em>&quot;I am looking for an infinte expansion instead of house
+after house drop&quot;</em>, then <em>&quot;implement this to the game also, don't just unfold from one direction, the headquarter
+should be in the center&quot;</em>. <strong>A new house is hinged on the edge it shares with its oldest standing neighbour</strong>
+(<code>cityHinge</code>: the next address along an axis, across a street or an avenue alike). It starts folded a half turn under
+that neighbour, swings up through hanging straight down, arrives flat with a small rebound (<code>houseUnfold</code>, 1.6 s and a
+0.9 s settle), and the block's paving swings with it, so the street is the floor that opens. The grid is the same one: the garage
+is block zero and the addresses sort outward from it in every direction (north, west, east and south first), so the unfold
+runs away from the centre on all four sides and never from one side only. An empty block shows only its survey outline until
+the house has opened over it, and a mass hire is several houses swinging open a beat apart. <em>Why:</em> a fall is a gag
+with a boundary, and every gag with a boundary is a count (house seven, house eight); a hinge has no boundary, the new
+house is always glued to the old one, so the company reads as one continuous floor, and the pace can go from a slow reveal
+to a stampede without changing the verb. The landing's juice is kept (a ring of dust round the footprint, the camera's whump)
+and fires when the house lies flat. <strong>What did not move:</strong> the hire into a standing house, the garage's twenty,
+the lift-off on thrusters when a layoff empties a house or the first death liquidates the city (§15.1a), and the addresses.
+The ground plane under the city sits forty metres down so a house can swing up from under its block; it is flat and unlit, so
+nothing about the picture changes but the swing.</p>
 <p><strong>Why a grid.</strong> The storeys across the lane (§7.8.1c, built the same morning) drew a hundred furnished
 desks to a storey: building one cost the worst frame the game has (117 ms), every seat was one more place for
 furniture to clip, and past a few storeys the picture read as a tall box. A block is a unit anybody can count at a
@@ -5812,6 +5831,8 @@ studio is bigger than the picture.</p>
 expansion onto a SimCity 4 grid of blocks, one building to a block, with houses falling onto them on thrusters;
 §7.7.2&#39;s amendment has the words and the argument. The stack across the lane stays in the game until the grid
 replaces it, and is not the design.</p>
+<p><strong>[amended 2026-10-31] The grid's arrival is an unfold.</strong> §7.7.2's amendment of the same date replaces the
+falling house with a house hinged open on its neighbour's edge; the storeys across the lane were already not the design.</p>
 <p><strong>[amended 2026-09-03.]</strong> The unfold is unchanged in every respect except <em>when</em>. It fires after
 the <strong>twentieth</strong> ordinary hire visibly completes the garage, and what unfolds around the garage
 is <strong>one office floor of a hundred seats</strong> rather than a hundred squad plates. Every argument

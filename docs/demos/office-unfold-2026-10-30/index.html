@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Unfold</title>
+<style>
+/*
+ * Office Unfold, 2026-10-30. A playable draft of "infinite expansion": instead of one house dropping after
+ * another, the office itself grows. Every expansion is a new floor plate that is FOLDED ONTO the edge of the
+ * floor you already own, swings open about that shared edge like a page of a pop-up book, slams flat, and then
+ * fills: desks spring up in a wave running away from the hinge, and a crowd pours in over the seam.
+ *
+ * Why unfold rather than drop (the 2026-09-28 amendment to GDD 7.8.1c drops a storey across the lane): a drop is
+ * a gag with a boundary, and every gag with a boundary is a count: house 7, house 8. A hinge has no
+ * boundary. The new plate is always glued to the old one, so the whole company stays ONE continuous floor,
+ * the camera has one thing to frame, and the pace can go from a slow reveal to a stampede without changing the
+ * verb. At 1.4 s a floor you see the move; at 0.25 s you see the swarm.
+ *
+ * Placement is a square spiral, so the footprint stays roughly round (a round footprint frames best on a
+ * landscape phone) and every new plate always has an older neighbour to hinge from.
+ *
+ * Loopback demo only: run `npm run dev`, open /docs/demos/office-unfold-2026-10-30/index.html.
+ * Nothing here ships and no game file is touched. Sound is synthesised and OFF until you press M.
+ * Palette is src/art/palette.ts, copied.
+ */
+@font-face { font-family:'Departure Mono'; src:url('../ui-juice-2026-10-28/assets/departure.woff2') format('woff2'); font-display:block; }
+:root {
+  color-scheme: dark;
+  --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n4:#767970; --n5:#97988f; --n7:#d9d8cd; --n8:#f1efe6;
+  --calm1:#1a6b78; --calm2:#35c9d9; --calm3:#b8f4ff; --warn2:#e0a52e; --warn3:#ffe9b0;
+  --mono:'Departure Mono', ui-monospace, Consolas, monospace;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; background:var(--n0); color:var(--n7); overflow:hidden; }
+body { font-family:var(--mono); font-size:12px; -webkit-font-smoothing:none; }
+canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+.hud { position:fixed; left:16px; top:14px; pointer-events:none; }
+.hud h1 { margin:0 0 6px; font-size:12px; font-weight:400; color:var(--calm2); letter-spacing:.14em; }
+.big { font-size:44px; line-height:1; color:var(--n8); transition:transform .12s steps(2); transform-origin:left bottom; }
+.big.hit { transform:scale(1.18); color:var(--warn3); }
+.sub { color:var(--n5); margin-top:4px; }
+.row { display:flex; gap:40px; align-items:flex-end; }
+.bar { position:fixed; left:0; right:0; bottom:0; display:flex; flex-wrap:wrap; gap:8px; padding:12px 16px; align-items:center; }
+button { font:inherit; color:var(--n7); background:rgba(24,25,25,.82); border:1px solid var(--calm1); padding:8px 12px; cursor:pointer; }
+button:hover { border-color:var(--calm2); color:var(--n8); }
+button.on { background:var(--calm1); color:var(--n8); }
+button kbd { color:var(--warn2); font:inherit; margin-right:6px; }
+.hint { color:var(--n4); margin-left:auto; }
+.toast { position:fixed; left:50%; top:22%; transform:translate(-50%,0); font-size:30px; color:var(--warn3); letter-spacing:.08em; white-space:nowrap;
+  pointer-events:none; opacity:0; text-shadow:0 3px 0 #000; }
+.toast small { display:block; margin-top:8px; font-size:12px; color:var(--calm3); letter-spacing:.2em; text-align:center; }
+.toast.go { animation:toast 2.2s steps(22) forwards; }
+@keyframes toast { 0%{opacity:0; transform:translate(-50%,24px) scale(.6);} 12%{opacity:1; transform:translate(-50%,0) scale(1.12);} 20%{transform:translate(-50%,0) scale(1);} 80%{opacity:1;} 100%{opacity:0; transform:translate(-50%,-30px) scale(1);} }
+.pop { position:fixed; pointer-events:none; color:var(--calm3); font-size:16px; text-shadow:0 2px 0 #000; white-space:nowrap; }
+@media (max-width:760px) { .big{font-size:30px;} .hint{display:none;} .row{gap:18px;} button{padding:7px 9px;} }
+</style>
+</head>
+<body>
+<div class="hud">
+  <h1>OFFICE UNFOLD</h1>
+  <div class="row">
+    <div><div class="big" id="devs">20</div><div class="sub">DEVELOPERS</div></div>
+    <div><div class="big" id="floors" style="font-size:26px">1</div><div class="sub">FLOOR PLATES</div></div>
+    <div><div class="big" id="pace" style="font-size:26px">-</div><div class="sub">SECONDS / FLOOR</div></div>
+  </div>
+  <div class="sub" id="stage" style="margin-top:12px;color:var(--warn2);letter-spacing:.2em">FLOOR</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="bar">
+  <button id="bExpand"><kbd>SPACE</kbd>EXPAND</button>
+  <button id="bBurst"><kbd>B</kbd>BURST x12</button>
+  <button id="bAuto"><kbd>A</kbd>AUTO</button>
+  <button id="bSound"><kbd>M</kbd>SOUND</button>
+  <button id="bReset"><kbd>R</kbd>RESET</button>
+  <span style="width:12px"></span>
+  <button id="s0"><kbd>1</kbd>FLOOR</button><button id="s1"><kbd>2</kbd>CAMPUS</button><button id="s2"><kbd>3</kbd>CITY</button><button id="s3"><kbd>4</kbd>PLANET</button>
+  <button id="bJourney"><kbd>J</kbd>JOURNEY</button>
+  <span class="hint">wheel or 1-4 climbs the ladder; J flies the whole thing</span>
+</div>
+
+<script type="module" src="./demo.js"></script>
+</body>
+</html>
