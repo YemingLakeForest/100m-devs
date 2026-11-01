@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Office</title>
+<style>
+/*
+ * One Office, 2026-11-01. A playable draft of "the entire place as one contiguous office".
+ *
+ * The 2026-10-31 unfold made every house swing open on its neighbour's edge. It is still house after house: a block, a
+ * street, a block, each with its own roof, lamp and garden, opening one at a time. This draft removes the unit. There
+ * is ONE floor, 165 x 125 m, with the real HQ garage at its middle, and it opens in ONE gesture: four big flaps hinged
+ * on the HQ's four edges swing up together (a pinwheel, a sixth of a second apart), and then the whole office rises
+ * out of the carpet in a single wave that runs from the HQ to the glass wall without noticing a seam, because there
+ * is none: the carpet is one sheet, the aisles run through, the columns stand on one grid.
+ *
+ * Hires then fill it nearest-first. A desk falls onto bare carpet and its developer drops on it (the garage's hire,
+ * GDD 7.7.2 / 7.8.1), so the floor is never a seating chart waiting for people: an empty seat is a faint footprint.
+ *
+ * Loopback demo only: run `npm run dev`, open /docs/demos/one-office-2026-11-01/index.html.
+ * Nothing here ships and no game file is touched. Sound is synthesised and OFF until you press M.
+ * No gradients, glows or soft light boxes (the house rule): the wave's front is a hard cyan stripe on the carpet.
+ */
+@font-face { font-family:'Departure Mono'; src:url('../ui-juice-2026-10-28/assets/departure.woff2') format('woff2'); font-display:block; }
+:root {
+  color-scheme: dark;
+  --n0:#181919; --n1:#292a29; --n2:#3c3e3c; --n4:#767970; --n5:#97988f; --n7:#d9d8cd; --n8:#f1efe6;
+  --calm1:#1a6b78; --calm2:#35c9d9; --calm3:#b8f4ff; --warn2:#e0a52e; --warn3:#ffe9b0;
+  --mono:'Departure Mono', ui-monospace, Consolas, monospace;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; background:var(--n0); color:var(--n7); overflow:hidden; }
+body { font-family:var(--mono); font-size:12px; -webkit-font-smoothing:none; }
+canvas { position:fixed; inset:0; width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
+canvas.drag { cursor:grabbing; }
+.hud { position:fixed; left:16px; top:14px; pointer-events:none; }
+.hud h1 { margin:0 0 6px; font-size:12px; font-weight:400; color:var(--calm2); letter-spacing:.14em; }
+.big { font-size:44px; line-height:1; color:var(--n8); transition:transform .12s steps(2); transform-origin:left bottom; }
+.big.hit { transform:scale(1.18); color:var(--warn3); }
+.sub { color:var(--n5); margin-top:4px; }
+.row { display:flex; gap:40px; align-items:flex-end; }
+.bar { position:fixed; left:0; right:0; bottom:0; display:flex; flex-wrap:wrap; gap:8px; padding:12px 16px; align-items:center; }
+button { font:inherit; color:var(--n7); background:rgba(24,25,25,.82); border:1px solid var(--calm1); padding:8px 12px; cursor:pointer; }
+button:hover { border-color:var(--calm2); color:var(--n8); }
+button.on { background:var(--calm1); color:var(--n8); }
+button kbd { color:var(--warn2); font:inherit; margin-right:6px; }
+.hint { color:var(--n4); margin-left:auto; }
+.toast { position:fixed; left:50%; top:22%; transform:translate(-50%,0); font-size:30px; color:var(--warn3); letter-spacing:.08em; white-space:nowrap;
+  pointer-events:none; opacity:0; text-shadow:0 3px 0 #000; }
+.toast small { display:block; margin-top:8px; font-size:12px; color:var(--calm3); letter-spacing:.2em; text-align:center; }
+.toast.go { animation:toast 2.4s steps(24) forwards; }
+@keyframes toast { 0%{opacity:0; transform:translate(-50%,24px) scale(.6);} 12%{opacity:1; transform:translate(-50%,0) scale(1.12);} 20%{transform:translate(-50%,0) scale(1);} 80%{opacity:1;} 100%{opacity:0; transform:translate(-50%,-30px) scale(1);} }
+@media (max-width:760px) { .big{font-size:30px;} .hint{display:none;} .row{gap:18px;} button{padding:7px 9px;} .toast{font-size:22px;} }
+</style>
+</head>
+<body>
+<div class="hud">
+  <h1>ONE OFFICE</h1>
+  <div class="row">
+    <div><div class="big" id="devs">20</div><div class="sub" id="of">DEVELOPERS</div></div>
+    <div><div class="big" id="floors" style="font-size:26px">1</div><div class="sub">FLOOR</div></div>
+    <div><div class="big" id="streets" style="font-size:26px">0</div><div class="sub">STREETS</div></div>
+    <div><div class="big" id="area" style="font-size:26px">-</div><div class="sub">SQ M OF CARPET</div></div>
+  </div>
+  <div class="sub" id="stage" style="margin-top:12px;color:var(--warn2);letter-spacing:.2em">THE GARAGE</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="bar">
+  <button id="bHire"><kbd>SPACE</kbd>OPEN / HIRE</button>
+  <button id="bBurst"><kbd>B</kbd>+100</button>
+  <button id="bFill"><kbd>F</kbd>FILL</button>
+  <button id="bAuto"><kbd>A</kbd>AUTO</button>
+  <button id="bSound"><kbd>M</kbd>SOUND</button>
+  <button id="bReset"><kbd>R</kbd>RESET</button>
+  <span style="width:12px"></span>
+  <button id="v0"><kbd>1</kbd>WHOLE FLOOR</button><button id="v1"><kbd>2</kbd>MY PEOPLE</button><button id="v2"><kbd>3</kbd>HQ</button>
+  <span class="hint">drag pans, wheel zooms</span>
+</div>
+
+<script type="module" src="./demo.js"></script>
+</body>
+</html>
