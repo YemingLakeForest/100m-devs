@@ -289,7 +289,10 @@ function buildTile(def) {
   const sideLists = {}
   for (const side of Object.keys(DIRS)) {
     const k = rankOf(ci + DIRS[side][0], cj + DIRS[side][1])
-    if (k >= 0 && k < def.n) continue      // the HQ, or a tile that opened before this one: nothing to wall off
+    // The HQ (rank -1) or a tile that opened before this one: nothing to wall off. The HQ is the heart of the floor, not a
+    // building inside it, so the carpet runs right up to its apron with no wall between (2026-11-01, at the user's
+    // instruction: "no need for the inner wall around the HQ").
+    if (k < def.n) continue
     sideLists[side] = { carpet:[], deco:[], glass:[], lines:[], beyond:k }
     into = sideLists[side]; wallSide(side, sideLists[side].lines)
   }
