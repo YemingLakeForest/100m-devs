@@ -6,21 +6,25 @@
 <title>One Office</title>
 <style>
 /*
- * One Office, 2026-11-01. A playable draft of "the entire place as one contiguous office".
+ * One Office, 2026-11-01. A playable draft of "the entire place as one contiguous office", grown tile by tile.
  *
- * The 2026-10-31 unfold made every house swing open on its neighbour's edge. It is still house after house: a block, a
- * street, a block, each with its own roof, lamp and garden, opening one at a time. This draft removes the unit. There
- * is ONE floor, 165 x 125 m, with the real HQ garage at its middle, and it opens in ONE gesture: four big flaps hinged
- * on the HQ's four edges swing up together (a pinwheel, a sixth of a second apart), and then the whole office rises
- * out of the carpet in a single wave that runs from the HQ to the glass wall without noticing a seam, because there
- * is none: the carpet is one sheet, the aisles run through, the columns stand on one grid.
+ * The 2026-10-31 unfold made every house swing open on its neighbour's edge. That is still house after house: a block,
+ * a street, a block, each with its own roof, lamp and garden. This draft keeps the verb (a new tile hinged on the edge
+ * it shares with its oldest neighbour, swinging up from the dark and slamming flat) and removes the unit. A tile is a
+ * slice of ONE floor: there is no street, no roof and no lot, so the carpet, the aisles and the columns run straight
+ * across every seam, and the only wall is the glass one round the outside of whatever is open. When a tile opens
+ * beside a wall, that wall folds down into the floor and the new tile raises its own outer one: the office's skin
+ * walks outward with it, and the two front doors walk with it.
  *
- * Hires then fill it nearest-first. A desk falls onto bare carpet and its developer drops on it (the garage's hire,
- * GDD 7.7.2 / 7.8.1), so the floor is never a seating chart waiting for people: an empty seat is a faint footprint.
+ * The real HQ garage is the middle of the floor and tiles open outward from it on every side (the game's sort: the
+ * nearest address first), each hinged on its oldest neighbour. A tile hangs from its neighbour's panel, not from
+ * the air, so a burst of them folds open as a chain, like an accordion. Hires fill the floor tile by tile: a tile
+ * opens when the next developer needs a desk in it, and a desk falls onto bare carpet with its developer a beat behind
+ * (the garage's hire).
  *
  * Loopback demo only: run `npm run dev`, open /docs/demos/one-office-2026-11-01/index.html.
  * Nothing here ships and no game file is touched. Sound is synthesised and OFF until you press M.
- * No gradients, glows or soft light boxes (the house rule): the wave's front is a hard cyan stripe on the carpet.
+ * No gradients, glows or soft light boxes (the house rule): a tile's furniture wave is a hard cyan stripe.
  */
 @font-face { font-family:'Departure Mono'; src:url('../ui-juice-2026-10-28/assets/departure.woff2') format('woff2'); font-display:block; }
 :root {
@@ -59,7 +63,7 @@ button kbd { color:var(--warn2); font:inherit; margin-right:6px; }
   <h1>ONE OFFICE</h1>
   <div class="row">
     <div><div class="big" id="devs">20</div><div class="sub" id="of">DEVELOPERS</div></div>
-    <div><div class="big" id="floors" style="font-size:26px">1</div><div class="sub">FLOOR</div></div>
+    <div><div class="big" id="tiles" style="font-size:26px">0</div><div class="sub" id="tilesOf">TILES</div></div>
     <div><div class="big" id="streets" style="font-size:26px">0</div><div class="sub">STREETS</div></div>
     <div><div class="big" id="area" style="font-size:26px">-</div><div class="sub">SQ M OF CARPET</div></div>
   </div>
@@ -67,14 +71,15 @@ button kbd { color:var(--warn2); font:inherit; margin-right:6px; }
 </div>
 <div class="toast" id="toast"></div>
 <div class="bar">
-  <button id="bHire"><kbd>SPACE</kbd>OPEN / HIRE</button>
-  <button id="bBurst"><kbd>B</kbd>+100</button>
+  <button id="bExpand"><kbd>SPACE</kbd>EXPAND</button>
+  <button id="bHire"><kbd>H</kbd>HIRE +10</button>
+  <button id="bBurst"><kbd>B</kbd>BURST x6</button>
   <button id="bFill"><kbd>F</kbd>FILL</button>
   <button id="bAuto"><kbd>A</kbd>AUTO</button>
   <button id="bSound"><kbd>M</kbd>SOUND</button>
   <button id="bReset"><kbd>R</kbd>RESET</button>
   <span style="width:12px"></span>
-  <button id="v0"><kbd>1</kbd>WHOLE FLOOR</button><button id="v1"><kbd>2</kbd>MY PEOPLE</button><button id="v2"><kbd>3</kbd>HQ</button>
+  <button id="v0"><kbd>1</kbd>THE FLOOR</button><button id="v1"><kbd>2</kbd>MY PEOPLE</button><button id="v2"><kbd>3</kbd>HQ</button>
   <span class="hint">drag pans, wheel zooms</span>
 </div>
 

@@ -5,23 +5,23 @@ import { buildGarageEnvironment, GARAGE_ASSEMBLED, showGarageSeats, showGarageSt
 import { defaultCast } from '/src/three/render/studioPeople.ts'
 
 /* ------------------------------------------------------------------ constants */
-// The floor is a 5 x 5 lattice of the HQ lot's own size (33 x 25 m, the apron garageEnvironment lays under the studio),
-// with the HQ in the middle cell, so the HQ is the heart of the floor and not a guest on somebody's. The lattice is only
-// a ruler: nothing is drawn per cell except desks and the strips of rooms between them, so the carpet, the aisles and
-// the columns read straight across every line the cells would have made.
+// A tile is the HQ lot's own size (33 x 25 m, the apron garageEnvironment lays under the studio), and the floor is a
+// 5 x 5 lattice of them with the HQ in the middle one, so the HQ is the heart of the floor and not a guest on
+// somebody's. The lattice is only a ruler and the order tiles open in: nothing is drawn on a tile's border, so the
+// carpet, the aisles and the columns read straight across every line the tiles would have made.
 const W = 33, D = 25
 const HQ_AT = { x: 1.5, z: 1.1 }
-const REACH = 2                                   // cells out from the HQ cell on each side
-const A = (REACH + .5) * W, B = (REACH + .5) * D  // the floor spans x +-82.5, z +-62.5
-const COLS = 8, ROWS = 6                          // desks per cell (48)
+const REACH = 2                                   // tiles out from the HQ on each side
+const COLS = 8, ROWS = 6                          // desks per tile (48)
+const PER = COLS * ROWS
 const HQ_HEADS = 20
 const LEVEL = -0.4                                // the HQ lot's top (garageEnvironment's apron), so the first seam has no step
-const SINK = 0.35                                 // the hinge line sits this far under the floor: see buildFlap
+const SINK = 0.35                                 // the hinge line sits this far under the floor: see buildTile
 const UNFOLD = 1.5                                // seconds from hanging to flat
-const STAGGER = 0.16                              // the four flaps go a beat apart, clockwise: a pinwheel, not a queue
-const BOUNCE = 0.09                               // the slam's rebound, radians: a 50 m flap lifts its far edge 4 m, not 10
-const WAVE_AT = 1.8                               // seconds after the open until the furniture wave leaves the HQ
-const WAVE_SPEED = 34                             // metres a second, along the floor's own rectangle
+const BOUNCE = 0.09                               // the slam's rebound, radians
+const CASCADE = 0.22                              // a burst opens its tiles this far apart, each hung from the last
+const WAVE_START = UNFOLD * 0.8                   // a tile's furniture starts rising just before it is flat
+const WAVE_SPEED = 30                             // metres a second, away from the seam
 const DROP = 0.45, LEAD = 0.25, DROP_H = 3.4      // a hire: the desk falls first, its developer a quarter-second behind
 
 const PAL = {
@@ -61,7 +61,6 @@ const fill = new THREE.DirectionalLight('#e7ebe8', 0.30); fill.position.set(-32,
 
 /* ------------------------------------------------------------------ shared geometry, materials, shaders */
 const U = { value: 0 }                 // idle-motion clock
-const WAVE = { value: -10 }            // the furniture wave's front, metres from the HQ along the floor's rectangle
 
 /** Idle life without per-frame JS: workers breathe, monitors shimmer, each by a hash of its own position. */
 function alive(mat, { bob = 0, shimmer = 0 }) {
@@ -86,28 +85,26 @@ function alive(mat, { bob = 0, shimmer = 0 }) {
 }
 
 /**
- * **One wave for the whole office.** Every architectural vertex carries `aDist`, the Chebyshev distance of its part's
- * centre from the HQ, scaled so the floor's wall is at A. Until the wave's front passes it a part has no height; then it
- * rises with a little overshoot. The front is a rectangle in the floor's own proportions, so the office swells out of
- * the HQ as one shape and the four flaps' seams are not on its path: the wave does not know they are there. (A part
- * with `aDist < 0` is the carpet itself and is always up.) `stripe` draws the front as a hard cyan band on the carpet,
- * hard-edged by the house rule (no glows).
+ * **A tile's furniture rises in a wave that runs away from its seam.** Every architectural vertex carries `aDist`, the
+ * distance of its part's centre from the tile's hinge line. Until the tile's wave front (`wave`) passes, a part has no
+ * height; then it rises with a little overshoot. The wave starts at the edge the tile hangs from, so the new floor
+ * grows away from the old one and the office is never seen to start over. (`aDist < 0` is the carpet itself: always up.)
+ * `stripe` draws the front as a hard cyan band on the carpet, hard-edged by the house rule (no glows).
  */
-function waved(mat, uOff, stripe = false) {
+function waved(mat, wave, axis, stripe = false) {
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uWave = WAVE; sh.uniforms.uOff = uOff
+    sh.uniforms.uWave = wave; sh.uniforms.uAxis = axis
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aDist; uniform float uWave; uniform vec2 uOff; varying vec2 vF;')
+      .replace('#include <common>', '#include <common>\nattribute float aDist; uniform float uWave; varying vec2 vF;')
       .replace('#include <begin_vertex>', `
         float pp = aDist < 0.0 ? 1.0 : clamp((uWave - aDist) / 7.0, 0.0, 1.0);
         float ee = pp >= 1.0 ? 1.0 : 1.0 + 2.7 * pow(pp - 1.0, 3.0) + 1.7 * pow(pp - 1.0, 2.0);
         vec3 transformed = vec3(position.x, position.y * ee, position.z);
-        vF = position.xz + uOff;`)
+        vF = position.xz;`)
     if (!stripe) return
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nuniform float uWave; varying vec2 vF;
-        float frontBand() { float dd = max(abs(vF.x) / ${A.toFixed(1)}, abs(vF.y) / ${B.toFixed(1)}) * ${A.toFixed(1)};
-          return step(uWave, dd) * step(dd, uWave + 1.3) * step(-5.0, uWave); }`)
+      .replace('#include <common>', `#include <common>\nuniform float uWave; uniform vec2 uAxis; varying vec2 vF;
+        float frontBand() { float dd = abs(dot(vF, uAxis)); return step(uWave, dd) * step(dd, uWave + 1.3) * step(-5.0, uWave); }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += frontBand() * vec3(0.21, 0.79, 0.85);`)
   }
@@ -122,15 +119,14 @@ const deskMat = new THREE.MeshLambertMaterial({ color:PAL.n6 })
 const screenMat = alive(new THREE.MeshBasicMaterial({ color:PAL.calm2 }), { shimmer:0.45 })
 const workerMat = alive(new THREE.MeshLambertMaterial({ color:0xffffff }), { bob:0.06 })
 const padMat = new THREE.MeshLambertMaterial({ color:0x464a47 })
-// Lit from within a little: a flap mid-swing shows its underside to the sky, and a lit-from-above slab is a black hole there.
+// Lit from within a little: a tile mid-swing shows its underside to the sky, and a lit-from-above slab is a black hole there.
 const slabMat = new THREE.MeshLambertMaterial({ color:0x3a3c3a, emissive:0x1c1d1c })
-const edgeMat = new THREE.LineBasicMaterial({ color:PAL.calm2 })
 const SHIRTS = [PAL.calm2, PAL.warn2, PAL.alarm2, PAL.n7, PAL.calm3, 0x6a8f4e, 0xb06ad0].map((c) => new THREE.Color(c))
 
 /* ------------------------------------------------------------------ the HQ: the real one, in the middle */
 // buildGarageEnvironment is what the game's garage view builds, called the way garageView.build() calls it
 // (cityGrid=true, the OS look). Nothing in it is moved, resized or re-skinned. The only thing taken away is the 512 m
-// horizon plane: the floor is the ground now, and a floor-coloured sea under it would show between the flaps.
+// horizon plane: the floor is the ground now, and a floor-coloured sea under it would show between the tiles.
 const cast = { ...defaultCast(), heroes: ['billy', 'serena', 'matt'] }
 const hq = buildGarageEnvironment(HQ_HEADS, cast, 'off', false, GARAGE_ASSEMBLED, true)
 showGarageSeats(hq, HQ_HEADS, 0)
@@ -143,121 +139,133 @@ hq.root.traverse((o) => {
 })
 scene.add(hq.root)
 
-/* ------------------------------------------------------------------ the floor: four flaps around the HQ */
-// A pinwheel: each flap is hinged on one edge of the HQ lot and runs out to the wall, and each hangs its far end past
-// the next flap's near end, so the four rectangles tile the whole floor with the HQ in the middle and no corner piece
-// left over to wait for a neighbour. (Cells are [column range] x [row range] from the HQ cell.) `nx, nz` point from the
-// flap to its hinge.
-const FLAPS = [
-  { name:'N', ci:[-2, 0], cj:[-2, -1], nx:0,  nz:1  },
-  { name:'E', ci:[1, 2],  cj:[-2, 0],  nx:-1, nz:0  },
-  { name:'S', ci:[0, 2],  cj:[1, 2],   nx:0,  nz:-1 },
-  { name:'W', ci:[-2, -1], cj:[0, 2],  nx:1,  nz:0  },
-]
+/* ------------------------------------------------------------------ the order tiles open in */
+// The game's sort (cityGrid.ts): nearest the HQ first, so the first four open on the four sides of it, then the
+// diagonals, then the second ring. Ties go south, then east, then west, then north (the game goes north first, but its
+// north tile opens behind the HQ's 4.6 m back wall, which is no way to meet the first expansion). Each tile is hinged on
+// the edge it shares with its OLDEST standing neighbour, the HQ being the oldest of all, and hangs from that
+// neighbour's panel, so a burst folds open as a chain.
+const cells = []
+for (let cj = -REACH; cj <= REACH; cj++) for (let ci = -REACH; ci <= REACH; ci++) if (ci || cj) cells.push({ ci, cj })
+cells.sort((a, b) => (a.ci * a.ci + a.cj * a.cj) - (b.ci * b.ci + b.cj * b.cj) || b.cj - a.cj || b.ci - a.ci)
+const cellAt = new Map(); cells.forEach((c, n) => { c.n = n; cellAt.set(c.ci + ',' + c.cj, c) })
+/** Opening order of the tile at (ci, cj): -1 for the HQ, Infinity past the floor's edge. */
+const rankOf = (ci, cj) => ci === 0 && cj === 0 ? -1 : (cellAt.get(ci + ',' + cj)?.n ?? Infinity)
+const DIRS = { N:[0, -1], S:[0, 1], W:[-1, 0], E:[1, 0] }
+const OPPOSITE = { N:'S', S:'N', W:'E', E:'W' }
+for (const c of cells) {
+  let best = Infinity, nx = 0, nz = 0
+  for (const [dx, dz] of Object.values(DIRS)) { const k = rankOf(c.ci + dx, c.cj + dz); if (k < best) { best = k; nx = dx; nz = dz } }
+  Object.assign(c, { nx, nz, parentRank:best })   // (nx, nz) points from the tile to its hinge
+}
+
 const floorRoot = new THREE.Group(); floorRoot.position.set(HQ_AT.x, LEVEL, HQ_AT.z); scene.add(floorRoot)
 const dummy = new THREE.Object3D()
 const allSeats = []
+const TILES = cells
 
-/** A Chebyshev distance from the HQ, scaled so the walls sit at A: the wave's own metric. */
-const waveDist = (x, z) => Math.max(Math.abs(x) / A, Math.abs(z) / B) * A
-
-function buildFlap(def, order) {
-  const x0 = (def.ci[0] - .5) * W, x1 = (def.ci[1] + .5) * W, z0 = (def.cj[0] - .5) * D, z1 = (def.cj[1] + .5) * D
-  // The hinge is the flap's edge toward the HQ; the panel's origin is that line, so everything below is built in
-  // floor coordinates and shifted by (-hx, -hz).
-  const hx = def.nx ? (def.nx < 0 ? x0 : x1) : (x0 + x1) / 2
-  const hz = def.nz ? (def.nz < 0 ? z0 : z1) : (z0 + z1) / 2
-  const parts = { carpet:[], deco:[], glass:[] }
-  const lines = []
-  const inRect = (x, z) => x >= x0 - .01 && x <= x1 + .01 && z >= z0 - .01 && z <= z1 + .01
+/**
+ * The tile at (ci, cj), as geometry in FLOOR coordinates (x east, z south, y up from the carpet), shifted by the hinge
+ * so the panel's origin is the seam it swings on. Everything but the glass wall is one set of merged meshes; the wall is
+ * four optional sides, each its own group, because a side comes down when the tile beyond it opens.
+ */
+function buildTile(def) {
+  const { ci, cj } = def
+  const cx = ci * W, cz = cj * D
+  const x0 = cx - W / 2, x1 = cx + W / 2, z0 = cz - D / 2, z1 = cz + D / 2
+  const hx = def.nx ? (def.nx < 0 ? x0 : x1) : cx
+  const hz = def.nz ? (def.nz < 0 ? z0 : z1) : cz
+  const axis = { value: def.nx ? new THREE.Vector2(1, 0) : new THREE.Vector2(0, 1) }
+  const depthOf = (x, z) => def.nx ? Math.abs(x - hx) : Math.abs(z - hz)
+  const wave = { value: -10 }
+  let into = { carpet:[], deco:[], glass:[] }
+  const body = into
 
   /** One box, in floor coordinates, y up from the carpet. `pop` false makes it carpet: always up. */
   function part(kind, w, h, d, x, y, z, color, pop = true) {
     const g = new THREE.BoxGeometry(w, h, d).translate(x - hx, y + h / 2, z - hz)
-    const c = new THREE.Color(color), n = g.attributes.position.count, a = new Float32Array(n * 3), dist = new Float32Array(n).fill(pop ? waveDist(x, z) : -1)
+    const c = new THREE.Color(color), n = g.attributes.position.count, a = new Float32Array(n * 3), dist = new Float32Array(n).fill(pop ? depthOf(x, z) : -1)
     for (let i = 0; i < n; i++) { a[i*3] = c.r; a[i*3+1] = c.g; a[i*3+2] = c.b }
     g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.setAttribute('aDist', new THREE.BufferAttribute(dist, 1)); g.deleteAttribute('uv')
-    parts[kind].push(g)
+    into[kind].push(g)
   }
 
   /* --- the carpet, the aisles and the two avenues ---------------------------------------------------------------- */
-  part('carpet', x1 - x0, .03, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, 0x505653, false)
-  for (let ci = def.ci[0]; ci <= def.ci[1]; ci++) for (let cj = def.cj[0]; cj <= def.cj[1]; cj++) layoutCell(ci, cj)
+  part('carpet', W, .03, D, cx, 0, cz, 0x505653, false)
+  // The desk grid has a centre aisle (3.2 m between desk edges) and a cross aisle (2.75 m); the runners lie in them.
+  // The two avenues are the same runners made wider, and each one ends at a front door.
+  const avenueNS = ci === 0, avenueEW = cj === 0
+  const rw = avenueNS ? 4.2 : 3.0, ew = 2.6
+  const pieces = avenueEW ? [[cz - D / 2, cz - ew / 2], [cz + ew / 2, cz + D / 2]] : [[cz - D / 2, cz + D / 2]]
+  for (const [a0, a1] of pieces) {
+    part('carpet', rw, .036, a1 - a0, cx, 0, (a0 + a1) / 2, 0x343a3b, false)
+    // The avenues' inlay is the bright cyan; an ordinary aisle's is the dim teal, so the two high streets are the
+    // ones the eye follows from the HQ to its doors.
+    for (const s of [-1, 1]) part('carpet', .12, .04, a1 - a0, cx + s * (rw / 2 + .1), 0, (a0 + a1) / 2, avenueNS ? PAL.calm2 : PAL.calm1, false)
+  }
+  if (avenueEW) {
+    part('carpet', W, .038, ew, cx, 0, cz, 0x343a3b, false)
+    for (const s of [-1, 1]) part('carpet', W, .042, .12, cx, 0, cz + s * (ew / 2 + .1), PAL.calm2, false)
+  }
+  // Low pod dividers, with a gap to cross at the cross aisle.
+  for (const sx of [-1, 1]) for (const [a0, a1] of [[-9.6, -.9], [.9, 9.6]]) part('deco', .14, 1.15, a1 - a0, cx + sx * 7.7, 0, cz + (a0 + a1) / 2, 0x7d8f92)
 
-  function layoutCell(ci, cj) {
-    const cx = ci * W, cz = cj * D
-    const avenueNS = ci === 0, avenueEW = cj === 0
-    // The desk grid: a centre aisle (3.2 m between desk edges) and a cross aisle (2.75 m); the runners lie in them.
-    // The two avenues are the same runners made wider, and each one ends at a front door.
-    const rw = avenueNS ? 4.2 : 3.0, ew = 2.6
-    const pieces = avenueEW ? [[cz - D / 2, cz - ew / 2], [cz + ew / 2, cz + D / 2]] : [[cz - D / 2, cz + D / 2]]
-    for (const [a0, a1] of pieces) {
-      part('carpet', rw, .036, a1 - a0, cx, 0, (a0 + a1) / 2, 0x343a3b, false)
-      // The avenues' inlay is the bright cyan; an ordinary aisle's is the dim teal, so the two high streets are the
-      // ones the eye follows from the HQ to its doors.
-      for (const s of [-1, 1]) part('carpet', .12, .04, a1 - a0, cx + s * (rw / 2 + .1), 0, (a0 + a1) / 2, avenueNS ? PAL.calm2 : PAL.calm1, false)
-    }
-    if (avenueEW) {
-      part('carpet', W, .038, ew, cx, 0, cz, 0x343a3b, false)
-      for (const s of [-1, 1]) part('carpet', W, .042, .12, cx, 0, cz + s * (ew / 2 + .1), PAL.calm2, false)
-    }
-    // Low pod dividers, with a gap to cross at the cross aisle.
-    for (const sx of [-1, 1]) for (const [a0, a1] of [[-9.6, -.9], [.9, 9.6]]) part('deco', .14, 1.15, a1 - a0, cx + sx * 7.7, 0, cz + (a0 + a1) / 2, 0x7d8f92)
-
-    // The two 3 m strips along the cell's north and south edges hold what makes it an office rather than a seating
-    // chart. Four programmes, chosen by hash, so a walk across the floor is not one cell repeated 24 times.
-    const prog = Math.floor(hash(ci * 7.3 + cj * 13.1 + 4) * 4)
-    const meeting = (mx, mz) => {
-      part('deco', 3.4, .08, 1.0, mx, .72, mz, 0xb69a6a); part('deco', .2, .72, .2, mx, 0, mz, 0x3c3e3c)
-      for (let i = 0; i < 4; i++) for (const sz of [-1, 1]) part('deco', .5, .5, .5, mx - 1.2 + i * .8, 0, mz + sz * .85, 0x1a6b78)
-      part('glass', 7, 2.5, .06, mx, 0, mz - 1.1, 0xb8f4ff); part('glass', 7, 2.5, .06, mx, 0, mz + 1.1, 0xb8f4ff)
-      part('glass', .06, 2.5, 2.2, mx - 3.5, 0, mz, 0xb8f4ff); part('glass', .06, 2.5, 2.2, mx + 3.5, 0, mz, 0xb8f4ff)
-    }
-    const pantry = (px, pz) => { part('deco', 6, .9, 1, px, 0, pz, 0x97988f); part('deco', 6.1, .06, 1.1, px, .9, pz, 0xd9d8cd) }
-    const lounge = (lx, lz) => {
-      part('deco', 5, .45, .9, lx, 0, lz, 0x1a6b78); part('deco', 5, .55, .22, lx, .45, lz + (lz > cz ? .34 : -.34), 0x1a6b78)
-      part('deco', 1.4, .4, 1.0, lx - 3.4, 0, lz, 0x3c3e3c); part('deco', 1.4, .4, 1.0, lx + 3.4, 0, lz, 0x3c3e3c)   // an end table either side
-    }
-    const booths = (bx, bz, n) => { for (let i = 0; i < n; i++) { part('glass', 1.8, 2.4, 1.8, bx + i * 2.3, 0, bz, 0xb8f4ff); part('deco', 1.9, .1, 1.9, bx + i * 2.3, 2.4, bz, 0x3c3e3c) } }
-    const s = 11.3
-    if (prog === 0) { meeting(cx - 9.5, cz + s); pantry(cx + 9.5, cz + s); pantry(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
-    else if (prog === 1) { meeting(cx - 9.5, cz + s); meeting(cx + 9.5, cz + s); meeting(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
-    else if (prog === 2) { lounge(cx - 9.5, cz + s); pantry(cx + 9.5, cz + s); pantry(cx - 9.5, cz - s); lounge(cx + 9.5, cz - s) }
-    else { booths(cx - 12.5, cz + s, 4); booths(cx + 4.5, cz + s, 4); pantry(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
-    // Plants at the strips' free ends, never in an aisle.
-    for (const [px, pz] of [[-15, -11.2], [15, -11.2], [-15, 11.2], [15, 11.2], [-4.2, -11.2], [4.2, 11.2]]) {
-      part('deco', .55, .5, .55, cx + px, 0, cz + pz, 0x6b4a32); part('deco', .9, 1.1, .9, cx + px, .5, cz + pz, 0x3f7a3a)
-    }
-    // Columns on the cell corners: one structural grid across the whole floor, the thing that says this is one
-    // building. Each cell owns its north-west corner, and the far ones where the floor ends. The four around the
-    // HQ lot are the HQ's own walls' business.
-    const corner = (i, j) => {
-      if (i >= 0 && i <= 1 && j >= 0 && j <= 1) return
-      const x = (i - .5) * W, z = (j - .5) * D
-      part('deco', .8, 3.2, .8, x, 0, z, 0xb8b9b0); part('deco', .9, .14, .9, x, 2.7, z, PAL.calm2)
-    }
-    corner(ci, cj)
-    if (ci === REACH) corner(ci + 1, cj)
-    if (cj === REACH) corner(ci, cj + 1)
-    if (ci === REACH && cj === REACH) corner(ci + 1, cj + 1)
-
-    // Seats, on the plate demo's lattice: the desk's footprint is the seat, the developer sits at its south edge.
-    for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
-      const x = cx + (c - (COLS - 1) / 2) * 3.5 + (c >= COLS / 2 ? 0.7 : -0.7), z = cz + (r - (ROWS - 1) / 2) * 3.6
-      allSeats.push({ flap: def, x, z, t0: Infinity, landed: false, key: Math.hypot(x / W, z / D) + hash(x * 3.1 + z) * .03 })
-    }
+  // The two 3 m strips along the tile's north and south edges hold what makes it an office rather than a seating chart.
+  // Four programmes, chosen by hash, so a walk across the floor is not one tile repeated 24 times.
+  const prog = Math.floor(hash(ci * 7.3 + cj * 13.1 + 4) * 4)
+  const meeting = (mx, mz) => {
+    part('deco', 3.4, .08, 1.0, mx, .72, mz, 0xb69a6a); part('deco', .2, .72, .2, mx, 0, mz, 0x3c3e3c)
+    for (let i = 0; i < 4; i++) for (const sz of [-1, 1]) part('deco', .5, .5, .5, mx - 1.2 + i * .8, 0, mz + sz * .85, 0x1a6b78)
+    part('glass', 7, 2.5, .06, mx, 0, mz - 1.1, 0xb8f4ff); part('glass', 7, 2.5, .06, mx, 0, mz + 1.1, 0xb8f4ff)
+    part('glass', .06, 2.5, 2.2, mx - 3.5, 0, mz, 0xb8f4ff); part('glass', .06, 2.5, 2.2, mx + 3.5, 0, mz, 0xb8f4ff)
+  }
+  const pantry = (px, pz) => { part('deco', 6, .9, 1, px, 0, pz, 0x97988f); part('deco', 6.1, .06, 1.1, px, .9, pz, 0xd9d8cd) }
+  const lounge = (lx, lz) => {
+    part('deco', 5, .45, .9, lx, 0, lz, 0x1a6b78); part('deco', 5, .55, .22, lx, .45, lz + (lz > cz ? .34 : -.34), 0x1a6b78)
+    part('deco', 1.4, .4, 1.0, lx - 3.4, 0, lz, 0x3c3e3c); part('deco', 1.4, .4, 1.0, lx + 3.4, 0, lz, 0x3c3e3c)   // an end table either side
+  }
+  const booths = (bx, bz, n) => { for (let i = 0; i < n; i++) { part('glass', 1.8, 2.4, 1.8, bx + i * 2.3, 0, bz, 0xb8f4ff); part('deco', 1.9, .1, 1.9, bx + i * 2.3, 2.4, bz, 0x3c3e3c) } }
+  const s = 11.3
+  if (prog === 0) { meeting(cx - 9.5, cz + s); pantry(cx + 9.5, cz + s); pantry(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
+  else if (prog === 1) { meeting(cx - 9.5, cz + s); meeting(cx + 9.5, cz + s); meeting(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
+  else if (prog === 2) { lounge(cx - 9.5, cz + s); pantry(cx + 9.5, cz + s); pantry(cx - 9.5, cz - s); lounge(cx + 9.5, cz - s) }
+  else { booths(cx - 12.5, cz + s, 4); booths(cx + 4.5, cz + s, 4); pantry(cx - 9.5, cz - s); meeting(cx + 9.5, cz - s) }
+  // Plants at the strips' free ends, never in an aisle.
+  for (const [px, pz] of [[-15, -11.2], [15, -11.2], [-15, 11.2], [15, 11.2], [-4.2, -11.2], [4.2, 11.2]]) {
+    part('deco', .55, .5, .55, cx + px, 0, cz + pz, 0x6b4a32); part('deco', .9, 1.1, .9, cx + px, .5, cz + pz, 0x3f7a3a)
+  }
+  // Columns on the tile corners: one structural grid across the whole floor, the thing that says this is one building.
+  // A corner is shared by up to four tiles and belongs to the first of them to open, so it is there whenever anything
+  // beside it is. The four around the HQ lot are the HQ's own walls' business.
+  const cornerOwner = (i, j) => {
+    if (i >= 0 && i <= 1 && j >= 0 && j <= 1) return null
+    let best = Infinity
+    for (const [a, b] of [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) { const k = rankOf(a, b); if (k >= 0 && k < best) best = k }
+    return best
+  }
+  for (const [i, j] of [[ci, cj], [ci + 1, cj], [ci, cj + 1], [ci + 1, cj + 1]]) {
+    if (cornerOwner(i, j) !== def.n) continue
+    const x = (i - .5) * W, z = (j - .5) * D
+    part('deco', .8, 3.2, .8, x, 0, z, 0xb8b9b0); part('deco', .9, .14, .9, x, 2.7, z, PAL.calm2)
+  }
+  // Seats, on the plate demo's lattice: the desk's footprint is the seat, the developer sits at its south edge.
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+    const x = cx + (c - (COLS - 1) / 2) * 3.5 + (c >= COLS / 2 ? 0.7 : -0.7), z = cz + (r - (ROWS - 1) / 2) * 3.6
+    allSeats.push({ tile: def, x, z, t0: Infinity, landed: false, key: depthOf(x, z) + hash(x * 3.1 + z) * 1.2 })
   }
 
-  /* --- the glass wall -------------------------------------------------------------------------------------------- */
+  /* --- the glass wall: four sides, each there only while nothing is open beyond it --------------------------------- */
   // Back walls (north, west) stand full height and the front ones (south, east) are a low parapet, so the camera
-  // looks over them into the floor: the garage's own dollhouse convention. The two front walls have a door each, where
-  // the avenues end, with a canopy and an amber sign.
-  function wallRun(side, a0, a1) {
+  // looks over them into the floor: the garage's own dollhouse convention. The two front walls have a door each,
+  // where the avenues end, with a canopy and an amber sign; the door is in whichever tile is last on its avenue.
+  function wallSide(side, lines) {
     const front = side === 'S' || side === 'E', sill = front ? .9 : 1.0, glassH = front ? 1.0 : 2.5
     const alongX = side === 'N' || side === 'S'
-    const fixed = side === 'N' ? -B + .25 : side === 'S' ? B - .25 : side === 'W' ? -A + .25 : A - .25
-    const gap = (side === 'S' || side === 'E') ? [-5, 5] : null
-    const runs = gap ? [[a0, Math.min(a1, gap[0])], [Math.max(a0, gap[1]), a1]].filter(([p, q]) => q - p > .01) : [[a0, a1]]
+    const [a0, a1] = alongX ? [x0, x1] : [z0, z1]
+    const fixed = side === 'N' ? z0 + .25 : side === 'S' ? z1 - .25 : side === 'W' ? x0 + .25 : x1 - .25
+    const edgeAt = side === 'N' ? z0 : side === 'S' ? z1 : side === 'W' ? x0 : x1
+    const door = (side === 'S' && ci === 0) || (side === 'E' && cj === 0)
+    const runs = door ? [[a0, Math.min(a1, -5)], [Math.max(a0, 5), a1]].filter(([p, q]) => q - p > .01) : [[a0, a1]]
     for (const [p, q] of runs) {
       const len = q - p, mid = (p + q) / 2
       const box = (h, t, y, color, kind) => alongX ? part(kind, len, h, t, mid, y, fixed, color) : part(kind, t, h, len, fixed, y, mid, color)
@@ -267,60 +275,77 @@ function buildFlap(def, order) {
         alongX ? part('deco', .14, sill + glassH, .2, m, 0, fixed, 0x97988f) : part('deco', .2, sill + glassH, .14, fixed, 0, m, 0x97988f)
       }
     }
+    if (door && side === 'S') {
+      part('deco', 12.4, .2, 3, 0, 3.2, z1 - 1.7, 0x97988f); part('deco', 12.4, .5, .22, 0, 3.45, z1 - .3, PAL.warn2)
+      for (const sg of [-1, 1]) part('deco', .3, 3.2, .3, sg * 5.8, 0, z1 - 1.2, 0xb8b9b0)
+    }
+    if (door && side === 'E') {
+      part('deco', 3, .2, 12.4, x1 - 1.7, 3.2, 0, 0x97988f); part('deco', .22, .5, 12.4, x1 - .3, 3.45, 0, PAL.warn2)
+      for (const sg of [-1, 1]) part('deco', .3, 3.2, .3, x1 - 1.2, 0, sg * 5.8, 0xb8b9b0)
+    }
+    // The floor's one hairline: its edge, in cyan, where this wall stands.
+    alongX ? lines.push(a0 - hx, .07, edgeAt - hz, a1 - hx, .07, edgeAt - hz) : lines.push(edgeAt - hx, .07, a0 - hz, edgeAt - hx, .07, a1 - hz)
   }
-  if (z0 <= -B + .01) wallRun('N', x0, x1)
-  if (z1 >= B - .01) wallRun('S', x0, x1)
-  if (x0 <= -A + .01) wallRun('W', z0, z1)
-  if (x1 >= A - .01) wallRun('E', z0, z1)
-  if (inRect(0, B)) {
-    part('deco', 12.4, .25, 4, 0, 3.2, B - 2.2, 0x3c3e3c); part('deco', 12.4, .5, .22, 0, 3.45, B - .3, PAL.warn2)
-    for (const s of [-1, 1]) part('deco', .3, 3.2, .3, s * 5.8, 0, B - 1.2, 0xb8b9b0)
+  const sideLists = {}
+  for (const side of Object.keys(DIRS)) {
+    const k = rankOf(ci + DIRS[side][0], cj + DIRS[side][1])
+    if (k >= 0 && k < def.n) continue      // the HQ, or a tile that opened before this one: nothing to wall off
+    sideLists[side] = { carpet:[], deco:[], glass:[], lines:[], beyond:k }
+    into = sideLists[side]; wallSide(side, sideLists[side].lines)
   }
-  if (inRect(A, 0)) {
-    part('deco', 4, .25, 12.4, A - 2.2, 3.2, 0, 0x3c3e3c); part('deco', .22, .5, 12.4, A - .3, 3.45, 0, PAL.warn2)
-    for (const s of [-1, 1]) part('deco', .3, 3.2, .3, A - 1.2, 0, s * 5.8, 0xb8b9b0)
-  }
-  // The floor's one hairline: the perimeter, in cyan, drawn only where this flap meets the outside.
-  const edge = (ax, az, bx, bz) => lines.push(ax - hx, .07, az - hz, bx - hx, .07, bz - hz)
-  if (z0 <= -B + .01) edge(x0, z0, x1, z0)
-  if (z1 >= B - .01) edge(x0, z1, x1, z1)
-  if (x0 <= -A + .01) edge(x0, z0, x0, z1)
-  if (x1 >= A - .01) edge(x1, z0, x1, z1)
+  into = body
 
   /* --- the objects ----------------------------------------------------------------------------------------------- */
-  const hinge = new THREE.Group(); hinge.position.set(hx, -SINK, hz); floorRoot.add(hinge)
+  const hinge = new THREE.Group()
+  const parent = def.parentRank >= 0 ? TILES[def.parentRank] : null
+  if (parent) { hinge.position.set(hx - parent.hx, -SINK, hz - parent.hz); parent.panel.add(hinge) }
+  else { hinge.position.set(hx, -SINK, hz); floorRoot.add(hinge) }
   const panel = new THREE.Group(); panel.position.y = SINK; hinge.add(panel)   // flat, the two offsets cancel
-  const uOff = { value: new THREE.Vector2(hx, hz) }
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, .3, z1 - z0), slabMat)
-  slab.position.set((x0 + x1) / 2 - hx, -.15, (z0 + z1) / 2 - hz)
-  const carpet = new THREE.Mesh(mergeGeometries(parts.carpet), waved(new THREE.MeshLambertMaterial({ vertexColors:true }), uOff, true))
-  const deco = new THREE.Mesh(mergeGeometries(parts.deco), waved(new THREE.MeshLambertMaterial({ vertexColors:true }), uOff))
-  const glass = new THREE.Mesh(mergeGeometries(parts.glass), waved(new THREE.MeshLambertMaterial({ vertexColors:true, transparent:true, opacity:.22, depthWrite:false }), uOff))
-  glass.renderOrder = 2
-  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3))
-  panel.add(slab, carpet, deco, glass, new THREE.LineSegments(lg, edgeMat))
-  for (const m of [carpet, deco, glass]) m.frustumCulled = false
+  const make = () => ({
+    carpet: waved(new THREE.MeshLambertMaterial({ vertexColors:true }), wave, axis, true),
+    deco: waved(new THREE.MeshLambertMaterial({ vertexColors:true }), wave, axis),
+    glass: waved(new THREE.MeshLambertMaterial({ vertexColors:true, transparent:true, opacity:.22, depthWrite:false }), wave, axis),
+    edge: new THREE.LineBasicMaterial({ color:PAL.calm2 }),
+  })
+  const mats = make()
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, .3, D), slabMat); slab.position.set(cx - hx, -.15, cz - hz)
+  // A list can be empty (a tile on the lounge programme has no glass of its own), and there is nothing to merge then.
+  const merged = (list, mat, renderOrder = 0) => {
+    if (!list.length) return null
+    const m = new THREE.Mesh(mergeGeometries(list), mat); m.frustumCulled = false; m.renderOrder = renderOrder
+    return m
+  }
+  panel.add(slab, ...[merged(body.carpet, mats.carpet), merged(body.deco, mats.deco), merged(body.glass, mats.glass, 2)].filter(Boolean))
+  const walls = {}
+  for (const [side, l] of Object.entries(sideLists)) {
+    const group = new THREE.Group(); panel.add(group)
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(l.lines, 3))
+    group.add(...[merged(l.deco, mats.deco), merged(l.glass, mats.glass, 2)].filter(Boolean), new THREE.LineSegments(lg, mats.edge))
+    walls[side] = { group, beyond:l.beyond, retractAt:null }
+  }
 
-  const seats = allSeats.filter((s) => s.flap === def)
-  const n = seats.length
-  const desks = new THREE.InstancedMesh(deskGeo, deskMat, n), screens = new THREE.InstancedMesh(screenGeo, screenMat, n)
-  const people = new THREE.InstancedMesh(workerGeo, workerMat, n), pads = new THREE.InstancedMesh(padGeo, padMat, n)
+  const seats = allSeats.filter((q) => q.tile === def)
+  const desks = new THREE.InstancedMesh(deskGeo, deskMat, seats.length), screens = new THREE.InstancedMesh(screenGeo, screenMat, seats.length)
+  const people = new THREE.InstancedMesh(workerGeo, workerMat, seats.length), pads = new THREE.InstancedMesh(padGeo, padMat, seats.length)
   for (const m of [desks, screens, people, pads]) { m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); panel.add(m) }
-  people.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3)
-  seats.forEach((s, i) => { s.idx = i; s.flapHx = hx; s.flapHz = hz; people.setColorAt(i, SHIRTS[(Math.random() * SHIRTS.length) | 0]) })
-  Object.assign(def, { x0, x1, z0, z1, hx, hz, hinge, panel, desks, screens, people, pads, seats, t: -1e9, landed: false, dirty: true })
+  people.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(seats.length * 3), 3)
+  seats.forEach((q, i) => { q.idx = i; people.setColorAt(i, SHIRTS[(Math.random() * SHIRTS.length) | 0]) })
+  seats.sort((a, b) => a.key - b.key)
+  Object.assign(def, { cx, cz, hx, hz, hinge, panel, desks, screens, people, pads, seats, walls, wave, depth:def.nx ? W : D,
+    opened:false, started:false, landed:false, ready:false, done:true, t:-1e9, dirty:true })
   hinge.visible = false
 }
-
-FLAPS.forEach(buildFlap)
-const order = allSeats.slice().sort((a, b) => a.key - b.key)    // nearest the HQ first: the office fills from its heart
-const TOTAL = allSeats.length
+TILES.forEach(buildTile)
+// The order developers are seated in: tile by tile, and inside a tile from the seam outward, so a tile fills in the
+// direction its wave ran.
+const order = TILES.flatMap((t) => t.seats)
+const TOTAL = order.length
 
 /* ------------------------------------------------------------------ one seat's pose */
 let clock = 0
 function writeSeat(s) {
-  const f = s.flap, i = s.idx, a = clock - s.t0
-  const px = s.x - s.flapHx, pz = s.z - s.flapHz
+  const f = s.tile, i = s.idx, a = clock - s.t0
+  const px = s.x - f.hx, pz = s.z - f.hz
   let ds = 0, dy = 0, ps = 0, py = 0
   if (a >= 0) {
     ds = 1; dy = DROP_H * (1 - bounce(clamp01(a / DROP)))
@@ -336,12 +361,12 @@ function writeSeat(s) {
 }
 allSeats.forEach(writeSeat)
 
-/* ------------------------------------------------------------------ a flap's pose */
-function writeFlap(f) {
+/* ------------------------------------------------------------------ a tile's pose */
+function writeTile(f) {
   const t = f.t
-  // phi is signed: negative is below the floor line. The flap starts hanging straight down from the HQ's edge, sweeps
-  // up to flat, and rebounds a few degrees above flat once. It also unrolls as it comes: the sheet is drawn out of the
-  // HQ's edge during the first part of the swing (k), so it is never seen lying folded under the floor in the void.
+  // phi is signed: negative is below the floor line. The tile starts hanging straight down from its neighbour's edge,
+  // sweeps up to flat, and rebounds a few degrees above flat once. It also unrolls as it comes: the sheet is drawn out
+  // of its neighbour's edge during the first part of the swing (k), so it is never seen lying folded in the void.
   let phi
   if (t < UNFOLD) phi = -(Math.PI / 2) * (1 - easeInOut(clamp01(t / UNFOLD)))
   else { const tau = t - UNFOLD; phi = BOUNCE * Math.exp(-7 * tau) * Math.abs(Math.sin(15 * tau)) }
@@ -358,12 +383,12 @@ let shake = 0
 function landingFx(f) {
   const seam = new THREE.Vector3(HQ_AT.x + f.hx, LEVEL, HQ_AT.z + f.hz)
   const along = f.nx ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0)
-  const len = f.nx ? (f.z1 - f.z0) : (f.x1 - f.x0)
-  const N = 90, pos = new Float32Array(N * 3), vel = []
+  const len = f.nx ? D : W
+  const N = 56, pos = new Float32Array(N * 3), vel = []
   for (let i = 0; i < N; i++) {
     const a = rnd(-0.5, 0.5) * len
     pos[i*3] = seam.x + along.x * a; pos[i*3+1] = LEVEL + 0.2; pos[i*3+2] = seam.z + along.z * a
-    vel.push(new THREE.Vector3((-f.nx * rnd(2, 10)) + rnd(-1, 1), rnd(1.5, 5), (-f.nz * rnd(2, 10)) + rnd(-1, 1)))
+    vel.push(new THREE.Vector3((-f.nx * rnd(2, 8)) + rnd(-1, 1), rnd(1.5, 5), (-f.nz * rnd(2, 8)) + rnd(-1, 1)))
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
   const m = new THREE.PointsMaterial({ color:PAL.n7, size:2.2, sizeAttenuation:false, transparent:true, opacity:.8, depthWrite:false })
@@ -375,22 +400,17 @@ function landingFx(f) {
     const k = e.age / e.life
     m.opacity = .8 * (1 - k); m.size = 2.2 + k * 6
   }, dispose() { scene.remove(pts); g.dispose(); m.dispose() } })
+  // One hairline ring from the middle of the new tile, the cyan stripe's twin in the air.
+  const rm = new THREE.MeshBasicMaterial({ color:PAL.calm3, transparent:true, opacity:.9, depthWrite:false })
+  const ring = new THREE.Mesh(ringGeo, rm); ring.position.set(HQ_AT.x + f.cx, LEVEL + .1, HQ_AT.z + f.cz); scene.add(ring)
+  fx.push({ age:0, life:1.0, tick(e) { const t = e.age / e.life, sz = 4 + t * 26; ring.scale.set(sz, sz, sz * (D / W)); rm.opacity = .9 * (1 - t) * (1 - t) }, dispose() { scene.remove(ring); rm.dispose() } })
   shake = Math.min(1.4, shake + 0.5)
-  thump(0.55)
-}
-function waveFx() {
-  // One ring from the HQ at the moment the wave leaves it, the hard cyan stripe's twin in the air: a single shock
-  // for a single office, where the plate demo rang once per floor.
-  const m = new THREE.MeshBasicMaterial({ color:PAL.calm3, transparent:true, opacity:.9, depthWrite:false })
-  const ring = new THREE.Mesh(ringGeo, m); ring.position.set(HQ_AT.x, LEVEL + .1, HQ_AT.z); scene.add(ring)
-  fx.push({ age:0, life:2.6, tick(e) { const t = e.age / e.life, s = 18 + t * (A * 1.05); ring.scale.set(s, s, s * (B / A)); m.opacity = .9 * (1 - t) * (1 - t) }, dispose() { scene.remove(ring); m.dispose() } })
-  shake = Math.min(1.4, shake + .4)
-  note(); note()
+  thump(0.5); note()
 }
 
 /* ------------------------------------------------------------------ sound: synthesised, off until M */
 // Unpitched or plucked beats that stack into texture, never a pitched glide (a glide overlapping itself is a siren).
-let actx = null, soundOn = false, bus = null, noiseBuf = null, lastNote = 0, lastTick = 0
+let actx = null, soundOn = false, bus = null, noiseBuf = null, lastNote = 0, lastTick = 0, lastWhoosh = 0
 function ensureAudio() {
   if (actx) return
   actx = new (window.AudioContext || window.webkitAudioContext)()
@@ -416,7 +436,7 @@ function thump(v = 1) {
   o.connect(g).connect(bus); o.start(t); o.stop(t + .24)
   noise(t, .06, 'bandpass', 2400, 1200, .22 * v, 0.8)
 }
-function whoosh() { if (soundOn) noise(actx.currentTime, UNFOLD, 'bandpass', 380, 1500, .16, 0.6) }
+function whoosh() { if (soundOn && actx.currentTime - lastWhoosh > .15) { lastWhoosh = actx.currentTime; noise(actx.currentTime, UNFOLD, 'bandpass', 380, 1500, .16, 0.6) } }
 function tick() {   // a hire landing: a dry wooden tick, rate-limited so a stampede is a rattle, not a wall
   if (!soundOn) return
   const t = actx.currentTime; if (t - lastTick < .03) return; lastTick = t
@@ -455,13 +475,18 @@ function fitBox(x0, x1, z0, z1, y1) {
 function refit() {
   const hqBox = [HQ_AT.x - W / 2, HQ_AT.x + W / 2, HQ_AT.z - D / 2, HQ_AT.z + D / 2]
   let box
-  if (!opened || view === 'hq') box = hqBox.map((v, i) => v + (i % 2 ? 4 : -4))
-  else if (view === 'floor') box = [HQ_AT.x - A, HQ_AT.x + A, HQ_AT.z - B, HQ_AT.z + B]
-  else {
-    // "My people": the seats that have somebody in them plus one cell of headroom, never tighter than the HQ. The honest
-    // picture of a floor that holds more than the studio does (GDD 7.8.1c): the far flaps hang off the frame's edge.
+  if (view === 'hq' || !openedCount) box = hqBox.map((v, i) => v + (i % 2 ? 4 : -4))
+  else if (view === 'floor') {
+    // The whole open floor, and nothing past it: the camera fits what the studio has (GDD 7.8.1c), and each new tile
+    // makes it lurch out to take the new edge in.
+    let [x0, x1, z0, z1] = hqBox
+    for (const t of TILES) if (t.opened) { x0 = Math.min(x0, HQ_AT.x + t.cx - W / 2); x1 = Math.max(x1, HQ_AT.x + t.cx + W / 2); z0 = Math.min(z0, HQ_AT.z + t.cz - D / 2); z1 = Math.max(z1, HQ_AT.z + t.cz + D / 2) }
+    box = [x0, x1, z0, z1]
+  } else {
+    // "My people": the seats that have somebody in them plus one tile of headroom, never tighter than the HQ.
     let [x0, x1, z0, z1] = hqBox
     for (const s of allSeats) if (s.t0 < Infinity) { x0 = Math.min(x0, HQ_AT.x + s.x); x1 = Math.max(x1, HQ_AT.x + s.x); z0 = Math.min(z0, HQ_AT.z + s.z); z1 = Math.max(z1, HQ_AT.z + s.z) }
+    const A = (REACH + .5) * W, B = (REACH + .5) * D
     box = [Math.max(x0 - W / 2, HQ_AT.x - A), Math.min(x1 + W / 2, HQ_AT.x + A), Math.max(z0 - D / 2, HQ_AT.z - B), Math.min(z1 + D / 2, HQ_AT.z + B)]
   }
   const r = fitBox(box[0], box[1], box[2], box[3], 5)
@@ -470,7 +495,7 @@ function refit() {
 function applyCamera(dt) {
   cam.tzoom = fitZoom * userMul
   cam.tcx = fitCentre.x + pan.x; cam.tcz = fitCentre.z + pan.z
-  // Underdamped spring on zoom: the open makes the camera lurch out and settle, which is the "oh no, it's bigger" beat.
+  // Underdamped spring on zoom: each expansion makes the camera lurch out and settle, which is the "oh no, it's bigger" beat.
   const k = 70, c = 11
   cam.zv += ((cam.tzoom - cam.zoom) * k - cam.zv * c) * dt
   cam.zoom = Math.max(4, cam.zoom + cam.zv * dt)
@@ -499,6 +524,7 @@ cv.addEventListener('pointermove', (e) => {
   const down = dy * upp / VIEW.y
   pan.x -= (dx * upp + down) / Math.SQRT2
   pan.z -= (-dx * upp + down) / Math.SQRT2
+  const A = (REACH + .5) * W, B = (REACH + .5) * D
   pan.x = Math.max(-A, Math.min(A, pan.x)); pan.z = Math.max(-B, Math.min(B, pan.z))
 })
 const endDrag = () => { drag = null; cv.classList.remove('drag') }
@@ -507,83 +533,111 @@ function setView(v) { view = v; userMul = 1; pan.x = pan.z = 0; refit(); syncBut
 
 /* ------------------------------------------------------------------ driving it */
 const $ = (id) => document.getElementById(id)
-let opened = false, openAt = 0, waveFired = false, wavePast = false
+let openedCount = 0, landedCount = 0
 let hired = 0, queued = 0
-let auto = true, autoClock = 0, readyAt = 0
+let auto = true, autoClock = 0, autoAcc = 0
 let devsShown = HQ_HEADS
 const young = []
-const MILESTONES = { 100:['100 DEVELOPERS', 'the carpet has not met them all yet'], 250:['250', 'nobody has needed a street'], 500:['500 PEOPLE', 'WHO IS PAYING FOR THIS'], 900:['900', 'still one room'] }
+const TILE_TOASTS = {
+  1:['THE FIRST TILE', 'it unfolds from the HQ, and it is the same floor'],
+  4:['FOUR SIDES', 'the garage is a room in an office now'],
+  8:['THE FIRST RING', 'the wall followed it out'],
+  16:['16 TILES', 'nobody has needed a street'],
+  24:['ONE FLOOR', '24 tiles. 0 seams. 0 streets.'],
+}
+const MILESTONES = { 100:['100 DEVELOPERS', 'the carpet has not met them all yet'], 500:['500 PEOPLE', 'WHO IS PAYING FOR THIS'] }
 let milestoneDone = new Set()
 function toast(a, b) { const t = $('toast'); t.innerHTML = a + '<small>' + b + '</small>'; t.classList.remove('go'); void t.offsetWidth; t.classList.add('go') }
 const fmt = (n) => n.toLocaleString('en-US')
 
-function open() {
-  if (opened) return
-  opened = true; openAt = clock; waveFired = false; wavePast = false
-  FLAPS.forEach((f, i) => { f.t = -i * STAGGER; f.landed = false; f.hinge.visible = false })
-  whoosh()
-  toast('THE WHOLE PLACE', 'one floor, one wave, no streets')
+/** Start tile `t` swinging, `delay` seconds from now. */
+function openTile(t, delay) {
+  t.opened = true; t.started = false; t.landed = false; t.ready = false; t.done = false; t.t = -delay; t.wave.value = -10
+  openedCount++
   $('stage').textContent = 'ONE FLOOR'
-  $('area').textContent = fmt(Math.round(2 * A * 2 * B))
+  $('tiles').textContent = openedCount; $('tilesOf').textContent = 'OF ' + TILES.length + ' TILES'
+  $('area').textContent = fmt(openedCount * W * D)
   refit()
 }
-/** Seat `n` more developers, nearest the HQ first. Before the floor is ready they wait in the lobby. */
-function hire(n) {
-  if (!opened) { open(); return }
-  queued += n
+/** Seat `n` more developers. Tiles open as they are needed (a burst opens several, a beat apart, each hung from the last). */
+function hire(n) { queued += Math.max(0, Math.min(n, TOTAL - hired - queued)) }
+function expand() {
+  const goal = Math.min(TOTAL, (Math.floor((hired + queued) / PER) + 1) * PER)
+  hire(goal - hired - queued)
 }
 function flushQueue() {
-  if (clock < readyAt) return
-  const n = Math.min(queued, TOTAL - hired)
-  if (n <= 0) { queued = 0; return }
-  // A batch lands a beat apart, as the garage's does; a very large one lands in at most half a second.
-  const gap = Math.min(.06, .6 / n)
-  for (let i = 0; i < n; i++) {
-    const s = order[hired++]
-    s.t0 = clock + i * gap; s.landed = false; young.push(s)
+  const want = Math.min(TOTAL, hired + queued)
+  if (want > hired) {
+    let delay = 0
+    const last = order[want - 1].tile.n
+    for (const t of TILES) if (t.n <= last && !t.opened) { openTile(t, delay); delay += CASCADE }
   }
-  queued = 0
-  refit()
+  // Seat whoever can be seated: a developer waits in the lobby until the tile their desk is in has finished rising.
+  const gap = Math.min(.05, .6 / Math.max(1, queued)); let i = 0
+  while (queued > 0 && hired < TOTAL && order[hired].tile.ready) {
+    const s = order[hired++]; s.t0 = clock + i * gap; s.landed = false; young.push(s); queued--; i++
+  }
+  if (i) refit()
+}
+function retractNeighbours(t) {
+  // The tile has begun to swing up from the dark: the walls that stood on the edges it shares come down into the floor.
+  for (const [side, [dx, dz]] of Object.entries(DIRS)) {
+    const nb = cellAt.get((t.ci + dx) + ',' + (t.cj + dz))
+    const w = nb?.walls[OPPOSITE[side]]
+    if (w && w.retractAt === null) w.retractAt = clock + .15
+  }
 }
 function reset() {
-  opened = false; waveFired = false; wavePast = false; hired = 0; queued = 0; autoClock = 0; readyAt = 0
-  WAVE.value = -10; milestoneDone = new Set(); young.length = 0
-  FLAPS.forEach((f) => { f.t = -1e9; f.hinge.visible = false })
+  hired = 0; queued = 0; openedCount = 0; landedCount = 0; autoClock = 0; autoAcc = 0
+  milestoneDone = new Set(); young.length = 0
+  for (const t of TILES) {
+    Object.assign(t, { opened:false, started:false, landed:false, ready:false, done:true, t:-1e9 }); t.wave.value = -10
+    t.hinge.visible = false; t.hinge.rotation.set(0, 0, 0); t.panel.scale.set(1, 1, 1)
+    for (const w of Object.values(t.walls)) { w.retractAt = null; w.group.scale.y = 1; w.group.visible = true }
+  }
   for (const s of allSeats) { s.t0 = Infinity; s.landed = false; writeSeat(s) }
   fx.forEach((e) => e.dispose()); fx.length = 0
-  $('stage').textContent = 'THE GARAGE'; $('area').textContent = '-'; $('of').textContent = 'DEVELOPERS'
+  $('stage').textContent = 'THE GARAGE'; $('area').textContent = '-'; $('tiles').textContent = '0'; $('tilesOf').textContent = 'TILES'; $('of').textContent = 'DEVELOPERS'
   userMul = 1; pan.x = pan.z = 0; refit()
 }
 
 function update(dt) {
   clock += dt; U.value = clock
-  // The opening and the wave.
-  if (opened) {
-    for (const f of FLAPS) {
-      if (f.t < UNFOLD + 2.5) { f.t += dt; writeFlap(f) }
-      if (!f.landed && f.t >= UNFOLD) { f.landed = true; landingFx(f) }
+  // The tiles: swing, slam, then their furniture rises in a wave away from the seam.
+  for (const t of TILES) {
+    if (!t.opened || t.done) continue
+    t.t += dt; writeTile(t)
+    if (!t.started && t.t >= 0) { t.started = true; retractNeighbours(t); whoosh() }
+    if (!t.landed && t.t >= UNFOLD) {
+      t.landed = true; landedCount++; landingFx(t)
+      if (TILE_TOASTS[landedCount]) { toast(...TILE_TOASTS[landedCount]) }
     }
-    const since = clock - openAt - WAVE_AT
-    if (since >= 0 && !waveFired) { waveFired = true; waveFx() }
-    if (!wavePast) { WAVE.value = since < 0 ? -10 : since * WAVE_SPEED - 2; if (WAVE.value > A + 14) { WAVE.value = 400; wavePast = true; readyAt = clock + .2 } }
+    if (!t.ready && t.t >= WAVE_START) {
+      t.wave.value = (t.t - WAVE_START) * WAVE_SPEED - 2
+      if (t.wave.value >= t.depth + 9) { t.wave.value = 400; t.ready = true }
+    }
+    if (t.ready && t.t > UNFOLD + 2.5) t.done = true
   }
-  if (wavePast) flushQueue()
+  // The walls that have been told to come down.
+  for (const t of TILES) for (const w of Object.values(t.walls)) {
+    if (w.retractAt === null || !w.group.visible) continue
+    const k = 1 - easeInOut(clamp01((clock - w.retractAt) / .5))
+    w.group.scale.y = Math.max(.001, k); if (k <= 0) w.group.visible = false
+  }
+  flushQueue()
 
   // Seats that are still arriving.
   for (let i = young.length - 1; i >= 0; i--) {
     const s = young[i]; writeSeat(s)
     if (clock - s.t0 > 1.4) young.splice(i, 1)
   }
-  for (const f of FLAPS) if (f.dirty) { f.desks.instanceMatrix.needsUpdate = f.screens.instanceMatrix.needsUpdate = f.people.instanceMatrix.needsUpdate = f.pads.instanceMatrix.needsUpdate = true; f.dirty = false }
+  for (const f of TILES) if (f.dirty) { f.desks.instanceMatrix.needsUpdate = f.screens.instanceMatrix.needsUpdate = f.people.instanceMatrix.needsUpdate = f.pads.instanceMatrix.needsUpdate = true; f.dirty = false }
 
-  // The autopilot: open after a moment, then hire at a rate that grows until the floor is full.
+  // The autopilot: hire at a rate that grows until the floor is full. Tiles open themselves as the hires need them.
   if (auto) {
     autoClock += dt
-    if (!opened && autoClock > 1.4) open()
-    if (wavePast && hired + queued < TOTAL) {
-      const e = clock - readyAt
-      const rate = 5 * Math.exp(Math.max(0, e) / 4.5)     // full in about 18 s: a trickle you can follow, then a stampede
-      autoAcc += rate * dt
+    if (autoClock > 1.4 && hired + queued < TOTAL) {
+      autoAcc += 6 * Math.exp((autoClock - 1.4) / 6) * dt
       const n = Math.floor(autoAcc); autoAcc -= n
       if (n) hire(n)
     }
@@ -595,15 +649,14 @@ function update(dt) {
   const shown = Math.round(devsShown)
   const el = $('devs')
   if (el.textContent !== fmt(shown)) { el.textContent = fmt(shown); el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 90) }
-  $('of').textContent = opened ? 'OF ' + fmt(HQ_HEADS + TOTAL) + ' SEATS' : 'DEVELOPERS'
+  $('of').textContent = openedCount ? 'OF ' + fmt(HQ_HEADS + TOTAL) + ' SEATS' : 'DEVELOPERS'
   for (const m of Object.keys(MILESTONES)) if (target >= +m && !milestoneDone.has(m)) { milestoneDone.add(m); toast(...MILESTONES[m]); note() }
-  if (hired >= TOTAL && !milestoneDone.has('full')) { milestoneDone.add('full'); toast(fmt(HQ_HEADS + TOTAL) + ' DEVELOPERS', 'one floor. one office. zero streets.'); note(); note() }
+  if (hired >= TOTAL && !milestoneDone.has('full') && !young.length) { milestoneDone.add('full'); toast(fmt(HQ_HEADS + TOTAL) + ' DEVELOPERS', 'one floor. one office. zero streets.'); note(); note() }
 
   fx.forEach((e) => { e.age += dt; e.tick(e, dt) })
   for (let i = fx.length - 1; i >= 0; i--) if (fx[i].age > fx[i].life) { fx[i].dispose(); fx.splice(i, 1) }
   applyCamera(dt)
 }
-let autoAcc = 0
 
 /* ------------------------------------------------------------------ controls */
 function syncButtons() {
@@ -611,8 +664,9 @@ function syncButtons() {
   ;['floor', 'people', 'hq'].forEach((v, i) => $('v' + i).classList.toggle('on', view === v))
 }
 function userAction(fn) { auto = false; syncButtons(); fn() }
-$('bHire').onclick = () => userAction(() => hire(1))
-$('bBurst').onclick = () => userAction(() => hire(100))
+$('bExpand').onclick = () => userAction(expand)
+$('bHire').onclick = () => userAction(() => hire(10))
+$('bBurst').onclick = () => userAction(() => { for (let i = 0; i < 6; i++) expand() })
 $('bFill').onclick = () => userAction(() => hire(TOTAL))
 $('bAuto').onclick = () => { auto = !auto; syncButtons() }
 $('bSound').onclick = () => { soundOn = !soundOn; if (soundOn) ensureAudio(); syncButtons() }
@@ -621,7 +675,8 @@ $('bReset').onclick = () => { reset(); auto = true; syncButtons() }
 addEventListener('keydown', (e) => {
   if (e.repeat && e.key !== ' ') return
   const k = e.key.toLowerCase()
-  if (k === ' ') { e.preventDefault(); $('bHire').onclick() }
+  if (k === ' ') { e.preventDefault(); $('bExpand').onclick() }
+  else if (k === 'h') $('bHire').onclick()
   else if (k === 'b') $('bBurst').onclick()
   else if (k === 'f') $('bFill').onclick()
   else if (k === 'a') $('bAuto').onclick()
@@ -636,13 +691,12 @@ addEventListener('resize', resize)
 resize(); syncButtons()
 cam.zoom = fitZoom; cam.cx = fitCentre.x; cam.cz = fitCentre.z
 
-// Seams for a headless run (loopback only, like every demo): ?t=<seconds> steps the clock, so a screenshot can be
-// taken at a known moment of the open without waiting on a real frame rate.
+// Seams for a headless run (loopback only, like every demo): ?manual stops the real-time loop and exposes a stepper, so
+// a screenshot can be taken at a known moment of an expansion without waiting on a real frame rate.
 const params = new URLSearchParams(location.search)
-const qs = (k) => params.has(k) ? +params.get(k) : null
 if (params.has('manual')) {
   window.__step = (s, h = 1 / 60) => { for (let t = 0; t < s; t += h) update(h); renderer.render(scene, camera) }
-  window.__demo = { hire, open, reset, setView, get state() { return { opened, hired, wave:WAVE.value, clock } } }
+  window.__demo = { hire, expand, reset, setView, get state() { return { opened:openedCount, landed:landedCount, hired, queued, clock } } }
   auto = false; syncButtons()
   renderer.render(scene, camera)
 } else {
