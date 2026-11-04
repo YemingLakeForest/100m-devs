@@ -334,9 +334,9 @@ export function formatCount(n: number): string {
  */
 export function scaleBar(devs: number, cameraRung?: number): string | null {
   // The unlocked lens may be inside one house in a studio of a billion.
-  if (cameraRung !== undefined) return cameraRung >= 5 ? '1 WORLD = 100M DEVS' : devs > GARAGE_CAP || cameraRung >= 3 ? '1 HOUSE = 100 DEVS' : null
+  if (cameraRung !== undefined) return cameraRung >= 5 ? '1 WORLD = 100M DEVS' : devs > GARAGE_CAP || cameraRung >= 3 ? '1 TILE = 100 DEVS' : null
   // §7.7.2: the first playable city replaces the lane stack through 1,800.
-  if (devs > GARAGE_CAP && devs <= 1800) return '1 HOUSE = 100 DEVS'
+  if (devs > GARAGE_CAP && devs <= 1800) return '1 TILE = 100 DEVS'
   const rung = drawnRungFor(devs)
   // Silent while one unit is one person: "1 PERSON = 1 DEVS" is noise.
   if (rung.unitSize <= 1) return null

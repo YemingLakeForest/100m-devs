@@ -2,8 +2,7 @@ import { RAMPS } from '../../art/palette.ts'
 import { mixHex, type PhosphorRamp } from '../../art/entropyTheme.ts'
 import { globeCell, regionHouses, regionPopulation, worldPopulation, WORLD_REGIONS, cityName, globeHub } from '../../sim/worldAddress.ts'
 import { monitorText } from './monitorText.ts'
-import { districtBlock, BLOCK_PITCH } from './cityGrid.ts'
-import type { CityImpostors } from './cityImpostors.ts'
+import { officeTile, tileAt, TILE_W, TILE_D } from './cityGrid.ts'
 import { planetHubs } from '../../sim/planetTerrain.ts'
 import { paintPlanet } from './planetSurface.ts'
 import { hqMarker, type HqWing } from '../../sim/hqLook.ts'
@@ -106,70 +105,66 @@ function pulse(f: AtlasFrame, x: number, y: number, first: number, end: number) 
   }
 }
 
-/** A district is the same converted workshops seen at a smaller scale. Streets,
- * roof variants and warm occupied windows survive the change in representation. */
-export function drawDistrict(f: AtlasFrame, sprites: CityImpostors): Caption | undefined {
+/** A district is the office seen from far enough that a tile is one flat slab of carpet: the same lattice the near
+ * scene lays (`officeTile`), edge to edge, no street or lot between (GDD 7.7.2, amended 2026-11-02). A slab is drawn,
+ * not baked, so nothing in this picture can disagree with the tile geometry; a glass edge is drawn only on a side with no
+ * occupied tile beyond it, as the near scene's wall stands only there. */
+export function drawDistrict(f: AtlasFrame): Caption | undefined {
   const { ctx, width, height, total, world, region, level, phosphor: p } = f
   const range = regionHouses(region), count = range.end - range.first, population = worldPopulation(total, world)
   const occupied = Math.max(0, Math.min(count, Math.ceil(population / 100) - range.first))
-  // Match the true-isometric near camera, including its 3 m streets. Zoom
-  // reveals more of the same grid, rather than fitting a separate board.
   const compact = height < 160
-  const bounds=Array.from({length:Math.max(1,occupied)},(_,i)=>districtBlock(i+1))
-  const xs=bounds.map(b=>(b.x-b.z)/BLOCK_PITCH),ys=bounds.map(b=>(b.x+b.z)/BLOCK_PITCH/Math.sqrt(3))
+  const bounds=Array.from({length:Math.max(1,occupied)},(_,i)=>officeTile(i+1))
+  const xs=bounds.map(b=>(b.x-b.z)/TILE_W),ys=bounds.map(b=>(b.x+b.z)/TILE_W/Math.sqrt(3))
   const fit=Math.min(width*(compact?.47:.60)/(Math.max(...xs)-Math.min(...xs)+3),height*(compact?.35:.56)/(Math.max(...ys)-Math.min(...ys)+3))
   const scale = Math.min(Math.min(width / (compact ? 38 : 24), height / (compact ? 25 : 16)) * Math.pow(2, 3.2-level),fit*Math.pow(2,3.7-level)) * (f.view?.zoom ?? 1)
   const centre = f.view?.centre ?? districtCentreAt(width, height, f.panX, f.panY)
   const cx=centre.x, cy=centre.y
-  const at=(i:number)=>{ const b=districtBlock(i); return { x:cx+(b.x-b.z)/BLOCK_PITCH*scale, y:cy+(b.x+b.z)/BLOCK_PITCH*scale/Math.sqrt(3), order:b.x+b.z } }
-  const drawWidth=sprites.worldWidth/(BLOCK_PITCH/Math.sqrt(2))*scale, drawHeight=drawWidth*sprites.height/sprites.width
+  // Tile centre and corner offsets in the near camera's isometric projection (a tile is TILE_W x TILE_D metres).
+  const iso=(x:number,z:number)=>({ x:cx+(x-z)/TILE_W*scale, y:cy+(x+z)/TILE_W*scale/Math.sqrt(3) })
+  const at=(i:number)=>{ const t=officeTile(i); return { ...iso(t.x,t.z), order:t.x+t.z, ix:t.ix, iz:t.iz } }
+  const halfW=TILE_W/2, halfD=TILE_D/2
   ctx.save();ctx.beginPath();ctx.rect(width*(compact?.25:.19),34,width*(compact?.5:.62),height*.78-34);ctx.clip()
-  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high'
-  const houses=Array.from({length:Math.min(count,occupied+8)},(_,i)=>({i,...at(i+1)})).sort((a,b)=>a.order-b.order)
-  // Broader pedestrian avenues connect the blocks into a campus. Furniture
-  // grows only along occupied rows, so expansion earns public space as well.
-  ctx.save();ctx.strokeStyle=N[2];ctx.lineWidth=Math.max(1,scale*.18)
-  const rows=new Map<number,typeof houses>()
-  for(const q of houses)if(q.i<occupied){const z=districtBlock(q.i+1).z;const row=rows.get(z)??[];row.push(q);rows.set(z,row)}
-  for(const row of rows.values()) {
-    row.sort((a,b)=>a.x-b.x)
-    for(let j=1;j<row.length;j++) {
-      const a=row[j-1],b=row[j]
-      if(b.x-a.x>scale*1.1) {
-        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()
-        const x=(a.x+b.x)/2,y=(a.y+b.y)/2
-        ctx.fillStyle=RAMPS.FOLIAGE[0];ctx.fillRect(Math.round(x-1),Math.round(y-1),2,2)
-      }
-    }
-  }
-  ctx.restore()
-  for(const q of houses) {
+  const tiles=Array.from({length:Math.min(count,occupied+8)},(_,i)=>({i,...at(i+1)})).sort((a,b)=>a.order-b.order)
+  const standing=(ix:number,iz:number)=>{ const k=tileAt(ix,iz); return k!==undefined&&k>=1&&k-1<occupied }
+  for(const q of tiles) {
     const house=range.first+q.i, fill=Math.max(0,Math.min(100,population-house*100))
-    if(q.x<-drawWidth||q.x>width+drawWidth||q.y<34||q.y>height*.79)continue
+    if(q.x<-scale*2||q.x>width+scale*2||q.y<34||q.y>height*.79)continue
+    const t=officeTile(q.i+1)
+    const corner=(dx:number,dz:number)=>iso(t.x+dx*halfW,t.z+dz*halfD)
+    const n=corner(-1,-1),e=corner(1,-1),s2=corner(1,1),w=corner(-1,1)
+    const slab=()=>{ ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(e.x,e.y);ctx.lineTo(s2.x,s2.y);ctx.lineTo(w.x,w.y);ctx.closePath() }
     if(!fill) {
-      ctx.globalAlpha=.3; line(ctx,[q.x-scale*.6,q.y],[q.x,q.y+scale*.35],N[3]); line(ctx,[q.x,q.y+scale*.35],[q.x+scale*.6,q.y],N[3]); ctx.globalAlpha=1
+      // An address not yet opened: the outline of the carpet it will unfold into.
+      ctx.globalAlpha=.3;ctx.strokeStyle=N[3];ctx.lineWidth=1;slab();ctx.stroke();ctx.globalAlpha=1
       continue
     }
     const first=world*1e8+house*100
-    const born=f.reduced?undefined:f.expansions.find(e=>e.from<=first&&e.to>first)
+    const born=f.reduced?undefined:f.expansions.find(e2=>e2.from<=first&&e2.to>first)
     const age=born?Math.max(0,f.seconds-born.at-(q.i%7)*.035):2
-    const lift=Math.pow(Math.max(0,1-age/.7),3)*13
-    ctx.drawImage(sprites.houses[house%3][Math.ceil(fill/25)],Math.round(q.x-drawWidth/2),Math.round(q.y-drawHeight/2-lift),Math.round(drawWidth),Math.round(drawHeight))
+    // A new tile swings up from its seam: the slab grows from 0 to its full depth, not a sprite falling in.
+    const open=Math.min(1,Math.max(0,age/.7)),grow=1-Math.pow(1-open,3)
+    ctx.save();ctx.translate(q.x,q.y);ctx.scale(1,.35+.65*grow);ctx.translate(-q.x,-q.y)
+    slab();ctx.fillStyle=N[2];ctx.fill()
+    // Desks fill from the seam as the hundred seats fill: one dot a seat-group, warm when the seat is taken.
+    const lit=Math.round(fill/100*20)
+    for(let d=0;d<20;d++){
+      const c=iso(t.x+((d%5)-2)*TILE_W/6,t.z+(Math.floor(d/5)-1.5)*TILE_D/4.4)
+      ctx.fillStyle=d<lit?A[3]:N[3];ctx.fillRect(Math.round(c.x-1),Math.round(c.y-.5),2,1)
+    }
+    // Glass only on sides with nothing open beyond them; the HQ (tile 0) is the heart, never a wall.
+    ctx.strokeStyle=p[2];ctx.lineWidth=Math.max(1,scale*.06)
+    const edge=(a:{x:number;y:number},b:{x:number;y:number})=>{ ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke() }
+    if(!standing(t.ix,t.iz-1)&&!(t.ix===0&&t.iz-1===0))edge(n,e)
+    if(!standing(t.ix+1,t.iz)&&!(t.ix+1===0&&t.iz===0))edge(e,s2)
+    if(!standing(t.ix,t.iz+1)&&!(t.ix===0&&t.iz+1===0))edge(s2,w)
+    if(!standing(t.ix-1,t.iz)&&!(t.ix-1===0&&t.iz===0))edge(w,n)
+    ctx.restore()
     f.points.push({x:q.x,y:q.y-2,id:house,depth:0})
     pulse(f,q.x,q.y,first,first+100)
-    // A completed group earns a street beacon at its actual outer address.
-    if(q.i%50===49&&fill===100) {
-      const x=q.x+scale*.8,y=q.y+scale*.2
-      line(ctx,[x,y],[x,y-4],N[4]);ctx.fillStyle=A[3];ctx.fillRect(Math.round(x-1),Math.round(y-4),2,1)
-    }
   }
   if(world===0&&region===0&&!f.view?.quiet) {
     drawHqMark(f,cx,cy,'HQ',p[2])
-  }
-  if(!f.reduced&&occupied>20)for(let car=0;car<Math.min(5,Math.floor(occupied/40));car++){
-    const index=1+Math.floor((f.seconds*.4+car*19)%occupied),q=at(index)
-    if(q.y<40||q.y>height*.75)continue
-    ctx.fillStyle=car%2?A[3]:p[2];ctx.fillRect(Math.round(q.x+scale*.5),Math.round(q.y+scale*.29),1,1)
   }
   ctx.restore()
   const voice=cityCaption({population:regionPopulation(total,world,region),total,occupied,offices:count,city:cityName(region,world).split(' / ')[0]})

@@ -13,7 +13,6 @@ import { hqWings, type HqWing } from '../../sim/hqLook.ts'
 import { headcountToReach, maxLensLevelFor } from '../../sim/headcount.ts'
 import { lockNote } from '../../sim/monitorVoice.ts'
 import type { HeroId } from '../../sim/storyHeroes.ts'
-import { bakeCityImpostors, type CityImpostors } from './cityImpostors.ts'
 
 /** The OS draws the studio once the physical desks are too small to read.
  * Canvas is sampled nearest through three's glass; marks share one pixel grid.
@@ -120,7 +119,6 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
     // the whole picture. Fine edges and in-world typography retain native detail.
     fragmentShader: 'uniform sampler2D near; uniform sampler2D far; uniform sampler2D words; uniform float wipe; varying vec2 uv0; void main(){vec4 room=texture2D(near,uv0); room.rgb=floor(room.rgb*64.+.5)/64.; float edge=1.-uv0.y; float blend=smoothstep(edge-.08,edge+.08,wipe*1.16-.08); vec4 far0=texture2D(far,uv0); vec4 ink=texture2D(words,uv0); far0.rgb=mix(far0.rgb,ink.rgb,ink.a); gl_FragColor=mix(room,far0,blend);}' })
   const quad = new T.Mesh(new T.PlaneGeometry(2, 2), shader); scene.add(quad)
-  let sprites: CityImpostors | null = null
   let wipe = 0
   const label = (s: string, x: number, y: number) => monitorText(ctx, s, x, y)
 
@@ -134,7 +132,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
    * and the pin — where the focus is on screen — is carried from the district's centre to wherever the planet
    * puts it at rest, so the landing is exactly the plain globe and nothing pops.
    */
-  function drawFlight(frame: AtlasFrame, u: number, cityKit: CityImpostors) {
+  function drawFlight(frame: AtlasFrame, u: number) {
     const pose = flightPose(u)
     const cell = globeCell(region, world), want = facing(cell)
     // Turned to the city by the time the planet is half there; handed back to the player's own turn only at the very end.
@@ -156,7 +154,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       g.setTransform(2, 0, 0, 2, 0, 0); g.clearRect(0, 0, width, height); g.font = '5px monospace'; g.lineWidth = 1
     }
     const globeCaption = drawGlobe({ ...frame, ctx: gctx, level: BRIDGE_TO, points: [], view: { quiet: true, radius, rasterRadius: base, centre } }, yawE, tiltE, -1)
-    const cityCaption = drawDistrict({ ...frame, ctx: cctx, level: BRIDGE_FROM, points: [], view: { quiet: true, zoom: pose.cityZoom, centre: pin } }, cityKit)
+    const cityCaption = drawDistrict({ ...frame, ctx: cctx, level: BRIDGE_FROM, points: [], view: { quiet: true, zoom: pose.cityZoom, centre: pin } })
 
     ctx.save()
     ctx.globalAlpha = pose.globeAlpha; ctx.drawImage(layerGlobe, 0, 0, width, height)
@@ -295,8 +293,8 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       const frame: AtlasFrame = { ctx, width, height, total, world, region, level: shown, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings, done }
       if (shown >= 6) drawNetwork(frame, net, chosen, territory, mask)
       else if (u >= 1) drawGlobe(frame, yaw, tilt, chosen)
-      else if (u <= 0) { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
-      else { sprites ??= bakeCityImpostors(renderer); drawFlight(frame, u, sprites) }
+      else if (u <= 0) drawDistrict(frame)
+      else drawFlight(frame, u)
       drawExpansionReceipt(frame)
       ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${shown >= 6 ? 'NETWORK' : u >= .5 ? 'COLONISATION' : cityName(region,world).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
       texture.needsUpdate = true; wordsTexture.needsUpdate = true

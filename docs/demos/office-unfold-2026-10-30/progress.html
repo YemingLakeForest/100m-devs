@@ -86,7 +86,7 @@ a { color:var(--calm2); }
 <table>
 <tr><th>ITEM</th><th>NOTE</th></tr>
 <tr><td class="open">The frame gate</td><td>See above. Re-run <code>npm run test:ui-frame</code> with other heavy programs closed.</td></tr>
-<tr><td class="open">The district rung</td><td>The atlas still bakes the old houses (<code>cityHouse.ts</code>, <code>cityImpostors.ts</code>) and the scale bar still reads <code>1 HOUSE = 100 DEVS</code> (<code>sim/headcount.ts</code>, pinned by tests). The picture one rung up still shows blocks and streets.</td></tr>
+<tr><td class="done">The district rung</td><td>Redrawn 2026-11-02: flat tiles on the tile lattice, glass edges only on open sides, no streets or cars; <code>cityHouse.ts</code> and <code>cityImpostors.ts</code> deleted; the scale bar reads <code>1 TILE = 100 DEVS</code>. Tests and types pass; the picture itself has not been looked at in a browser.</td></tr>
 <tr><td class="open">Layoff or liquidation</td><td>Tested (a layoff lifts the tile off and its neighbours' walls come back), not driven in a browser.</td></tr>
 <tr><td class="open">First tile sits behind the HQ's back wall</td><td>The game's address order puts it north; the demo opens south first. Changing it changes saved addresses.</td></tr>
 <tr><td class="open">Phone layout</td><td>Not looked at in the game; in the demo the button bar covers the bottom of the floor on a phone-size frame.</td></tr>
